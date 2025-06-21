@@ -1,0 +1,6 @@
+[submodule "EngineCode/ThirdParty/SDL"]
+	path = EngineCode/ThirdParty/SDL
+	url = https://github.com/libsdl-org/SDL.git
+[submodule "EngineCode/ThirdParty/VulkanMemoryAllocator"]
+	path = EngineCode/ThirdParty/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
