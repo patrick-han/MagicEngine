@@ -4,11 +4,13 @@
 #include "Swapchain.h"
 #include "GPUContext.h"
 #include "CompileTimeConstants.h"
+#include "Game.h"
+#include "Renderer.h"
 #include <SDL3/SDL.h>
 #include "ThirdParty/SDL/include/SDL3/SDL_vulkan.h"
 #include <iostream>
 
-#include "Game.h"
+
 
 namespace Magic
 {
@@ -33,7 +35,8 @@ void Application::Startup()
         {
             sdlExtensions[i] = sdlVulkanExtensions[i];
         }
-        m_gpuctx = std::make_unique<GPUContext>();
+        // m_gpuctx = std::make_unique<GPUContext>();
+        m_gpuctx = new GPUContext();
         m_gpuctx->Startup(sdlExtensions);
     }
 
@@ -48,14 +51,17 @@ void Application::Startup()
         , defaultWindow->GetWidth()
         , defaultWindow->GetHeight()));
 
+    // Renderer
+    m_rctx = new Renderer();
+    m_rctx->Startup(m_gpuctx, m_swapchains[Window::DEFAULT_WINDOW].get());
     // TODO: move this somewhere else, probably a Renderer class or a Camera class
-    m_gpuctx->outputWidth = defaultWindow->GetWidth();
-    m_gpuctx->outputHeight = defaultWindow->GetHeight();
+    m_rctx->outputWidth = defaultWindow->GetWidth();
+    m_rctx->outputHeight = defaultWindow->GetHeight();
 }
 
 void Application::Run(Game& game)
 {
-    game.PreInitialize(*m_gpuctx, *m_swapchains[Window::DEFAULT_WINDOW]);
+    game.PreInitialize(*m_rctx);
     game.Initialize();
     game.LoadContent();
 
@@ -99,12 +105,11 @@ void Application::Run(Game& game)
         }
 
         game.OnUpdate();
-        game.DoGPUWork(*m_gpuctx, *m_swapchains[Window::DEFAULT_WINDOW]);
-        game.OnRender();
+        game.Render(*m_rctx);
     }
     game.UnloadContent();
     game.Shutdown();
-    game.PostShutdown(*m_gpuctx);
+    game.PostShutdown(*m_rctx);
 }
 
 
@@ -119,7 +124,10 @@ void Application::Shutdown()
     {
         window.reset();
     }
+    m_rctx->Shutdown();
+    delete m_rctx;
     m_gpuctx->Shutdown();
+    delete m_gpuctx;
 }
 
 }

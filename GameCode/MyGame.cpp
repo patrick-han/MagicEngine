@@ -24,10 +24,6 @@ void MyGame::OnUpdate()
 {
     GameBase::OnUpdate();
 }
-void MyGame::OnRender()
-{
-
-}
 
 void MyGame::OnKeyPressed(KeyEventArgs keyEventArgs)
 {

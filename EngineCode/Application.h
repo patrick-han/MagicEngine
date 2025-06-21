@@ -2,6 +2,8 @@
 #include <memory>
 #include <vector>
 
+#include "Renderer.h"
+
 namespace Magic
 {
 class Window;
@@ -18,7 +20,8 @@ public:
     void Run(Game& Game);
     void Shutdown();
 private:
-    std::unique_ptr<GPUContext> m_gpuctx;
+    GPUContext* m_gpuctx;
+    Renderer* m_rctx;
     std::vector<std::unique_ptr<Window>> m_windows;
     std::vector<std::unique_ptr<Swapchain>> m_swapchains;
 };

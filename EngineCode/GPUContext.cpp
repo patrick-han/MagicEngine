@@ -60,7 +60,7 @@ void GPUContext::Startup(std::span<const char*> additionalExtensions)
 {
     // Specify application and engine info
     VkApplicationInfo appInfo = {
-        VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Magic Engine", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Engine", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_2};
+        VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Magic Engine", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Engine", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_3};
 
 
     std::vector<const char*> extensionsVector;
@@ -193,42 +193,11 @@ void GPUContext::Startup(std::span<const char*> additionalExtensions)
     {
         vkGetDeviceQueue(m_device, m_graphicsQueueFamilyIndex, 0, &m_graphicsQueue);
     }
-
-    // Per frame in flight stuff
-    for (auto & f : m_perFrameInFlightData)
-    {
-        // Command buffers and pools
-        VkCommandPoolCreateInfo commandPoolCreateInfo {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
-            , .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT // allows any command buffer allocated from a pool to be individually reset to the initial state; either by calling vkResetCommandBuffer, or via the implicit reset when calling vkBeginCommandBuffer.
-            , .queueFamilyIndex = m_graphicsQueueFamilyIndex
-        };
-        VK_CHECK(vkCreateCommandPool(m_device, &commandPoolCreateInfo, nullptr, &f.m_commandPool));
-        VkCommandBufferAllocateInfo cmdBufferAllocInfo {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
-            , .commandPool = f.m_commandPool
-            , .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
-            , .commandBufferCount = 1
-        };
-        VK_CHECK(vkAllocateCommandBuffers(m_device, &cmdBufferAllocInfo, &f.m_commandBuffer));
-
-        // Image acquire semaphores
-        VkSemaphoreCreateInfo createInfo = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        VK_CHECK(vkCreateSemaphore(m_device, &createInfo, nullptr, &f.m_imageReadySemaphore));
-    }
-
-   
-
     Logger::Info("Created RenderContext");
 }
 
 void GPUContext::Shutdown()
 {
-    for (auto & p : m_perFrameInFlightData)
-    {
-        vkDestroySemaphore(m_device, p.m_imageReadySemaphore, nullptr);
-        vkDestroyCommandPool(m_device, p.m_commandPool, nullptr);
-    }
     vmaDestroyAllocator(m_vmaAllocator);
     vkDestroyDevice(m_device, nullptr);
     DestroyDebugUtilsMessengerEXT(m_instance, m_debugMessenger, nullptr);

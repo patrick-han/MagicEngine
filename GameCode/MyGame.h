@@ -16,7 +16,6 @@ public:
     void UnloadContent() override;
     void Shutdown() override;
     void OnUpdate() override;
-    void OnRender() override;
     void OnKeyPressed(KeyEventArgs keyEventArgs) override;
 
 
