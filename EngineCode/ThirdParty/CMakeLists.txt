@@ -14,3 +14,7 @@ set(SDL_STATIC ON)
 set(SDL_SHARED OFF)
 add_subdirectory(SDL)
 target_link_libraries(ThirdPartyLibraries INTERFACE SDL3::SDL3)
+
+# Volk
+add_subdirectory(volk)
+target_link_libraries(ThirdPartyLibraries INTERFACE volk)

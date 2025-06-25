@@ -2,7 +2,6 @@
 #include "Renderer.h"
 #include "Vulkan/Helpers.h"
 #include "GPUContext.h"
-#include "Image.h"
 #include "Swapchain.h"
 #include <fstream>
 namespace Magic
@@ -21,20 +20,26 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
     // Per frame in flight stuff
     for (auto & f : m_perFrameInFlightData)
     {
+        VkCommandPool pool;
+        VkCommandBuffer cmdBuffer;
+
+
         // Command buffers and pools
         VkCommandPoolCreateInfo commandPoolCreateInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
             , .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT // allows any command buffer allocated from a pool to be individually reset to the initial state; either by calling vkResetCommandBuffer, or via the implicit reset when calling vkBeginCommandBuffer.
             , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
         };
-        VK_CHECK(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &f.m_commandPool));
+        VK_CHECK(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &pool));
         VkCommandBufferAllocateInfo cmdBufferAllocInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
-            , .commandPool = f.m_commandPool
+            , .commandPool = pool
             , .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
             , .commandBufferCount = 1
         };
-        VK_CHECK(vkAllocateCommandBuffers(device, &cmdBufferAllocInfo, &f.m_commandBuffer));
+        VK_CHECK(vkAllocateCommandBuffers(device, &cmdBufferAllocInfo, &cmdBuffer));
+
+        f.m_commandEncoder = CommandEncoder(cmdBuffer, pool);
 
         // Image acquire semaphores
         VkSemaphoreCreateInfo createInfo = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
@@ -82,10 +87,10 @@ void Renderer::BuildResources()
         VkExtent3D extent = {.width = static_cast<uint32_t>(outputWidth), .height = static_cast<uint32_t>(outputHeight), .depth = 1 };
         VkImageCreateInfo colorImageInfo = TEMP_image_create_info(VK_FORMAT_B8G8R8A8_UNORM, extent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_TYPE_2D);
         VmaAllocationCreateInfo vmaAllocInfo = {.usage = VMA_MEMORY_USAGE_GPU_ONLY, .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
-        VK_CHECK(vmaCreateImage(m_gpuctx->GetVmaAllocator(), &colorImageInfo, &vmaAllocInfo, &m_colorImage, &m_colorImageAllocation, nullptr));
+        VK_CHECK(vmaCreateImage(m_gpuctx->GetVmaAllocator(), &colorImageInfo, &vmaAllocInfo, &m_colorImage.image, &m_colorImage.allocation, nullptr));
 
-        VkImageViewCreateInfo colorImageViewInfo = DefaultImageViewCreateInfo(m_colorImage, VK_FORMAT_B8G8R8A8_UNORM, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
-        VK_CHECK(vkCreateImageView(device, &colorImageViewInfo, nullptr, &m_colorImageView));
+        VkImageViewCreateInfo colorImageViewInfo = DefaultImageViewCreateInfo(m_colorImage.image, VK_FORMAT_B8G8R8A8_UNORM, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
+        VK_CHECK(vkCreateImageView(device, &colorImageViewInfo, nullptr, &m_colorImage.view));
     }
 
     // Single timeline semaphore, shared between frames in flight
@@ -105,8 +110,8 @@ void Renderer::DestroyResources()
     vkDeviceWaitIdle(device);
     m_pipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
-    vkDestroyImageView(device, m_colorImageView, nullptr);
-    vmaDestroyImage(m_gpuctx->GetVmaAllocator(), m_colorImage, m_colorImageAllocation);
+    vkDestroyImageView(device, m_colorImage.view, nullptr);
+    vmaDestroyImage(m_gpuctx->GetVmaAllocator(), m_colorImage.image, m_colorImage.allocation);
 }
 
 void Renderer::DoWork(int frameNumber)
@@ -127,130 +132,51 @@ void Renderer::DoWork(int frameNumber)
 
 
 
-
-    VkCommandBuffer cmdBuf = frameData.m_commandBuffer;
-
-    // TODO
-    PFN_vkCmdBeginRenderingKHR vkCmdBeginRendering = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
-    PFN_vkCmdEndRenderingKHR vkCmdEndRendering = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
+    CommandEncoder cmdEncoder = frameData.m_commandEncoder;
 
     const Swapchain::SwapchainImageData swapchainImageData = m_swapchain->GetNextSwapchainImageData(frameData.m_imageReadySemaphore);
 
-    {
-        vkResetCommandBuffer(cmdBuf, {});
-        VkCommandBufferBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
-        vkBeginCommandBuffer(cmdBuf, &beginInfo);
-    }
-    {
-        auto imb = TEMP_create_image_memory_barrier(m_colorImage, VK_ACCESS_NONE, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        vkCmdPipelineBarrier(cmdBuf,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            {},
-            0, nullptr,
-            0, nullptr,
-            1, &imb
-        );
-    }
+
+    cmdEncoder.Reset();
+    cmdEncoder.Begin();
+
+    cmdEncoder.ImageBarrier(m_colorImage
+    , VK_ACCESS_NONE, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+    , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     {
         VkClearValue clearValue = {{{0.5f, 0.5f, 0.7f, 1.0f}}};
-        auto rai = TEMP_rendering_attachment_info(m_colorImageView, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &clearValue);
+        auto rai = TEMP_rendering_attachment_info(m_colorImage.view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &clearValue);
         auto ri = TEMP_rendering_info_fullscreen(1, &rai, nullptr, outputWidth, outputHeight);
-        vkCmdBeginRendering(cmdBuf, &ri);
-        const VkViewport DEFAULT_VIEWPORT_FULLSCREEN = { 0.0f, 0.0f, static_cast<float>(outputWidth), static_cast<float>(outputHeight), 0.0f, 1.0f };
-        const VkRect2D DEFAULT_SCISSOR_FULLSCREEN = { {0, 0}, {static_cast<uint32_t>(outputWidth), static_cast<uint32_t>(outputHeight)}};
-        vkCmdSetViewport(cmdBuf, 0, 1, &DEFAULT_VIEWPORT_FULLSCREEN);
-        vkCmdSetScissor(cmdBuf, 0, 1, &DEFAULT_SCISSOR_FULLSCREEN);
-        vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.GetPipelineHandle());
-        vkCmdDraw(cmdBuf, 3, 1, 0, 0);
-        vkCmdEndRendering(cmdBuf);
-    }
-    {
-        auto imb = TEMP_create_image_memory_barrier(m_colorImage, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-        vkCmdPipelineBarrier(cmdBuf,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            {},
-            0, nullptr,
-            0, nullptr,
-            1, &imb
-        );
 
-        auto imb2 = TEMP_create_image_memory_barrier(
-                    swapchainImageData.image,
-                    VK_ACCESS_NONE,
-                    VK_ACCESS_TRANSFER_WRITE_BIT,
-                    VK_IMAGE_LAYOUT_UNDEFINED,
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-                );
-        vkCmdPipelineBarrier(
-            cmdBuf,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            {},
-            0, nullptr,
-            0, nullptr,
-            1, &imb2
-        );
+        cmdEncoder.BeginRendering(ri);
+        cmdEncoder.SetViewport(outputWidth, outputHeight);
+        cmdEncoder.SetScissor(outputWidth, outputHeight);
+        cmdEncoder.BindGraphicsPipeline(m_pipeline.GetPipelineHandle());
+        cmdEncoder.Draw(3,1,0,0);
+        cmdEncoder.EndRendering();
     }
-    {
-        const VkImageCopy imageCopy= {
-            .srcSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1
-            },
-            .srcOffset = {
-                .x = 0,
-                .y = 0,
-                .z = 0
-            },
-            .dstSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1
-            },
-            .dstOffset = {
-                .x = 0,
-                .y = 0,
-                .z = 0
-            },
-            .extent = {
-                .width = static_cast<uint32_t>(outputWidth),
-                .height = static_cast<uint32_t>(outputHeight),
-                .depth = 1
-            }
-        };
+    cmdEncoder.ImageBarrier(m_colorImage
+    , VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT
+    , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
+    , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
-        vkCmdCopyImage(
-            cmdBuf,
-            m_colorImage,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            swapchainImageData.image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            &imageCopy
-        );
-    }
-    {
-        auto imb = TEMP_create_image_memory_barrier(
-                    swapchainImageData.image,
-                    VK_ACCESS_TRANSFER_WRITE_BIT,
-                    {},
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-                );
-        vkCmdPipelineBarrier(
-            cmdBuf,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-            {},
-            0, nullptr,
-            0, nullptr,
-            1, &imb
-        );
-    }
-    {
-        vkEndCommandBuffer(cmdBuf);
-    }
+    cmdEncoder.ImageBarrier(swapchainImageData.image
+        , VK_ACCESS_NONE, VK_ACCESS_TRANSFER_WRITE_BIT
+        , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
+        , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    cmdEncoder.CopyImageToImage(m_colorImage, swapchainImageData.image
+        , VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_ASPECT_COLOR_BIT
+        , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        , outputWidth, outputHeight);
+
+    cmdEncoder.ImageBarrier(swapchainImageData.image
+        , VK_ACCESS_TRANSFER_WRITE_BIT, {}
+        , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+    cmdEncoder.End();
 
     // Submit work
     {
@@ -268,6 +194,7 @@ void Renderer::DoWork(int frameNumber)
         };
         VkSemaphore semaphores[] = { m_timelineSemaphore, swapchainImageData.presentSemaphore };
         VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        VkCommandBuffer handle = cmdEncoder.Handle();
         VkSubmitInfo submitInfo{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .pNext = &timelineInfo,
@@ -275,15 +202,12 @@ void Renderer::DoWork(int frameNumber)
             .pWaitSemaphores = &frameData.m_imageReadySemaphore,
             .pWaitDstStageMask = &waitStage,
             .commandBufferCount = 1,
-            .pCommandBuffers = &cmdBuf,
+            .pCommandBuffers = &handle,
             .signalSemaphoreCount = 2,
             .pSignalSemaphores = semaphores
         };
         vkQueueSubmit(m_gpuctx->GetGraphicsQueue(), 1, &submitInfo, nullptr);
     }
-
-
-
 
     VkSwapchainKHR s = m_swapchain->GetSwapchainHandle();
     VkPresentInfoKHR presentInfo{
@@ -309,7 +233,7 @@ void Renderer::Shutdown()
     for (auto & p : m_perFrameInFlightData)
     {
         vkDestroySemaphore(device, p.m_imageReadySemaphore, nullptr);
-        vkDestroyCommandPool(device, p.m_commandPool, nullptr);
+        vkDestroyCommandPool(device, p.m_commandEncoder.Pool(), nullptr);
     }
 }
 

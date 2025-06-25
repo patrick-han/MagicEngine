@@ -58,6 +58,13 @@ static uint32_t FindGraphicsQueueFamilyIndex(VkPhysicalDevice physicalDevice)
 
 void GPUContext::Startup(std::span<const char*> additionalExtensions)
 {
+    if (volkInitialize() != VK_SUCCESS)
+    {
+        Logger::Err("Failed to initialize Volk!");
+        std::abort();
+    }
+
+
     // Specify application and engine info
     VkApplicationInfo appInfo = {
         VK_STRUCTURE_TYPE_APPLICATION_INFO, nullptr, "Magic Engine", VK_MAKE_API_VERSION(1, 0, 0, 0), "Magic Engine", VK_MAKE_API_VERSION(1, 0, 0, 0), VK_API_VERSION_1_3};
@@ -96,6 +103,7 @@ void GPUContext::Startup(std::span<const char*> additionalExtensions)
             extensionsVector.data()
         };
         VK_CHECK(vkCreateInstance(&instanceCreateInfo, nullptr, &m_instance));
+        volkLoadInstance(m_instance); // Load all Vulkan entrypoints
     }
 
     // Debug messenger
@@ -176,15 +184,21 @@ void GPUContext::Startup(std::span<const char*> additionalExtensions)
             , .ppEnabledExtensionNames = deviceExtensions.data()
         };
         VK_CHECK(vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device));
+        volkLoadDevice(m_device); // load device-related Vulkan entrypoints directly from the driver, restricts us to using a single device
     }
 
     // VMA
     {
+        VmaVulkanFunctions vulkanFunctions = {};
+        vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+        vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+
         VmaAllocatorCreateInfo allocatorInfo = {
             .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT
             , .physicalDevice = m_physicalDevice
             , .device = m_device
             , .instance = m_instance
+            , .pVulkanFunctions = &vulkanFunctions
             };
         VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator));
     }

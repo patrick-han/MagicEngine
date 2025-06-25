@@ -8,17 +8,6 @@ Game::Game() { }
 Game::~Game() { }
 
 
-void Game::PreInitialize(Renderer& rctx)
-{
-    rctx.BuildResources();
-}
-
-void Game::PostShutdown(Renderer&  rctx)
-{
-    rctx.DestroyResources();
-}
-
-
 void Game::OnUpdate()
 {
     m_frameNumber++;

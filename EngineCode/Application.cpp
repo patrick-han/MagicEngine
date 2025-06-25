@@ -54,14 +54,14 @@ void Application::Startup()
     // Renderer
     m_rctx = new Renderer();
     m_rctx->Startup(m_gpuctx, m_swapchains[Window::DEFAULT_WINDOW].get());
-    // TODO: move this somewhere else, probably a Renderer class or a Camera class
+    // TODO: move this somewhere else, probably a Camera class
     m_rctx->outputWidth = defaultWindow->GetWidth();
     m_rctx->outputHeight = defaultWindow->GetHeight();
 }
 
 void Application::Run(Game& game)
 {
-    game.PreInitialize(*m_rctx);
+    m_rctx->BuildResources();
     game.Initialize();
     game.LoadContent();
 
@@ -109,7 +109,7 @@ void Application::Run(Game& game)
     }
     game.UnloadContent();
     game.Shutdown();
-    game.PostShutdown(*m_rctx);
+    m_rctx->DestroyResources();
 }
 
 

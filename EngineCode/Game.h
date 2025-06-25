@@ -16,12 +16,10 @@ public:
 
 protected:
     friend class Application;
-    void PreInitialize(Renderer& rctx);
     void virtual Initialize() = 0;
     void virtual LoadContent() = 0;
     void virtual UnloadContent() = 0;
     void virtual Shutdown() = 0;
-    void PostShutdown(Renderer& rctx);
 
     void virtual OnUpdate();
     void Render(Renderer& rctx);

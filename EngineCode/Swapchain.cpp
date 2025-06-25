@@ -68,6 +68,7 @@ Swapchain::Swapchain(
     VK_CHECK(vkCreateSwapchainKHR(_device, &swapChainCreateInfo, nullptr, &m_swapchain));
 
     // Retrieve Swapchain images
+    std::vector<VkImage> m_swapchainImages;
     vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, nullptr); // We only specified a minimum during creation, need to query for the real number
     m_swapchainImages.resize(m_imageCount);
     vkGetSwapchainImagesKHR(m_device, m_swapchain, &m_imageCount, m_swapchainImages.data());
@@ -75,6 +76,8 @@ Swapchain::Swapchain(
 
     assert(m_imageCount >= g_kMaxFramesInFlight); // Need at least as many swapchain images as FiFs or the extra FiFs are useless
 
+    // And their views
+    std::vector<VkImageView> m_swapchainImageViews;
     m_swapchainImageViews.resize(m_swapchainImages.size());
     for (uint32_t i = 0; i < m_swapchainImageViews.size(); i++)
     {
@@ -86,14 +89,19 @@ Swapchain::Swapchain(
         VK_CHECK(vkCreateSemaphore(m_device, &createInfo, nullptr, &sem));
         m_presentSemaphores.push_back(sem);
     }
+
+    for (int i = 0; i < m_swapchainImages.size(); i++)
+    {
+        m_images.emplace_back(m_swapchainImages[i], m_swapchainImageViews[i]);
+    }
 }
 Swapchain::~Swapchain()
 {
     Logger::Info("Destroying swapchain");
-    for (uint32_t k = 0; k < m_swapchainImageViews.size(); k++)
+    for (uint32_t k = 0; k < m_images.size(); k++)
     {
         vkDestroySemaphore(m_device, m_presentSemaphores[k], nullptr);
-        vkDestroyImageView(m_device, m_swapchainImageViews[k], nullptr);
+        vkDestroyImageView(m_device, m_images[k].view, nullptr);
     }
     vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 }
@@ -109,6 +117,6 @@ Swapchain::SwapchainImageData Swapchain::GetNextSwapchainImageData(VkSemaphore s
         VK_NULL_HANDLE,         // no fence
         &imageIndex
     );
-    return {imageIndex, m_swapchainImages[imageIndex], m_presentSemaphores[imageIndex]};
+    return {imageIndex, m_images[imageIndex], m_presentSemaphores[imageIndex]};
 }
 }

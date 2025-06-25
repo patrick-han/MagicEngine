@@ -1,5 +1,6 @@
 #pragma once
 #include "Vulkan/Include.h"
+#include "Vulkan/VMAInclude.h"
 
 namespace Magic
 {
@@ -20,4 +21,15 @@ namespace Magic
     };
     return info;
 }
-}
+
+struct Image
+{
+    VkImage image = VK_NULL_HANDLE;
+    VkImageView view = VK_NULL_HANDLE;
+};
+
+struct AllocatedImage : public Image
+{
+    VmaAllocation allocation = VK_NULL_HANDLE;
+};
+};

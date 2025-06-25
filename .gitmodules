@@ -4,3 +4,6 @@
 [submodule "EngineCode/ThirdParty/VulkanMemoryAllocator"]
 	path = EngineCode/ThirdParty/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "EngineCode/ThirdParty/volk"]
+	path = EngineCode/ThirdParty/volk
+	url = git@github.com:zeux/volk.git

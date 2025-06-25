@@ -32,6 +32,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/GraphicsPipeline.h
         EngineCode/Renderer.cpp
         EngineCode/Renderer.h
+        EngineCode/CommandEncoder.cpp
+        EngineCode/CommandEncoder.h
 )
 
 

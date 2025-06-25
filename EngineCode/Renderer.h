@@ -5,10 +5,11 @@
 
 
 #include "GraphicsPipeline.h"
-#include "Vulkan/VMAInclude.h"
-#include <vector>
+#include "Image.h"
 
 #include <array>
+
+#include "CommandEncoder.h"
 
 namespace Magic
 {
@@ -26,8 +27,7 @@ public:
 
     struct PerFrameInFlightData
     {
-        VkCommandPool m_commandPool = VK_NULL_HANDLE;
-        VkCommandBuffer m_commandBuffer = VK_NULL_HANDLE;
+        CommandEncoder m_commandEncoder;
         uint64_t signalValue = 0;
         VkSemaphore m_imageReadySemaphore = VK_NULL_HANDLE;
     };
@@ -44,15 +44,13 @@ private:
     Swapchain* m_swapchain = nullptr;
 
     std::array<PerFrameInFlightData, g_kMaxFramesInFlight> m_perFrameInFlightData;
-
+    VkSemaphore m_timelineSemaphore = VK_NULL_HANDLE;
+    uint64_t m_timelineValue;
 
 
     GraphicsPipeline m_pipeline;
-    VkImage m_colorImage = VK_NULL_HANDLE;
-    VmaAllocation m_colorImageAllocation;
-    VkImageView m_colorImageView = VK_NULL_HANDLE;
-    VkSemaphore m_timelineSemaphore = VK_NULL_HANDLE;
-    uint64_t m_timelineValue;
+    AllocatedImage m_colorImage;
+
 };
 
 }

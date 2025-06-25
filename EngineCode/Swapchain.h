@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "Vulkan/Include.h"
+#include "Image.h"
 namespace Magic
 {
 
@@ -11,7 +12,8 @@ public:
     struct SwapchainImageData
     {
         uint32_t imageIndex;
-        VkImage image = VK_NULL_HANDLE;
+        // VkImage image = VK_NULL_HANDLE;
+        Image image;
         VkSemaphore presentSemaphore = VK_NULL_HANDLE;
     };
 
@@ -27,8 +29,7 @@ private:
     VkDevice m_device = VK_NULL_HANDLE;
     VkFormat m_format = VK_FORMAT_UNDEFINED;
     uint32_t m_imageCount = 0;
-    std::vector<VkImage> m_swapchainImages;
-    std::vector<VkImageView> m_swapchainImageViews;
+    std::vector<Image> m_images;
     std::vector<VkSemaphore> m_presentSemaphores;
 };
 
