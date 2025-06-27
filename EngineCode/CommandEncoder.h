@@ -4,6 +4,8 @@
 namespace Magic
 {
 class Image;
+class Buffer;
+class GraphicsPipeline;
 class CommandEncoder
 {
 public:
@@ -21,10 +23,16 @@ public:
     void SetViewport(int width, int height) const;
     void SetScissor(const VkRect2D& scissor) const;
     void SetScissor(int width, int height) const;
-    void BindGraphicsPipeline(VkPipeline pipeline) const;
+    void BindGraphicsPipeline(const GraphicsPipeline& pipeline) const;
     void BeginRendering(const VkRenderingInfoKHR& renderingInfo) const;
     void EndRendering() const;
+
+    void BindVertexBufferSimple(const Buffer &buffer) const;
+    void BindIndexBufferSimple(const Buffer& buffer) const;
+
     void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const;
+    void DrawIndexedSimple(uint32_t indexCount, uint32_t firstIndex) const;
+
     void ImageBarrier(
     const Image& image
     , VkAccessFlags srcAccessMask

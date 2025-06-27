@@ -7,3 +7,6 @@
 [submodule "EngineCode/ThirdParty/volk"]
 	path = EngineCode/ThirdParty/volk
 	url = git@github.com:zeux/volk.git
+[submodule "DataLibCode/ThirdParty/assimp"]
+	path = DataLibCode/ThirdParty/assimp
+	url = git@github.com:assimp/assimp.git

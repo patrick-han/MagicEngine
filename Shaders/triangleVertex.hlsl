@@ -1,29 +1,21 @@
 
+struct VSInput
+{
+    [[vk::location(0)]] float3 position : POSITION; // semantic matches vertex input layout
+    [[vk::location(1)]] float3 color    : COLOR;    // semantic matches vertex input layout
+};
+
 struct VSOutput
 {
     float4 position : SV_POSITION;
     float3 color : COLOR;
 };
 
-
-VSOutput main(uint vertexID : SV_VertexID)
+//VSOutput main(uint vertexID : SV_VertexID)
+VSOutput main(VSInput input)
 {
-    const float2 positions[3] =
-    {
-        float2( 0.0f, -0.5f),
-        float2( 0.5f,  0.5f),
-        float2(-0.5f,  0.5f)
-    };
-
-    const float3 colors[3] =
-        {
-        float3(1.0f, 0.0f, 0.0f),
-        float3(0.0f, 2.0f, 0.0f),
-        float3(0.0f, 0.0f, 3.0f)
-    };
-
     VSOutput output;
-    output.position = float4(positions[vertexID], 0.0f, 1.0f);
-    output.color = colors[vertexID];
+    output.position = float4(input.position, 1.0f);
+    output.color = input.color;
     return output;
 }

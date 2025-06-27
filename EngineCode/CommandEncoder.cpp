@@ -2,6 +2,8 @@
 
 #include "CommandEncoder.h"
 #include "Image.h"
+#include "Buffer.h"
+#include "GraphicsPipeline.h"
 
 namespace Magic
 {
@@ -48,9 +50,9 @@ void CommandEncoder::SetScissor(int width, int height) const
     vkCmdSetScissor(m_handle, 0, 1, &scissor);
 }
 
-void CommandEncoder::BindGraphicsPipeline(VkPipeline pipeline) const
+void CommandEncoder::BindGraphicsPipeline(const GraphicsPipeline& pipeline) const
 {
-    vkCmdBindPipeline(m_handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+    vkCmdBindPipeline(m_handle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.GetPipelineHandle());
 }
 
 void CommandEncoder::BeginRendering(const VkRenderingInfoKHR &renderingInfo) const
@@ -63,14 +65,31 @@ void CommandEncoder::EndRendering() const
     vkCmdEndRenderingKHR(m_handle);
 }
 
+void CommandEncoder::BindVertexBufferSimple(const Buffer &buffer) const
+{
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(m_handle, 0, 1, &buffer.buffer, &offset);
+}
+
+void CommandEncoder::BindIndexBufferSimple(const Buffer &buffer) const
+{
+    vkCmdBindIndexBuffer(m_handle, buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+}
+
 void CommandEncoder::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) const
 {
     vkCmdDraw(m_handle, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
+void CommandEncoder::DrawIndexedSimple(uint32_t indexCount, uint32_t firstIndex) const
+{
+    // Simple non instanced drawing to keep it clean for nows
+    vkCmdDrawIndexed(m_handle, indexCount, 1, firstIndex, 0, 0);
+}
+
 void CommandEncoder::ImageBarrier(const Image &image, VkAccessFlags srcAccessMask, VkAccessFlags dstAcccesMask,
-    VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageLayout oldLayout,
-    VkImageLayout newLayout, VkImageAspectFlags aspectFlags)
+                                  VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageLayout oldLayout,
+                                  VkImageLayout newLayout, VkImageAspectFlags aspectFlags)
 {
     VkImageMemoryBarrier imb = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,

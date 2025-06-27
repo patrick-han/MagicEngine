@@ -34,9 +34,21 @@ add_executable(MagicEngine main.cpp
         EngineCode/Renderer.h
         EngineCode/CommandEncoder.cpp
         EngineCode/CommandEncoder.h
+        EngineCode/Buffer.h
+        EngineCode/Math/Vector3f.cpp
+        EngineCode/Math/Vector3f.h
+        EngineCode/VertexDescriptors.h
 )
 
 
 find_package(Vulkan REQUIRED)
 add_subdirectory(EngineCode/ThirdParty)
 target_link_libraries(MagicEngine PRIVATE Vulkan::Vulkan ThirdPartyLibraries)
+
+
+# DataLib and DataCooker
+
+add_executable(DataCooker DataLibCode/main.cpp
+        DataLibCode/TestHeader.h)
+add_subdirectory(DataLibCode/ThirdParty)
+target_link_libraries(DataCooker PRIVATE DataLibThirdPartyLibraries)

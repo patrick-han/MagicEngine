@@ -14,10 +14,10 @@ GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetRenderingInfo(const VkPipel
     return *this;
 }
 
-// GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetVertexDescription(const VertexInputDescription& description) {
-//     m_vertexDescription = description;
-//     return *this;
-// }
+GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetVertexDescription(const VertexInputDescription& description) {
+    m_vertexDescription = description;
+    return *this;
+}
 
 // GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetPushConstantRanges(std::span<VkPushConstantRange const> ranges) {
 //     m_pushConstantRanges = ranges;
@@ -75,10 +75,10 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-        // .vertexBindingDescriptionCount = static_cast<uint32_t>(m_vertexDescription.bindings.size()),
-        // .pVertexBindingDescriptions = m_vertexDescription.bindings.data(),
-        // .vertexAttributeDescriptionCount = static_cast<uint32_t>(m_vertexDescription.attributes.size()),
-        // .pVertexAttributeDescriptions = m_vertexDescription.attributes.data()
+        .vertexBindingDescriptionCount = static_cast<uint32_t>(m_vertexDescription.bindings.size()),
+        .pVertexBindingDescriptions = m_vertexDescription.bindings.data(),
+        .vertexAttributeDescriptionCount = static_cast<uint32_t>(m_vertexDescription.attributes.size()),
+        .pVertexAttributeDescriptions = m_vertexDescription.attributes.data()
     };
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {

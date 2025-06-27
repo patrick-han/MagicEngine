@@ -1,5 +1,6 @@
 #pragma once
 #include "Vulkan/Include.h"
+#include "VertexDescriptors.h"
 #include <memory>
 namespace Magic
 {
@@ -10,7 +11,7 @@ class GraphicsPipelineBuilder {
 public:
     GraphicsPipelineBuilder();
     GraphicsPipelineBuilder& SetRenderingInfo(const VkPipelineRenderingCreateInfoKHR* info);
-    // GraphicsPipelineBuilder& SetVertexDescription(const VertexInputDescription& description);
+    GraphicsPipelineBuilder& SetVertexDescription(const VertexInputDescription& description);
     // GraphicsPipelineBuilder& SetPushConstantRanges(std::span<VkPushConstantRange const> ranges);
     // GraphicsPipelineBuilder& SetDescriptorSetLayouts(std::span<VkDescriptorSetLayout const> layouts);
     GraphicsPipelineBuilder& SetExtent(uint32_t width, uint32_t height);
@@ -26,7 +27,7 @@ private:
         // std::span<VkDescriptorSetLayout const> descriptorSetLayouts
     );
     VkPipelineRenderingCreateInfoKHR m_pipelineRenderingCreateInfo;
-    // VertexInputDescription m_vertexDescription;
+    VertexInputDescription m_vertexDescription;
     // std::span<VkPushConstantRange const> m_pushConstantRanges;
     // std::span<VkDescriptorSetLayout const> m_descriptorSetLayouts;
     VkExtent2D m_extent {0, 0};

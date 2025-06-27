@@ -3,13 +3,42 @@
 #include "Vulkan/Helpers.h"
 #include "GPUContext.h"
 #include "Swapchain.h"
+#include "VertexDescriptors.h"
 #include <fstream>
+#include <cassert>
 namespace Magic
 {
 
 Renderer::Renderer() { }
 
 Renderer::~Renderer() { }
+
+AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData, VkBufferUsageFlags usage)
+{
+    assert(bufferSize > 0);
+    VmaAllocator allocator = m_gpuctx->GetVmaAllocator();
+    VkBufferCreateInfo bufferCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO
+        , .size = bufferSize
+        , .usage = usage
+    };
+
+    // Let the VMA library know that this data should be writeable by CPU, but also readable by GPU
+    VmaAllocationCreateInfo vmaAllocInfo = { .usage = VMA_MEMORY_USAGE_CPU_TO_GPU };
+    AllocatedBuffer allocatedBuffer;
+    VK_CHECK(vmaCreateBuffer(allocator, &bufferCreateInfo, &vmaAllocInfo,
+        &allocatedBuffer.buffer,
+        &allocatedBuffer.allocation,
+        nullptr
+    ));
+
+    // Copy data into mapped memory
+    void* data;
+    vmaMapMemory(allocator, allocatedBuffer.allocation, &data);
+    memcpy(data, bufferData, bufferSize);
+    vmaUnmapMemory(allocator, allocatedBuffer.allocation);
+    return allocatedBuffer;
+}
 
 void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
 {
@@ -78,11 +107,33 @@ void Renderer::BuildResources()
     auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
     pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
     pipelineBuilder.SetExtent(outputWidth, outputHeight);
-    m_pipeline = pipelineBuilder.Build(device, vs_m, ps_m);
+    auto vd = SimpleVertexDescription();
+    pipelineBuilder.SetVertexDescription(vd);
+
+    pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
+
+    m_simplePipeline = pipelineBuilder.Build(device, vs_m, ps_m);
 
     vkDestroyShaderModule(device, vs_m, nullptr);
     vkDestroyShaderModule(device, ps_m, nullptr);
 
+    // Test triangle vertex buffer
+    {
+
+        std::vector<SimpleVertex> vertices;
+        SimpleVertex v1 = {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+        SimpleVertex v2 = {{0.5f,  0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}};
+        SimpleVertex v3 = {{-0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+        vertices.push_back(v1);
+        vertices.push_back(v2);
+        vertices.push_back(v3);
+        std::vector<uint32_t> indices = {0, 2, 1}; // CCW winding order is frontfacing for all graphics pipelines
+        m_triBuffer = UploadBuffer(sizeof(SimpleVertex) * vertices.size(), vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        m_triBufferIndices = UploadBuffer(sizeof(uint32_t) * indices.size(), indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    }
+
+
+    // Test color attachment
     {
         VkExtent3D extent = {.width = static_cast<uint32_t>(outputWidth), .height = static_cast<uint32_t>(outputHeight), .depth = 1 };
         VkImageCreateInfo colorImageInfo = TEMP_image_create_info(VK_FORMAT_B8G8R8A8_UNORM, extent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_TYPE_2D);
@@ -108,7 +159,11 @@ void Renderer::DestroyResources()
 {
     VkDevice device = m_gpuctx->GetDevice();
     vkDeviceWaitIdle(device);
-    m_pipeline.Destroy();
+
+    vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), m_triBufferIndices.buffer, m_triBufferIndices.allocation);
+    vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), m_triBuffer.buffer, m_triBuffer.allocation);
+
+    m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
     vkDestroyImageView(device, m_colorImage.view, nullptr);
     vmaDestroyImage(m_gpuctx->GetVmaAllocator(), m_colorImage.image, m_colorImage.allocation);
@@ -152,14 +207,16 @@ void Renderer::DoWork(int frameNumber)
         cmdEncoder.BeginRendering(ri);
         cmdEncoder.SetViewport(outputWidth, outputHeight);
         cmdEncoder.SetScissor(outputWidth, outputHeight);
-        cmdEncoder.BindGraphicsPipeline(m_pipeline.GetPipelineHandle());
-        cmdEncoder.Draw(3,1,0,0);
+        cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
+        cmdEncoder.BindVertexBufferSimple(m_triBuffer);
+        cmdEncoder.BindIndexBufferSimple(m_triBufferIndices);
+        cmdEncoder.DrawIndexedSimple(3, 0);
         cmdEncoder.EndRendering();
     }
     cmdEncoder.ImageBarrier(m_colorImage
-    , VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT
-    , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
-    , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        , VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT
+        , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
+        , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
     cmdEncoder.ImageBarrier(swapchainImageData.image
         , VK_ACCESS_NONE, VK_ACCESS_TRANSFER_WRITE_BIT

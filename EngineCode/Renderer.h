@@ -6,6 +6,7 @@
 
 #include "GraphicsPipeline.h"
 #include "Image.h"
+#include "Buffer.h"
 
 #include <array>
 
@@ -20,6 +21,8 @@ class Renderer
 public:
     Renderer();
     ~Renderer();
+
+    [[nodiscard]] AllocatedBuffer UploadBuffer(size_t bufferSize, const void* bufferData, VkBufferUsageFlags usage);
 
     void BuildResources();
     void DestroyResources();
@@ -48,8 +51,10 @@ private:
     uint64_t m_timelineValue;
 
 
-    GraphicsPipeline m_pipeline;
+    GraphicsPipeline m_simplePipeline;
     AllocatedImage m_colorImage;
+    AllocatedBuffer m_triBuffer;
+    AllocatedBuffer m_triBufferIndices;
 
 };
 
