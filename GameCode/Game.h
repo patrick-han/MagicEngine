@@ -1,5 +1,5 @@
 #pragma once
-#include "EventArgs.h"
+#include "../EngineCode/EventArgs.h"
 
 namespace Magic
 {
@@ -16,14 +16,14 @@ public:
 
 protected:
     friend class Application;
-    void virtual Initialize() = 0;
-    void virtual LoadContent() = 0;
-    void virtual UnloadContent() = 0;
-    void virtual Shutdown() = 0;
+    void Initialize();
+    void LoadContent();
+    void UnloadContent();
+    void Shutdown();
 
-    void virtual OnUpdate();
+    void OnUpdate();
     void Render(Renderer& rctx);
-    void virtual OnKeyPressed(KeyEventArgs keyEventArgs) = 0;
+    void OnKeyPressed(KeyEventArgs keyEventArgs);
 
 private:
     int m_frameNumber = 0;

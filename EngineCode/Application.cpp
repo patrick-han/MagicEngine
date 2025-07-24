@@ -1,19 +1,26 @@
 #include "Application.h"
-#include "Log.h"
+#include "../CommonCode/Log.h"
 #include "Window.h"
 #include "Swapchain.h"
 #include "GPUContext.h"
 #include "CompileTimeConstants.h"
-#include "Game.h"
+#include "../GameCode/Game.h"
 #include "Renderer.h"
 #include <SDL3/SDL.h>
 #include "ThirdParty/SDL/include/SDL3/SDL_vulkan.h"
 #include <iostream>
 
+#include "Camera.h"
 
 
 namespace Magic
 {
+
+// TODO:
+static float deltaTime = 0.0f; // Time between current and last frame
+static uint64_t lastFrameTick = 0;
+static uint64_t currentFrameTick = 0;
+//
 
 Application::Application() { }
 Application::~Application() { }
@@ -43,6 +50,11 @@ void Application::Startup()
     // Windows
     m_windows.push_back(std::make_unique<Window>("Magic Engine", 800, 600, m_gpuctx->GetInstance()));
     std::unique_ptr<Window>& defaultWindow = m_windows[Window::DEFAULT_WINDOW];
+
+    // TODO: temp
+    SDL_SetWindowRelativeMouseMode((SDL_Window*)defaultWindow->GetNativeWindowHandle(), true);
+    //
+
     m_swapchains.push_back(std::make_unique<Swapchain>(
         m_gpuctx->GetDevice()
         , m_gpuctx->GetPhysicalDevice()
@@ -64,44 +76,19 @@ void Application::Run(Game& game)
     m_rctx->BuildResources();
     game.Initialize();
     game.LoadContent();
-
-
-    SDL_Event sdlEvent;
-    bool bQuit = false;
-    while (!bQuit)
+    while (true)
     {
-        // Handle events on queue
-        while (SDL_PollEvent(&sdlEvent))
+        // Update delta time
         {
-            switch (sdlEvent.type)
-            {
-                case SDL_EVENT_QUIT:
-                {
-                    bQuit = true;
-                    break;
-                }
-                case SDL_EVENT_KEY_DOWN:
-                {
-                    if (sdlEvent.key.key == SDLK_ESCAPE) { bQuit = true; }
-                    else
-                    {
-                        // sdlEvent.key.scancode
-                        // KeyEventArgs keyEvent;
-                        // pGame->OnKeyPressed();
-                    }
-                    break;
-                }
-                case SDL_EVENT_WINDOW_RESIZED:
-                {
-                    int newWidth = sdlEvent.window.data1;
-                    int newHeight = sdlEvent.window.data2;
-                    Logger::Info(std::format("Window resized {}, {}", newWidth, newHeight));
-                    // pWindow->OnResize();
-                    break;
-                }
-                default:
-                    break;
-            }
+            lastFrameTick = currentFrameTick;
+            currentFrameTick = SDL_GetTicks();
+            deltaTime = (currentFrameTick - lastFrameTick) / 1000.f;
+        }
+
+
+        if(!HandleInput())
+        {
+            break; // Quit
         }
 
         game.OnUpdate();
@@ -130,4 +117,79 @@ void Application::Shutdown()
     delete m_gpuctx;
 }
 
+bool Application::HandleInput()
+{
+    // Handle events on queue
+    bool bQuit = false;
+    SDL_Event sdlEvent;
+    while (SDL_PollEvent(&sdlEvent))
+    {
+
+        switch (sdlEvent.type)
+        {
+            case SDL_EVENT_QUIT:
+            {
+                bQuit = true;
+                break;
+            }
+            case SDL_EVENT_KEY_DOWN:
+            {
+                if (sdlEvent.key.key == SDLK_ESCAPE) { bQuit = true; }
+                else
+                {
+                    // sdlEvent.key.scancode
+                    // KeyEventArgs keyEvent;
+                    // pGame->OnKeyPressed();
+
+                    // TODO: temp
+                    // m_rctx->MoveCamera()
+
+                }
+                break;
+            }
+            case SDL_EVENT_WINDOW_RESIZED:
+            {
+                int newWidth = sdlEvent.window.data1;
+                int newHeight = sdlEvent.window.data2;
+                Logger::Info(std::format("Window resized {}, {}", newWidth, newHeight));
+                // pWindow->OnResize();
+                break;
+            }
+            case SDL_EVENT_MOUSE_MOTION:
+            {
+                float xoffset = sdlEvent.motion.xrel;
+                float yoffset =  -sdlEvent.motion.yrel;
+                const float sensitivity = 0.1f;
+                xoffset *= sensitivity;
+                yoffset *= sensitivity;
+                m_rctx->m_camera->Rotate(xoffset, yoffset, true);
+            }
+            default:
+                break;
+        }
+    }
+
+    // TODO:
+    const bool* state = SDL_GetKeyboardState(nullptr);
+    float cameraSpeed = 20.0f;
+    if (state[SDL_SCANCODE_W]) {
+        m_rctx->m_camera->Move(Camera::CameraMovementDirection::FORWARD, cameraSpeed * deltaTime);
+    }
+    if (state[SDL_SCANCODE_S]) {
+        m_rctx->m_camera->Move(Camera::CameraMovementDirection::BACKWARD, cameraSpeed * deltaTime);
+    }
+    if (state[SDL_SCANCODE_A]) {
+        m_rctx->m_camera->Move(Camera::CameraMovementDirection::LEFT, cameraSpeed * deltaTime);
+    }
+    if (state[SDL_SCANCODE_D]) {
+        m_rctx->m_camera->Move(Camera::CameraMovementDirection::RIGHT, cameraSpeed * deltaTime);
+    }
+    if (state[SDL_SCANCODE_SPACE]) {
+        m_rctx->m_camera->Move(Camera::CameraMovementDirection::UP, cameraSpeed * deltaTime);
+    }
+    if (state[SDL_SCANCODE_LCTRL]) {
+        m_rctx->m_camera->Move(Camera::CameraMovementDirection::DOWN, cameraSpeed * deltaTime);
+    }
+    return !bQuit;
+}
 }

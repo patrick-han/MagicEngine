@@ -16,6 +16,7 @@ namespace Magic
 {
 class GPUContext;
 class Swapchain;
+class Camera;
 class Renderer
 {
 public:
@@ -50,11 +51,23 @@ private:
     VkSemaphore m_timelineSemaphore = VK_NULL_HANDLE;
     uint64_t m_timelineValue;
 
+public:
+    // TODO:
+    std::unique_ptr<Camera> m_camera;
+private:
+
+    // TODO:
+    std::vector<VkPushConstantRange> m_pushConstantRanges;
+    std::vector<SimpleVertex> m_vertices;
+    std::vector<uint32_t> m_indices;
+    AllocatedBuffer m_triBuffer;
+    AllocatedBuffer m_triBufferIndices;
+    //
+
 
     GraphicsPipeline m_simplePipeline;
     AllocatedImage m_colorImage;
-    AllocatedBuffer m_triBuffer;
-    AllocatedBuffer m_triBufferIndices;
+
 
 };
 

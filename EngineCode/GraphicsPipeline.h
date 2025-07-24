@@ -1,7 +1,7 @@
 #pragma once
 #include "Vulkan/Include.h"
 #include "VertexDescriptors.h"
-#include <memory>
+#include <span>
 namespace Magic
 {
 class GfxDevice;
@@ -12,7 +12,7 @@ public:
     GraphicsPipelineBuilder();
     GraphicsPipelineBuilder& SetRenderingInfo(const VkPipelineRenderingCreateInfoKHR* info);
     GraphicsPipelineBuilder& SetVertexDescription(const VertexInputDescription& description);
-    // GraphicsPipelineBuilder& SetPushConstantRanges(std::span<VkPushConstantRange const> ranges);
+    GraphicsPipelineBuilder& SetPushConstantRanges(std::span<VkPushConstantRange const> ranges);
     // GraphicsPipelineBuilder& SetDescriptorSetLayouts(std::span<VkDescriptorSetLayout const> layouts);
     GraphicsPipelineBuilder& SetExtent(uint32_t width, uint32_t height);
     GraphicsPipelineBuilder& SetBlendEnable(bool enable);
@@ -23,12 +23,12 @@ public:
     [[nodiscard]] GraphicsPipeline Build(VkDevice device, VkShaderModule vs, VkShaderModule ps);
 private:
     [[nodiscard]] static VkPipelineLayout CreatePipelineLayout(VkDevice device
-        // std::span<VkPushConstantRange const> pushConstantRanges,
+        , std::span<VkPushConstantRange const> pushConstantRanges
         // std::span<VkDescriptorSetLayout const> descriptorSetLayouts
     );
     VkPipelineRenderingCreateInfoKHR m_pipelineRenderingCreateInfo;
     VertexInputDescription m_vertexDescription;
-    // std::span<VkPushConstantRange const> m_pushConstantRanges;
+    std::span<VkPushConstantRange const> m_pushConstantRanges;
     // std::span<VkDescriptorSetLayout const> m_descriptorSetLayouts;
     VkExtent2D m_extent {0, 0};
     bool m_blendEnable = false;

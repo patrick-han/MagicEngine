@@ -7,23 +7,21 @@ add_executable(MagicEngine main.cpp
         EngineCode/Application.h
         EngineCode/Application.cpp
         EngineCode/Vulkan/Include.h
-        EngineCode/Log.h
-        EngineCode/Log.cpp
+        CommonCode/Log.h
+        CommonCode/Log.cpp
         EngineCode/Vulkan/Debug.h
         EngineCode/GPUContext.cpp
         EngineCode/GPUContext.h
         EngineCode/Window.cpp
         EngineCode/Window.h
         EngineCode/Vulkan/Extensions.h
-        EngineCode/Game.cpp
-        EngineCode/Game.h
+        GameCode/Game.cpp
+        GameCode/Game.h
         EngineCode/Vulkan/VMAInclude.h
         EngineCode/DisableWarnings.h
         EngineCode/Platform.h
         EngineCode/Swapchain.cpp
         EngineCode/Swapchain.h
-        GameCode/MyGame.cpp
-        GameCode/MyGame.h
         EngineCode/CompileTimeConstants.h
         EngineCode/Image.h
         EngineCode/Vulkan/Helpers.h
@@ -35,9 +33,19 @@ add_executable(MagicEngine main.cpp
         EngineCode/CommandEncoder.cpp
         EngineCode/CommandEncoder.h
         EngineCode/Buffer.h
-        EngineCode/Math/Vector3f.cpp
-        EngineCode/Math/Vector3f.h
+        CommonCode/Math/Vector3f.cpp
+        CommonCode/Math/Vector3f.h
         EngineCode/VertexDescriptors.h
+        CommonCode/Math/Matrix4f.h
+        CommonCode/Math/Matrix4f.cpp
+        CommonCode/Math/Vector4f.h
+        CommonCode/Math/Vector4f.cpp
+        EngineCode/Vertex.h
+        EngineCode/Mesh.h
+        EngineCode/Model.h
+        EngineCode/Camera.cpp
+        EngineCode/Camera.h
+        CommonCode/Math/Math.h
 )
 
 
@@ -45,10 +53,5 @@ find_package(Vulkan REQUIRED)
 add_subdirectory(EngineCode/ThirdParty)
 target_link_libraries(MagicEngine PRIVATE Vulkan::Vulkan ThirdPartyLibraries)
 
-
 # DataLib and DataCooker
-
-add_executable(DataCooker DataLibCode/main.cpp
-        DataLibCode/TestHeader.h)
-add_subdirectory(DataLibCode/ThirdParty)
-target_link_libraries(DataCooker PRIVATE DataLibThirdPartyLibraries)
+add_subdirectory(DataLibCode)

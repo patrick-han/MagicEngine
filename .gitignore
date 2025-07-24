@@ -1,2 +1,11 @@
 .idea
 .vscode
+.DS_Store
+
+DataLibCode/damaged-helmet
+DataLibCode/sponza
+DataLibCode/multiple-scenes
+DataLibCode/beautiful-game
+DataLibCode/orientation
+DataLibCode/*.bin
+xcode-build

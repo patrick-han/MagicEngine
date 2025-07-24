@@ -19,10 +19,10 @@ GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetVertexDescription(const Ver
     return *this;
 }
 
-// GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetPushConstantRanges(std::span<VkPushConstantRange const> ranges) {
-//     m_pushConstantRanges = ranges;
-//     return *this;
-// }
+GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetPushConstantRanges(std::span<VkPushConstantRange const> ranges) {
+    m_pushConstantRanges = ranges;
+    return *this;
+}
 //
 // GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetDescriptorSetLayouts(std::span<VkDescriptorSetLayout const> layouts) {
 //     m_descriptorSetLayouts = layouts;
@@ -174,7 +174,7 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
-    VkPipelineLayout pipelineLayout = CreatePipelineLayout(device);
+    VkPipelineLayout pipelineLayout = CreatePipelineLayout(device, m_pushConstantRanges);
 
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
         VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -207,7 +207,7 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
 
 VkPipelineLayout GraphicsPipelineBuilder::CreatePipelineLayout(
     VkDevice device
-    // std::span<VkPushConstantRange const> pushConstantRanges,
+    , std::span<VkPushConstantRange const> pushConstantRanges
     // std::span<VkDescriptorSetLayout const> descriptorSetLayouts
     ) {
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
@@ -216,8 +216,8 @@ VkPipelineLayout GraphicsPipelineBuilder::CreatePipelineLayout(
     // pipelineLayoutCreateInfo.flags = {};
     // pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
     // pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts.data();
-    // pipelineLayoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
-    // pipelineLayoutCreateInfo.pPushConstantRanges = pushConstantRanges.data();
+    pipelineLayoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
+    pipelineLayoutCreateInfo.pPushConstantRanges = pushConstantRanges.data();
 
     VkPipelineLayout pipelineLayout;
     vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);

@@ -4,8 +4,12 @@
 #include "GPUContext.h"
 #include "Swapchain.h"
 #include "VertexDescriptors.h"
+#include "Camera.h"
 #include <fstream>
 #include <cassert>
+
+#include "../DataLibCode/Data.h" // TODO: find better organization for this maebbe
+
 namespace Magic
 {
 
@@ -87,6 +91,13 @@ static std::vector<char> readFileBytes(const std::string& filename) {
     return buffer;
 }
 
+// TODO: temp
+struct DefaultPushConstants {
+    Matrix4f model;
+    Matrix4f viewProjection;
+};
+//
+
 void Renderer::BuildResources()
 {
     // Can be deferred later TODO
@@ -112,24 +123,52 @@ void Renderer::BuildResources()
 
     pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
 
+    {
+
+        VkPushConstantRange defaultPushConstantRange = {
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            .offset = 0,
+            .size = sizeof(DefaultPushConstants)
+        };
+        m_pushConstantRanges.push_back(defaultPushConstantRange);
+        pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
+    }
+
     m_simplePipeline = pipelineBuilder.Build(device, vs_m, ps_m);
 
     vkDestroyShaderModule(device, vs_m, nullptr);
     vkDestroyShaderModule(device, ps_m, nullptr);
 
+    {
+        m_camera = std::make_unique<Camera>(Vector3f(0.0f, 0.0f, 0.0f), Vector3f(0.0f, 0.0f, 1.0f));
+    }
+
     // Test triangle vertex buffer
     {
+        // SimpleVertex v1 = {{1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+        // SimpleVertex v2 = {{0.0f,  1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
+        // SimpleVertex v3 = {{-1.0f,  -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+        // m_vertices.push_back(v1);
+        // m_vertices.push_back(v2);
+        // m_vertices.push_back(v3);
+        // m_indices = {0, 2, 1}; // CCW winding order is frontfacing for all graphics pipelines
+        // m_triBuffer = UploadBuffer(sizeof(SimpleVertex) * vertices.size(), vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        // m_triBufferIndices = UploadBuffer(sizeof(uint32_t) * indices.size(), indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    }
 
-        std::vector<SimpleVertex> vertices;
-        SimpleVertex v1 = {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}};
-        SimpleVertex v2 = {{0.5f,  0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}};
-        SimpleVertex v3 = {{-0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}};
-        vertices.push_back(v1);
-        vertices.push_back(v2);
-        vertices.push_back(v3);
-        std::vector<uint32_t> indices = {0, 2, 1}; // CCW winding order is frontfacing for all graphics pipelines
-        m_triBuffer = UploadBuffer(sizeof(SimpleVertex) * vertices.size(), vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-        m_triBufferIndices = UploadBuffer(sizeof(uint32_t) * indices.size(), indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    // Custom model
+    {
+        auto testMesh = Data::DeserializeModelData("../DataLibCode/helmet.bin");
+        m_vertices = testMesh.m_meshes[0].m_vertices;
+        m_indices = testMesh.m_meshes[0].m_indices;
+        for (uint32_t i = 1; i < testMesh.m_meshes.size(); i++)
+        {
+            m_vertices.insert(m_vertices.end(), testMesh.m_meshes[i].m_vertices.begin(), testMesh.m_meshes[i].m_vertices.end());
+            m_indices.insert(m_indices.end(), testMesh.m_meshes[i].m_indices.begin(), testMesh.m_meshes[i].m_indices.end());
+        }
+        m_triBuffer = UploadBuffer(sizeof(SimpleVertex) * m_vertices.size(), m_vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        m_triBufferIndices = UploadBuffer(sizeof(uint32_t) * m_indices.size(), m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+        Logger::Info("Loaded helmet model");
     }
 
 
@@ -171,6 +210,13 @@ void Renderer::DestroyResources()
 
 void Renderer::DoWork(int frameNumber)
 {
+    // TODO: temp
+    {
+        // m_camera->PrintDebug(false, true, false);
+    }
+    //
+
+
     PerFrameInFlightData frameData = GetFrameInFlightData(frameNumber);
     VkDevice device = m_gpuctx->GetDevice();
 
@@ -210,7 +256,18 @@ void Renderer::DoWork(int frameNumber)
         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
         cmdEncoder.BindVertexBufferSimple(m_triBuffer);
         cmdEncoder.BindIndexBufferSimple(m_triBufferIndices);
-        cmdEncoder.DrawIndexedSimple(3, 0);
+
+        // TODO TEMP:
+        {
+            DefaultPushConstants pushConstants;
+            pushConstants.model = Matrix4f::MakeScale(10.0f);
+            pushConstants.viewProjection = m_camera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * m_camera->GetViewMatrix();
+            vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
+        }
+        //
+
+
+        cmdEncoder.DrawIndexedSimple(m_indices.size(), 0);
         cmdEncoder.EndRendering();
     }
     cmdEncoder.ImageBarrier(m_colorImage

@@ -1,17 +1,10 @@
 #pragma once
 #include "Vulkan/Include.h"
-#include "Math/Vector3f.h"
+#include "Vertex.h"
 #include <vector>
 
 namespace Magic
 {
-
-
-struct SimpleVertex
-{
-    Vector3f position;
-    Vector3f color;
-};
 
 /*
 * A description that includes:
