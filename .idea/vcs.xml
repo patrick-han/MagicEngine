@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/DataLibCode/ThirdParty/assimp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/EngineCode/ThirdParty/SDL" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/EngineCode/ThirdParty/VulkanMemoryAllocator" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/EngineCode/ThirdParty/volk" vcs="Git" />
+  </component>
+</project>

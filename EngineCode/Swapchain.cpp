@@ -1,5 +1,5 @@
 #include "Swapchain.h"
-#include "../CommonCode/Log.h"
+#include "Common/Log.h"
 #include "CompileTimeConstants.h"
 #include "Vulkan/Helpers.h"
 #include "Image.h"

@@ -1,6 +1,6 @@
 #pragma once
-#include "../CommonCode/Math/Matrix4f.h"
-#include "../CommonCode/Math/Vector3f.h"
+#include "Common/Math/Matrix4f.h"
+#include "Common/Math/Vector3f.h"
 
 // +X left
 // +Y up

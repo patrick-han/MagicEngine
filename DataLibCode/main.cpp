@@ -1,7 +1,7 @@
 #include "Import.h"
 #include "Data.h"
-#include "../CommonCode/Log.h"
-#include "../CommonCode/Math/Matrix4f.h"
+#include "../EngineCode/Common/Log.h"
+#include "../EngineCode/Common/Math/Matrix4f.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>

@@ -1,6 +1,6 @@
 #include "Game.h"
 #include "../EngineCode/Renderer.h"
-#include "../CommonCode/Log.h"
+#include "../EngineCode/Common/Log.h"
 
 namespace Magic
 {

@@ -7,8 +7,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/Application.h
         EngineCode/Application.cpp
         EngineCode/Vulkan/Include.h
-        CommonCode/Log.h
-        CommonCode/Log.cpp
+        EngineCode/Common/Log.h
+        EngineCode/Common/Log.cpp
         EngineCode/Vulkan/Debug.h
         EngineCode/GPUContext.cpp
         EngineCode/GPUContext.h
@@ -33,19 +33,19 @@ add_executable(MagicEngine main.cpp
         EngineCode/CommandEncoder.cpp
         EngineCode/CommandEncoder.h
         EngineCode/Buffer.h
-        CommonCode/Math/Vector3f.cpp
-        CommonCode/Math/Vector3f.h
+        EngineCode/Common/Math/Vector3f.cpp
+        EngineCode/Common/Math/Vector3f.h
         EngineCode/VertexDescriptors.h
-        CommonCode/Math/Matrix4f.h
-        CommonCode/Math/Matrix4f.cpp
-        CommonCode/Math/Vector4f.h
-        CommonCode/Math/Vector4f.cpp
+        EngineCode/Common/Math/Matrix4f.h
+        EngineCode/Common/Math/Matrix4f.cpp
+        EngineCode/Common/Math/Vector4f.h
+        EngineCode/Common/Math/Vector4f.cpp
         EngineCode/Vertex.h
         EngineCode/Mesh.h
         EngineCode/Model.h
         EngineCode/Camera.cpp
         EngineCode/Camera.h
-        CommonCode/Math/Math.h
+        EngineCode/Common/Math/Math.h
 )
 
 

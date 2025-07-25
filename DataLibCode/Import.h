@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
-#include "../CommonCode/Math/Vector3f.h"
-#include "../CommonCode/Math/Matrix4f.h"
+#include "../EngineCode/Common/Math/Vector3f.h"
+#include "../EngineCode/Common/Math/Matrix4f.h"
 #include "Data.h"
 #include <assimp/scene.h>
 
