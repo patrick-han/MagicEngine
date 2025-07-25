@@ -3,8 +3,8 @@
 
 namespace Magic
 {
-class Image;
-class Buffer;
+struct Image;
+struct Buffer;
 class GraphicsPipeline;
 class CommandEncoder
 {

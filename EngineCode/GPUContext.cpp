@@ -197,8 +197,8 @@ void GPUContext::Startup(std::span<const char*> additionalExtensions)
             .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT
             , .physicalDevice = m_physicalDevice
             , .device = m_device
-            , .instance = m_instance
             , .pVulkanFunctions = &vulkanFunctions
+            , .instance = m_instance
             };
         VK_CHECK(vmaCreateAllocator(&allocatorInfo, &m_vmaAllocator));
     }

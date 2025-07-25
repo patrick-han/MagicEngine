@@ -7,6 +7,7 @@
 #include "Camera.h"
 #include <fstream>
 #include <cassert>
+#include "CommandEncoder.h"
 
 #include "../DataLibCode/Data.h" // TODO: find better organization for this maebbe
 

@@ -48,10 +48,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/Common/Math/Math.h
 )
 
-
-find_package(Vulkan REQUIRED)
 add_subdirectory(EngineCode/ThirdParty)
-target_link_libraries(MagicEngine PRIVATE Vulkan::Vulkan ThirdPartyLibraries)
+target_link_libraries(MagicEngine PRIVATE ThirdPartyLibraries)
 
 # DataLib and DataCooker
 add_subdirectory(DataLibCode)

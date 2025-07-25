@@ -12,6 +12,8 @@
 
 #include "CommandEncoder.h"
 
+#include <memory>
+
 namespace Magic
 {
 class GPUContext;
@@ -49,7 +51,7 @@ private:
 
     std::array<PerFrameInFlightData, g_kMaxFramesInFlight> m_perFrameInFlightData;
     VkSemaphore m_timelineSemaphore = VK_NULL_HANDLE;
-    uint64_t m_timelineValue;
+    uint64_t m_timelineValue = 0;
 
 public:
     // TODO:
