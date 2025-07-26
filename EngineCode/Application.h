@@ -10,6 +10,7 @@ class Window;
 class GPUContext;
 class Game;
 class Swapchain;
+class InputState;
 
 class Application
 {
@@ -20,10 +21,11 @@ public:
     void Run(Game& Game);
     void Shutdown();
 private:
-    bool HandleInput();
+    bool HandleInput(InputState& inputState);
     GPUContext* m_gpuctx;
     Renderer* m_rctx;
     std::vector<std::unique_ptr<Window>> m_windows;
     std::vector<std::unique_ptr<Swapchain>> m_swapchains;
+    int m_frameNumber = 0;
 };
 }

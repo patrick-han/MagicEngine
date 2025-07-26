@@ -1,9 +1,11 @@
 #pragma once
-#include "../EngineCode/EventArgs.h"
+#include <memory>
+#include "../EngineCode/RenderingInfo.h"
 
 namespace Magic
 {
-class Renderer;
+class Camera;
+struct InputState;
 class Game
 {
 public:
@@ -20,13 +22,10 @@ protected:
     void LoadContent();
     void UnloadContent();
     void Shutdown();
-
-    void OnUpdate();
-    void Render(Renderer& rctx);
-    void OnKeyPressed(KeyEventArgs keyEventArgs);
-
+    void Update(const InputState& inputState, float deltaTime);
+    [[nodiscard]] RenderingInfo GetRenderingInfo();
 private:
-    int m_frameNumber = 0;
+    std::unique_ptr<Camera> m_camera;
 };
 
 }

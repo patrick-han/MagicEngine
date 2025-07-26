@@ -4,13 +4,12 @@
 #include "Swapchain.h"
 #include "GPUContext.h"
 #include "CompileTimeConstants.h"
-#include "../GameCode/Game.h"
 #include "Renderer.h"
 #include <SDL3/SDL.h>
 #include "ThirdParty/SDL/include/SDL3/SDL_vulkan.h"
 #include <iostream>
-
-#include "Camera.h"
+#include "Input.h"
+#include "../GameCode/Game.h"
 
 
 namespace Magic
@@ -85,14 +84,16 @@ void Application::Run(Game& game)
             deltaTime = (currentFrameTick - lastFrameTick) / 1000.f;
         }
 
-
-        if(!HandleInput())
+        InputState inputState;
+        if(!HandleInput(inputState))
         {
             break; // Quit
         }
 
-        game.OnUpdate();
-        game.Render(*m_rctx);
+        game.Update(inputState, deltaTime);
+        RenderingInfo renderingInfo = game.GetRenderingInfo();
+        m_rctx->DoWork(m_frameNumber, renderingInfo);
+        m_frameNumber++;
     }
     game.UnloadContent();
     game.Shutdown();
@@ -117,7 +118,7 @@ void Application::Shutdown()
     delete m_gpuctx;
 }
 
-bool Application::HandleInput()
+bool Application::HandleInput(InputState& inputState)
 {
     // Handle events on queue
     bool bQuit = false;
@@ -135,16 +136,6 @@ bool Application::HandleInput()
             case SDL_EVENT_KEY_DOWN:
             {
                 if (sdlEvent.key.key == SDLK_ESCAPE) { bQuit = true; }
-                else
-                {
-                    // sdlEvent.key.scancode
-                    // KeyEventArgs keyEvent;
-                    // pGame->OnKeyPressed();
-
-                    // TODO: temp
-                    // m_rctx->MoveCamera()
-
-                }
                 break;
             }
             case SDL_EVENT_WINDOW_RESIZED:
@@ -162,34 +153,14 @@ bool Application::HandleInput()
                 const float sensitivity = 0.1f;
                 xoffset *= sensitivity;
                 yoffset *= sensitivity;
-                m_rctx->m_camera->Rotate(xoffset, yoffset, true);
+                inputState.mouseXOffset = xoffset;
+                inputState.mouseYOffset = yoffset;
             }
             default:
                 break;
         }
     }
-
-    // TODO:
-    const bool* state = SDL_GetKeyboardState(nullptr);
-    float cameraSpeed = 20.0f;
-    if (state[SDL_SCANCODE_W]) {
-        m_rctx->m_camera->Move(Camera::CameraMovementDirection::FORWARD, cameraSpeed * deltaTime);
-    }
-    if (state[SDL_SCANCODE_S]) {
-        m_rctx->m_camera->Move(Camera::CameraMovementDirection::BACKWARD, cameraSpeed * deltaTime);
-    }
-    if (state[SDL_SCANCODE_A]) {
-        m_rctx->m_camera->Move(Camera::CameraMovementDirection::LEFT, cameraSpeed * deltaTime);
-    }
-    if (state[SDL_SCANCODE_D]) {
-        m_rctx->m_camera->Move(Camera::CameraMovementDirection::RIGHT, cameraSpeed * deltaTime);
-    }
-    if (state[SDL_SCANCODE_SPACE]) {
-        m_rctx->m_camera->Move(Camera::CameraMovementDirection::UP, cameraSpeed * deltaTime);
-    }
-    if (state[SDL_SCANCODE_LCTRL]) {
-        m_rctx->m_camera->Move(Camera::CameraMovementDirection::DOWN, cameraSpeed * deltaTime);
-    }
+    inputState.keyState = SDL_GetKeyboardState(nullptr);
     return !bQuit;
 }
 }

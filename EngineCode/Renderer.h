@@ -14,6 +14,8 @@
 
 #include <memory>
 
+#include "RenderingInfo.h"
+
 namespace Magic
 {
 class GPUContext;
@@ -29,7 +31,7 @@ public:
 
     void BuildResources();
     void DestroyResources();
-    void DoWork(int frameNumber);
+    void DoWork(int frameNumber, RenderingInfo& renderingInfo);
 
     struct PerFrameInFlightData
     {
@@ -52,10 +54,6 @@ private:
     std::array<PerFrameInFlightData, g_kMaxFramesInFlight> m_perFrameInFlightData;
     VkSemaphore m_timelineSemaphore = VK_NULL_HANDLE;
     uint64_t m_timelineValue = 0;
-
-public:
-    // TODO:
-    std::unique_ptr<Camera> m_camera;
 private:
 
     // TODO:

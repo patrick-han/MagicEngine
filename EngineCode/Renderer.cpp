@@ -140,10 +140,6 @@ void Renderer::BuildResources()
     vkDestroyShaderModule(device, vs_m, nullptr);
     vkDestroyShaderModule(device, ps_m, nullptr);
 
-    {
-        m_camera = std::make_unique<Camera>(Vector3f(0.0f, 0.0f, 0.0f), Vector3f(0.0f, 0.0f, 1.0f));
-    }
-
     // Test triangle vertex buffer
     {
         // SimpleVertex v1 = {{1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
@@ -209,7 +205,7 @@ void Renderer::DestroyResources()
     vmaDestroyImage(m_gpuctx->GetVmaAllocator(), m_colorImage.image, m_colorImage.allocation);
 }
 
-void Renderer::DoWork(int frameNumber)
+void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 {
     // TODO: temp
     {
@@ -262,7 +258,7 @@ void Renderer::DoWork(int frameNumber)
         {
             DefaultPushConstants pushConstants;
             pushConstants.model = Matrix4f::MakeScale(10.0f);
-            pushConstants.viewProjection = m_camera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * m_camera->GetViewMatrix();
+            pushConstants.viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) *  renderingInfo.pCamera->GetViewMatrix();
             vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
         }
         //

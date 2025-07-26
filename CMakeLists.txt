@@ -46,6 +46,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/Camera.cpp
         EngineCode/Camera.h
         EngineCode/Common/Math/Math.h
+        EngineCode/Input.h
+        EngineCode/RenderingInfo.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)
