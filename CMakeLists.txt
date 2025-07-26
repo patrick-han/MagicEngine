@@ -3,6 +3,12 @@ project(MagicEngine)
 
 set(CMAKE_CXX_STANDARD 23)
 
+if(WIN32)
+    add_definitions(-DMAGIC_WINDOWS_BUILD)
+elseif(APPLE)
+    add_definitions(-DMAGIC_MACOS_BUILD)
+endif()
+
 add_executable(MagicEngine main.cpp
         EngineCode/Application.h
         EngineCode/Application.cpp
