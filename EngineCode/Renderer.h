@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "RenderingInfo.h"
+#include "Renderable.h"
 
 namespace Magic
 {
@@ -58,13 +59,9 @@ private:
 
     // TODO:
     std::vector<VkPushConstantRange> m_pushConstantRanges;
-    std::vector<SimpleVertex> m_vertices;
-    std::vector<uint32_t> m_indices;
-    AllocatedBuffer m_triBuffer;
-    AllocatedBuffer m_triBufferIndices;
+    std::vector<RenderableMesh> m_renderables;
     //
-
-
+    
     GraphicsPipeline m_simplePipeline;
     AllocatedImage m_colorImage;
 

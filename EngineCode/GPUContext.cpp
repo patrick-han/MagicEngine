@@ -150,7 +150,12 @@ void GPUContext::Startup(std::span<const char*> additionalExtensions)
         m_graphicsQueueFamilyIndex = FindGraphicsQueueFamilyIndex(m_physicalDevice);
         queueCreateInfos.push_back(VkDeviceQueueCreateInfo{ VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, nullptr, VkDeviceQueueCreateFlags(), m_graphicsQueueFamilyIndex, queueCountPerFamily, &queuePriority });
 
+        // Physical device features
+        VkPhysicalDeviceFeatures physicalDeviceFeatures = {
+            .fillModeNonSolid = VK_TRUE // TODO: Assume this is supported
+        };
 
+        // Extensions
         std::vector<const char*> deviceExtensions = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME
             , VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
@@ -182,6 +187,7 @@ void GPUContext::Startup(std::span<const char*> additionalExtensions)
             , .pQueueCreateInfos = queueCreateInfos.data()
             , .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size())
             , .ppEnabledExtensionNames = deviceExtensions.data()
+            , .pEnabledFeatures = &physicalDeviceFeatures
         };
         VK_CHECK(vkCreateDevice(m_physicalDevice, &deviceCreateInfo, nullptr, &m_device));
         volkLoadDevice(m_device); // load device-related Vulkan entrypoints directly from the driver, restricts us to using a single device

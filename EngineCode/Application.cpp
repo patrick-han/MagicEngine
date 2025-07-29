@@ -85,7 +85,7 @@ void Application::Run(Game& game)
         }
 
         InputState inputState;
-        if(!HandleInput(inputState))
+        if(!SampleInput(inputState))
         {
             break; // Quit
         }
@@ -96,7 +96,6 @@ void Application::Run(Game& game)
         m_frameNumber++;
     }
     game.UnloadContent();
-    game.Shutdown();
     m_rctx->DestroyResources();
 }
 
@@ -118,7 +117,7 @@ void Application::Shutdown()
     delete m_gpuctx;
 }
 
-bool Application::HandleInput(InputState& inputState)
+bool Application::SampleInput(InputState& inputState)
 {
     // Handle events on queue
     bool bQuit = false;

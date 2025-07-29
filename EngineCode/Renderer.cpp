@@ -123,6 +123,7 @@ void Renderer::BuildResources()
     pipelineBuilder.SetVertexDescription(vd);
 
     pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
+    pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE);
 
     {
 
@@ -155,17 +156,20 @@ void Renderer::BuildResources()
 
     // Custom model
     {
-        auto testMesh = Data::DeserializeModelData("../DataLibCode/helmet.bin");
-        m_vertices = testMesh.m_meshes[0].m_vertices;
-        m_indices = testMesh.m_meshes[0].m_indices;
-        for (uint32_t i = 1; i < testMesh.m_meshes.size(); i++)
+        auto testModel = Data::DeserializeModelData("../DataLibCode/helmet.bin");
+
+        size_t meshIndex = 0;
+        for (const MeshData& meshData : testModel.m_meshes)
         {
-            m_vertices.insert(m_vertices.end(), testMesh.m_meshes[i].m_vertices.begin(), testMesh.m_meshes[i].m_vertices.end());
-            m_indices.insert(m_indices.end(), testMesh.m_meshes[i].m_indices.begin(), testMesh.m_meshes[i].m_indices.end());
+            RenderableMesh renderable;
+            renderable.vertexBuffer = UploadBuffer(sizeof(SimpleVertex) * meshData.m_vertices.size(), meshData.m_vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+            renderable.indexBuffer = UploadBuffer(sizeof(uint32_t) * meshData.m_indices.size(), meshData.m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+            renderable.indexCount = meshData.m_indices.size();
+            renderable.transform = testModel.m_transforms[meshIndex];
+            m_renderables.push_back(renderable);
+            meshIndex++;
         }
-        m_triBuffer = UploadBuffer(sizeof(SimpleVertex) * m_vertices.size(), m_vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-        m_triBufferIndices = UploadBuffer(sizeof(uint32_t) * m_indices.size(), m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-        Logger::Info("Loaded helmet model");
+        Logger::Info("Loaded test model");
     }
 
 
@@ -196,8 +200,11 @@ void Renderer::DestroyResources()
     VkDevice device = m_gpuctx->GetDevice();
     vkDeviceWaitIdle(device);
 
-    vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), m_triBufferIndices.buffer, m_triBufferIndices.allocation);
-    vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), m_triBuffer.buffer, m_triBuffer.allocation);
+    for (const RenderableMesh& renderable : m_renderables)
+    {
+        vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), renderable.indexBuffer.buffer, renderable.indexBuffer.allocation);
+        vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), renderable.vertexBuffer.buffer, renderable.vertexBuffer.allocation);
+    }
 
     m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
@@ -207,13 +214,6 @@ void Renderer::DestroyResources()
 
 void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 {
-    // TODO: temp
-    {
-        // m_camera->PrintDebug(false, true, false);
-    }
-    //
-
-
     PerFrameInFlightData frameData = GetFrameInFlightData(frameNumber);
     VkDevice device = m_gpuctx->GetDevice();
 
@@ -251,20 +251,20 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         cmdEncoder.SetViewport(outputWidth, outputHeight);
         cmdEncoder.SetScissor(outputWidth, outputHeight);
         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
-        cmdEncoder.BindVertexBufferSimple(m_triBuffer);
-        cmdEncoder.BindIndexBufferSimple(m_triBufferIndices);
 
-        // TODO TEMP:
+        // TODO: render all renderables
+        for (RenderableMesh& renderable : m_renderables)
         {
-            DefaultPushConstants pushConstants;
-            pushConstants.model = Matrix4f::MakeScale(10.0f);
-            pushConstants.viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) *  renderingInfo.pCamera->GetViewMatrix();
-            vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
+            cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
+            cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
+            {
+                DefaultPushConstants pushConstants;
+                pushConstants.model = renderable.transform * Matrix4f::MakeScale(100.0f);
+                pushConstants.viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) *  renderingInfo.pCamera->GetViewMatrix();
+                vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
+            }
+            cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
         }
-        //
-
-
-        cmdEncoder.DrawIndexedSimple(m_indices.size(), 0);
         cmdEncoder.EndRendering();
     }
     cmdEncoder.ImageBarrier(m_colorImage

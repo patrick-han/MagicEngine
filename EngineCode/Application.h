@@ -21,7 +21,7 @@ public:
     void Run(Game& Game);
     void Shutdown();
 private:
-    bool HandleInput(InputState& inputState);
+    bool SampleInput(InputState& inputState);
     GPUContext* m_gpuctx;
     Renderer* m_rctx;
     std::vector<std::unique_ptr<Window>> m_windows;

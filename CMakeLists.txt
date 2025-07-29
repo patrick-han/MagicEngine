@@ -54,6 +54,11 @@ add_executable(MagicEngine main.cpp
         EngineCode/Common/Math/Math.h
         EngineCode/Input.h
         EngineCode/RenderingInfo.h
+        EngineCode/Renderable.h
+        EngineCode/ECS.h
+        EngineCode/ECS.cpp
+        EngineCode/Components/TransformComponent.h
+        GameCode/TestSystem.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

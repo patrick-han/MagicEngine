@@ -4,6 +4,7 @@
 
 namespace Magic
 {
+class Registry;
 class Camera;
 struct InputState;
 class Game
@@ -21,11 +22,11 @@ protected:
     void Initialize();
     void LoadContent();
     void UnloadContent();
-    void Shutdown();
     void Update(const InputState& inputState, float deltaTime);
     [[nodiscard]] RenderingInfo GetRenderingInfo();
 private:
     std::unique_ptr<Camera> m_camera;
+    std::unique_ptr<Registry> m_ecs;
 };
 
 }

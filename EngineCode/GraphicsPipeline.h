@@ -19,6 +19,7 @@ public:
     GraphicsPipelineBuilder& SetCullMode(VkCullModeFlags cullMode);
     GraphicsPipelineBuilder& SetDepthTestEnable(bool enable);
     GraphicsPipelineBuilder& SetDepthCompareOp(VkCompareOp compareOp);
+    GraphicsPipelineBuilder& SetRasterizerPolygonMode(VkPolygonMode polygonMode);
 
     [[nodiscard]] GraphicsPipeline Build(VkDevice device, VkShaderModule vs, VkShaderModule ps);
 private:
@@ -35,6 +36,7 @@ private:
     VkCullModeFlags m_cullMode = VK_CULL_MODE_NONE;
     bool m_depthTestEnable = false;
     VkCompareOp m_depthCompareOp = VK_COMPARE_OP_ALWAYS;
+    VkPolygonMode m_polygonMode = VK_POLYGON_MODE_FILL;
 };
 
 class GraphicsPipeline {

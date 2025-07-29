@@ -55,6 +55,12 @@ GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetDepthCompareOp(VkCompareOp 
     return *this;
 }
 
+GraphicsPipelineBuilder &GraphicsPipelineBuilder::SetRasterizerPolygonMode(VkPolygonMode polygonMode)
+{
+    m_polygonMode = polygonMode;
+    return *this;
+}
+
 GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule vs, VkShaderModule ps) {
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo = {
@@ -105,7 +111,7 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
         .flags = VkPipelineRasterizationStateCreateFlags(),
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
-        .polygonMode = VK_POLYGON_MODE_FILL,
+        .polygonMode = m_polygonMode,
         .cullMode = m_cullMode,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .depthBiasEnable = VK_FALSE,
