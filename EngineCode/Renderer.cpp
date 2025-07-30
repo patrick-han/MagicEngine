@@ -45,6 +45,11 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
     return allocatedBuffer;
 }
 
+void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
+{
+    vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), allocatedBuffer.buffer, allocatedBuffer.allocation);
+}
+
 void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
 {
     m_gpuctx = _gpuctx;
@@ -156,20 +161,20 @@ void Renderer::BuildResources()
 
     // Custom model
     {
-        auto testModel = Data::DeserializeModelData("../DataLibCode/helmet.bin");
-
-        size_t meshIndex = 0;
-        for (const MeshData& meshData : testModel.m_meshes)
-        {
-            RenderableMesh renderable;
-            renderable.vertexBuffer = UploadBuffer(sizeof(SimpleVertex) * meshData.m_vertices.size(), meshData.m_vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-            renderable.indexBuffer = UploadBuffer(sizeof(uint32_t) * meshData.m_indices.size(), meshData.m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-            renderable.indexCount = meshData.m_indices.size();
-            renderable.transform = testModel.m_transforms[meshIndex];
-            m_renderables.push_back(renderable);
-            meshIndex++;
-        }
-        Logger::Info("Loaded test model");
+        // auto testModel = Data::DeserializeModelData("../DataLibCode/helmet.bin");
+        //
+        // size_t meshIndex = 0;
+        // for (const MeshData& meshData : testModel.m_meshes)
+        // {
+        //     RenderableMesh renderable;
+        //     renderable.vertexBuffer = UploadBuffer(sizeof(SimpleVertex) * meshData.m_vertices.size(), meshData.m_vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+        //     renderable.indexBuffer = UploadBuffer(sizeof(uint32_t) * meshData.m_indices.size(), meshData.m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+        //     renderable.indexCount = meshData.m_indices.size();
+        //     renderable.transform = testModel.m_transforms[meshIndex];
+        //     m_renderables.push_back(renderable);
+        //     meshIndex++;
+        // }
+        // Logger::Info("Loaded test model");
     }
 
 
@@ -199,13 +204,6 @@ void Renderer::DestroyResources()
 {
     VkDevice device = m_gpuctx->GetDevice();
     vkDeviceWaitIdle(device);
-
-    for (const RenderableMesh& renderable : m_renderables)
-    {
-        vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), renderable.indexBuffer.buffer, renderable.indexBuffer.allocation);
-        vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), renderable.vertexBuffer.buffer, renderable.vertexBuffer.allocation);
-    }
-
     m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
     vkDestroyImageView(device, m_colorImage.view, nullptr);
@@ -253,14 +251,14 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
 
         // TODO: render all renderables
-        for (RenderableMesh& renderable : m_renderables)
+        for (RenderableMesh& renderable : renderingInfo.meshesToRender)
         {
             cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
             cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
             {
                 DefaultPushConstants pushConstants;
                 pushConstants.model = renderable.transform * Matrix4f::MakeScale(100.0f);
-                pushConstants.viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) *  renderingInfo.pCamera->GetViewMatrix();
+                pushConstants.viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * renderingInfo.pCamera->GetViewMatrix();
                 vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
             }
             cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
@@ -333,6 +331,11 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
     vkQueuePresentKHR(m_gpuctx->GetGraphicsQueue(), &presentInfo);
 }
 
+void Renderer::WaitIdle()
+{
+    VkDevice device = m_gpuctx->GetDevice();
+    vkDeviceWaitIdle(device);
+}
 
 void Renderer::Shutdown()
 {

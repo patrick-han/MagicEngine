@@ -58,7 +58,12 @@ add_executable(MagicEngine main.cpp
         EngineCode/ECS.h
         EngineCode/ECS.cpp
         EngineCode/Components/TransformComponent.h
-        GameCode/TestSystem.h
+        GameCode/PlayerMovementSystem.h
+        EngineCode/Components/RenderableComponent.h
+        GameCode/RenderSystem.h
+        EngineCode/AssetManager.h
+        EngineCode/AssetManager.cpp
+        GameCode/PlayerComponent.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

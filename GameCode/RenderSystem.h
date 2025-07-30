@@ -1,0 +1,55 @@
+#pragma once
+#include "../EngineCode/ECS.h"
+#include "../EngineCode/Components/RenderableComponent.h"
+#include "../EngineCode/Components/TransformComponent.h"
+#include "../EngineCode/AssetManager.h"
+
+namespace Magic
+{
+
+class RenderSystem : public System
+{
+public:
+    RenderSystem()
+    {
+        RequireComponent<RenderableComponent>();
+        RequireComponent<TransformComponent>();
+    }
+
+    bool ShouldCull()
+    {
+        return false;
+    }
+
+    static void TransformMesh(RenderableMesh& mesh, const TransformComponent& transform)
+    {
+        mesh.transform = transform.m_transform * mesh.transform;
+    }
+
+    // TODO: Return a list of RenderableComponents? Basically I want this system to do CPU side culling / visibility and provide a list of things
+    // back to the engine to render
+    [[nodiscard]] std::vector<RenderableMesh> Update(AssetManager* pAssetManager)
+    {
+        std::vector<Entity> renderableEntities = GetSystemEntities();
+        std::vector<RenderableMesh> meshesToRender;
+        for (const Entity& entity : renderableEntities)
+        {
+            auto& renderable = entity.GetComponent<RenderableComponent>();
+            auto& transform = entity.GetComponent<TransformComponent>();
+            for (auto index : renderable.m_renderableMeshIndices)
+            {
+                if (!ShouldCull(/*Renderable?*/))
+                {
+                    auto renderableMesh = pAssetManager->GetRenderableMeshByIndex(index);
+                    TransformMesh(renderableMesh, transform);
+                    meshesToRender.push_back(renderableMesh);
+                }
+            }
+
+        }
+        return meshesToRender;
+        
+    }
+};
+
+}

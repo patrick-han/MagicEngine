@@ -29,10 +29,12 @@ public:
     ~Renderer();
 
     [[nodiscard]] AllocatedBuffer UploadBuffer(size_t bufferSize, const void* bufferData, VkBufferUsageFlags usage);
+    void DestroyBuffer(AllocatedBuffer allocatedBuffer);
 
     void BuildResources();
     void DestroyResources();
     void DoWork(int frameNumber, RenderingInfo& renderingInfo);
+    void WaitIdle();
 
     struct PerFrameInFlightData
     {
@@ -59,9 +61,8 @@ private:
 
     // TODO:
     std::vector<VkPushConstantRange> m_pushConstantRanges;
-    std::vector<RenderableMesh> m_renderables;
     //
-    
+
     GraphicsPipeline m_simplePipeline;
     AllocatedImage m_colorImage;
 

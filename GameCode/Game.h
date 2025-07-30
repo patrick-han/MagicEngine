@@ -6,6 +6,7 @@ namespace Magic
 {
 class Registry;
 class Camera;
+class AssetManager;
 struct InputState;
 class Game
 {
@@ -19,14 +20,14 @@ public:
 
 protected:
     friend class Application;
-    void Initialize();
+    void Initialize(class Renderer* pRenderer);
     void LoadContent();
     void UnloadContent();
-    void Update(const InputState& inputState, float deltaTime);
-    [[nodiscard]] RenderingInfo GetRenderingInfo();
+    [[nodiscard]] RenderingInfo Update(const InputState& inputState, float deltaTime);
 private:
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<Registry> m_ecs;
+    std::unique_ptr<AssetManager> m_assetManager;
 };
 
 }

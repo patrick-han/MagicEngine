@@ -1,12 +1,12 @@
 #pragma once
-#include "../Common/Math/Vector3f.h"
+#include "../Common/Math/Matrix4f.h"
 
 namespace Magic
 {
 struct TransformComponent
 {
-    Vector3f m_position;
-    TransformComponent(Vector3f _position = Vector3f(0.0f, 0.0f, 0.0f)) : m_position(_position)
+    Matrix4f m_transform;
+    TransformComponent(const Matrix4f& _transform) : m_transform(_transform)
     {
 
     }

@@ -73,7 +73,7 @@ void Application::Startup()
 void Application::Run(Game& game)
 {
     m_rctx->BuildResources();
-    game.Initialize();
+    game.Initialize(m_rctx);
     game.LoadContent();
     while (true)
     {
@@ -90,8 +90,8 @@ void Application::Run(Game& game)
             break; // Quit
         }
 
-        game.Update(inputState, deltaTime);
-        RenderingInfo renderingInfo = game.GetRenderingInfo();
+        RenderingInfo renderingInfo = game.Update(inputState, deltaTime);
+        // RenderingInfo renderingInfo = game.GetRenderingInfo();
         m_rctx->DoWork(m_frameNumber, renderingInfo);
         m_frameNumber++;
     }
