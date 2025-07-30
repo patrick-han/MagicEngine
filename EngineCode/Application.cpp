@@ -91,7 +91,6 @@ void Application::Run(Game& game)
         }
 
         RenderingInfo renderingInfo = game.Update(inputState, deltaTime);
-        // RenderingInfo renderingInfo = game.GetRenderingInfo();
         m_rctx->DoWork(m_frameNumber, renderingInfo);
         m_frameNumber++;
     }

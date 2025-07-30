@@ -9,10 +9,11 @@ add_executable(DataCooker main.cpp
         ../EngineCode/Common/Math/Matrix4f.cpp
         ../EngineCode/Common/Math/Vector4f.h
         ../EngineCode/Common/Math/Vector4f.cpp
-        Data.h
+        DataSerialization.h
         ../EngineCode/Vertex.h
-        ../EngineCode/Mesh.h
         ../EngineCode/Model.h
+        stb_image.h
+        ../EngineCode/Common/Math/Vector2f.h
 )
 
 target_link_libraries(DataCooker PRIVATE DataLibThirdPartyLibraries)

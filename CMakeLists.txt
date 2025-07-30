@@ -47,7 +47,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/Common/Math/Vector4f.h
         EngineCode/Common/Math/Vector4f.cpp
         EngineCode/Vertex.h
-        EngineCode/Mesh.h
         EngineCode/Model.h
         EngineCode/Camera.cpp
         EngineCode/Camera.h
@@ -64,6 +63,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/AssetManager.h
         EngineCode/AssetManager.cpp
         GameCode/PlayerComponent.h
+        EngineCode/Common/Math/Vector2f.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

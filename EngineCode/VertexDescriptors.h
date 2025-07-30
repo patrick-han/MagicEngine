@@ -38,14 +38,28 @@ struct VertexInputDescription {
     positionAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
     positionAttribute.offset = offsetof(SimpleVertex, position);
 
+    VkVertexInputAttributeDescription uv_xAttribute = {};
+    uv_xAttribute.binding = 0;
+    uv_xAttribute.location = 1;
+    uv_xAttribute.format = VK_FORMAT_R32_SFLOAT;
+    uv_xAttribute.offset = offsetof(SimpleVertex, uv_x);
+
     VkVertexInputAttributeDescription colorAttribute = {};
     colorAttribute.binding = 0;
-    colorAttribute.location = 1;
-    colorAttribute.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    colorAttribute.location = 2;
+    colorAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
     colorAttribute.offset = offsetof(SimpleVertex, color);
 
+    VkVertexInputAttributeDescription uv_yAttribute = {};
+    uv_yAttribute.binding = 0;
+    uv_yAttribute.location = 3;
+    uv_yAttribute.format = VK_FORMAT_R32_SFLOAT;
+    uv_yAttribute.offset = offsetof(SimpleVertex, uv_y);
+
     description.attributes.push_back(positionAttribute);
+    description.attributes.push_back(uv_xAttribute);
     description.attributes.push_back(colorAttribute);
+    description.attributes.push_back(uv_yAttribute);
     return description;
 }
 

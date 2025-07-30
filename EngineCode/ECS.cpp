@@ -37,7 +37,6 @@ Entity Registry::EnqueueCreateEntity() {
     ENTITY_ID entityId;
     if (m_freeIds.empty()) {
         entityId = ENTITY_ID(m_numEntities++);
-        // Only need to expand if there are no free ids existing
         if (entityId.GetValue() >= static_cast<int>(m_entityComponentSignatures.size())) {
             m_entityComponentSignatures.resize(entityId.GetValue() + 1);
         }

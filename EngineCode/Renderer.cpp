@@ -9,7 +9,7 @@
 #include <cassert>
 #include "CommandEncoder.h"
 
-#include "../DataLibCode/Data.h" // TODO: find better organization for this maebbe
+#include "../DataLibCode/DataSerialization.h" // TODO: find better organization for this maebbe
 
 namespace Magic
 {
