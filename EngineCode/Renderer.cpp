@@ -50,6 +50,92 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
     vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), allocatedBuffer.buffer, allocatedBuffer.allocation);
 }
 
+
+[[nodiscard]] static AllocatedImage CreateGPUOnlyImage(VkImageCreateInfo imageCreateInfo, VmaAllocator allocator) {
+    VmaAllocationCreateInfo vmaAllocInfo = {};
+    vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    vmaAllocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    AllocatedImage allocatedImage;
+    VK_CHECK(vmaCreateImage(allocator, &imageCreateInfo, &vmaAllocInfo, &allocatedImage.image, &allocatedImage.allocation, nullptr));
+    return allocatedImage;
+}
+
+
+static VkImageSubresourceRange default_image_subresource_range(VkImageAspectFlags aspectMask) // Transition all mipmap levels and layers by default
+{
+    VkImageSubresourceRange subImage {};
+    subImage.aspectMask = aspectMask;
+    subImage.baseMipLevel = 0;
+    subImage.levelCount = VK_REMAINING_MIP_LEVELS;
+    subImage.baseArrayLayer = 0;
+    subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    return subImage;
+}
+
+static void transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
+{
+    VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+
+    VkImageMemoryBarrier imageBarrier {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT,
+        .oldLayout = currentLayout,
+        .newLayout = newLayout,
+        .image = image,
+        .subresourceRange = default_image_subresource_range(aspectMask)
+    };
+
+    vkCmdPipelineBarrier(
+        cmd,
+        VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        {},
+        0, nullptr,
+        0, nullptr,
+        1, &imageBarrier
+    );
+}
+
+AllocatedImage Renderer::UploadImage(const void *imageData, int numChannels, VkImageCreateInfo imageCreateInfo)
+{
+    AllocatedImage allocatedImage = CreateGPUOnlyImage(imageCreateInfo, m_gpuctx->GetVmaAllocator());
+    size_t bytesPerChannel = 1;
+    size_t dataSize = imageCreateInfo.extent.width * imageCreateInfo.extent.height * numChannels * bytesPerChannel;
+    AllocatedBuffer imageStagingBuffer = UploadBuffer(dataSize, imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+
+    ImmediateSubmit([&](VkCommandBuffer cmd) {
+        transition_image(cmd, allocatedImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        VkBufferImageCopy copyRegion = {};
+        copyRegion.bufferOffset = 0;
+        copyRegion.bufferRowLength = 0;
+        copyRegion.bufferImageHeight = 0;
+
+        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.imageSubresource.mipLevel = 0;
+        copyRegion.imageSubresource.baseArrayLayer = 0;
+        copyRegion.imageSubresource.layerCount = 1;
+        copyRegion.imageExtent = imageCreateInfo.extent;
+
+        // copy the buffer into the image
+        vkCmdCopyBufferToImage(cmd, imageStagingBuffer.buffer, allocatedImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+
+        transition_image(cmd, allocatedImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    });
+    DestroyBuffer(imageStagingBuffer);
+    return allocatedImage;
+}
+
+void Renderer::DestroyImage(AllocatedImage allocatedImage)
+{
+    vmaDestroyImage(m_gpuctx->GetVmaAllocator(), allocatedImage.image, allocatedImage.allocation);
+    vkDestroyImageView(m_gpuctx->GetDevice(), allocatedImage.view, nullptr);
+}
+
 void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
 {
     m_gpuctx = _gpuctx;
@@ -83,6 +169,27 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
         // Image acquire semaphores
         VkSemaphoreCreateInfo createInfo = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &f.m_imageReadySemaphore));
+    }
+
+
+    // TODO: Immediate resources
+    {
+        VkCommandPoolCreateInfo commandPoolCreateInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
+            , .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+            , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
+        };
+        vkCreateCommandPool(m_gpuctx->GetDevice(), &commandPoolCreateInfo, nullptr, &m_immediateCommandPool);
+        // Immediate command buffer
+        VkCommandBufferAllocateInfo immCmdBufferAllocInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
+            , .commandPool = m_immediateCommandPool
+            , .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
+            , .commandBufferCount = 1
+        };
+        vkAllocateCommandBuffers(m_gpuctx->GetDevice(), &immCmdBufferAllocInfo, &m_immediateCommandBuffer);
+        VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
+        vkCreateFence(m_gpuctx->GetDevice(), &fenceCreateInfo, nullptr, &m_immediateFence);
     }
 }
 
@@ -341,8 +448,8 @@ void Renderer::Shutdown()
 {
     VkDevice device = m_gpuctx->GetDevice();
 
-
-
+    vkDestroyCommandPool(m_gpuctx->GetDevice(), m_immediateCommandPool, nullptr);
+    vkDestroyFence(m_gpuctx->GetDevice(), m_immediateFence, nullptr);
 
     for (auto & p : m_perFrameInFlightData)
     {
@@ -350,5 +457,40 @@ void Renderer::Shutdown()
         vkDestroyCommandPool(device, p.m_commandEncoder.Pool(), nullptr);
     }
 }
+
+void Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)> &&function)
+{
+    VkDevice device = m_gpuctx->GetDevice();
+    vkResetFences(device, 1, &m_immediateFence);
+    vkResetCommandBuffer(m_immediateCommandBuffer, {});
+
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext = nullptr,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        .pInheritanceInfo = {}
+    };
+    vkBeginCommandBuffer(m_immediateCommandBuffer, &beginInfo);
+
+    function(m_immediateCommandBuffer);
+
+    vkEndCommandBuffer(m_immediateCommandBuffer);
+
+    // Submit immediate workload
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = 0,
+        .pWaitSemaphores = nullptr,
+        .pWaitDstStageMask = nullptr,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &m_immediateCommandBuffer,
+        .signalSemaphoreCount = 0,
+        .pSignalSemaphores = nullptr
+    };
+    vkQueueSubmit(m_gpuctx->GetGraphicsQueue(), 1, &submitInfo, m_immediateFence);
+
+    vkWaitForFences(device, 1, &m_immediateFence, true, (std::numeric_limits<uint64_t>::max)());
+}
+
 
 }

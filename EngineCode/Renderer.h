@@ -16,6 +16,9 @@
 
 #include "RenderingInfo.h"
 #include "Renderable.h"
+#include <functional>
+
+#include "GPUContext.h"
 
 namespace Magic
 {
@@ -31,6 +34,9 @@ public:
     [[nodiscard]] AllocatedBuffer UploadBuffer(size_t bufferSize, const void* bufferData, VkBufferUsageFlags usage);
     void DestroyBuffer(AllocatedBuffer allocatedBuffer);
 
+    [[nodiscard]] AllocatedImage UploadImage(const void *imageData, int numChannels, VkImageCreateInfo imageCreateInfo);
+    void DestroyImage(AllocatedImage allocatedImage);
+
     void BuildResources();
     void DestroyResources();
     void DoWork(int frameNumber, RenderingInfo& renderingInfo);
@@ -44,6 +50,11 @@ public:
     };
     [[nodiscard]] PerFrameInFlightData GetFrameInFlightData(int frameNumber) const { return m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight]; };
     void SignalFrameInFlight(int frameNumber, uint64_t _signalValue) { m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight].signalValue = _signalValue; };
+
+    void TEMP_PopulateImageView(const VkImageViewCreateInfo& imageViewCreateInfo, AllocatedImage& allocatedImage)
+    {
+        vkCreateImageView(m_gpuctx->GetDevice(), &imageViewCreateInfo, nullptr, &allocatedImage.view);
+    }
 private:
     friend class Application;
     // Should eventually be part of a camera or something
@@ -65,6 +76,16 @@ private:
 
     GraphicsPipeline m_simplePipeline;
     AllocatedImage m_colorImage;
+
+
+
+    /// TODO:
+    // Immediate rendering resources
+    void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function); // Lambda should take a command buffer and return nothing
+    VkFence m_immediateFence;
+    VkCommandBuffer m_immediateCommandBuffer;
+    VkCommandPool m_immediateCommandPool;
+    ///
 
 
 };

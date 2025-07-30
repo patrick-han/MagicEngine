@@ -95,12 +95,12 @@ inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *s
             int textureWidth = 0;
             int textureHeight = 0;
             int numChannels = 0;
-            int desiredChannels = 0; // non-zero if we want to force a certain number of channels
+            int desiredChannels = 4; // TODO: non-zero if we want to force a certain number of channels
             stbi_uc* textureData_stbi = stbi_load(texturePath.c_str(), &textureWidth, &textureHeight, &numChannels, desiredChannels);
             std::vector<unsigned char> pixels;
             if (textureData_stbi)
             {
-                auto textureDataSizeBytes = textureWidth * textureHeight * numChannels * sizeof(stbi_uc);
+                auto textureDataSizeBytes = textureWidth * textureHeight * desiredChannels * sizeof(stbi_uc);
                 pixels.assign(textureData_stbi, textureData_stbi + textureDataSizeBytes);
                 // test
                 if (!DoDaPointersSameData(pixels.data(), textureData_stbi, textureDataSizeBytes)) { Logger::Err("uh oh"); std::abort(); }
@@ -110,7 +110,7 @@ inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *s
             {
                 .width = textureWidth
                 , .height = textureHeight
-                , .numChannels = numChannels
+                , .numChannels = desiredChannels
                 , .data = std::move(pixels)
             };
             materialData.diffuseData = std::move(textureData);
