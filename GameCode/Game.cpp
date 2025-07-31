@@ -42,7 +42,7 @@ void Game::LoadContent()
         player.AddComponent<TransformComponent>(t);
         std::vector<int> renderableIndices = m_assetManager->LoadModel("../DataLibCode/helmet.bin");
         player.AddComponent<RenderableComponent>(renderableIndices);
-        player.AddComponent<PlayerComponent>(20.0f);
+        player.AddComponent<PlayerComponent>(50.0f);
     }
 
 
@@ -69,6 +69,9 @@ void Game::UnloadContent()
 
     m_camera->Rotate(inputState.mouseXOffset, inputState.mouseYOffset, true);
     float cameraSpeed = 20.0f;
+    if (inputState.keyState[SDL_SCANCODE_LSHIFT]) {
+        cameraSpeed = 60.0f;
+    }
     if (inputState.keyState[SDL_SCANCODE_W]) {
         m_camera->Move(Camera::CameraMovementDirection::FORWARD, cameraSpeed * deltaTime);
     }
@@ -87,6 +90,7 @@ void Game::UnloadContent()
     if (inputState.keyState[SDL_SCANCODE_LCTRL]) {
         m_camera->Move(Camera::CameraMovementDirection::DOWN, cameraSpeed * deltaTime);
     }
+
 
 
     Vector3f playerMovementVector = Vector3f(0.0f, 0.0f, 0.0f);

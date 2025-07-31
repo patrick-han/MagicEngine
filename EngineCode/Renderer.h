@@ -1,24 +1,16 @@
 #pragma once
-
+#include <memory>
+#include <array>
 #include "Vulkan/Include.h"
 #include "CompileTimeConstants.h"
-
-
+#include "CommandEncoder.h"
 #include "GraphicsPipeline.h"
 #include "Image.h"
 #include "Buffer.h"
-
-#include <array>
-
-#include "CommandEncoder.h"
-
-#include <memory>
-
 #include "RenderingInfo.h"
-#include "Renderable.h"
 #include <functional>
-
 #include "GPUContext.h"
+#include "BindlessManager.h"
 
 namespace Magic
 {
@@ -51,7 +43,7 @@ public:
     [[nodiscard]] PerFrameInFlightData GetFrameInFlightData(int frameNumber) const { return m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight]; };
     void SignalFrameInFlight(int frameNumber, uint64_t _signalValue) { m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight].signalValue = _signalValue; };
 
-    void TEMP_PopulateImageView(const VkImageViewCreateInfo& imageViewCreateInfo, AllocatedImage& allocatedImage)
+    void TEMP_CreateImageViewForAllocatedImage(const VkImageViewCreateInfo& imageViewCreateInfo, AllocatedImage& allocatedImage)
     {
         vkCreateImageView(m_gpuctx->GetDevice(), &imageViewCreateInfo, nullptr, &allocatedImage.view);
     }
@@ -73,7 +65,8 @@ private:
     // TODO:
     std::vector<VkPushConstantRange> m_pushConstantRanges;
     //
-
+    VkSampler m_linearSampler = VK_NULL_HANDLE;
+    VkSampler m_pointSampler = VK_NULL_HANDLE;
     GraphicsPipeline m_simplePipeline;
     AllocatedImage m_colorImage;
 
@@ -86,6 +79,8 @@ private:
     VkCommandBuffer m_immediateCommandBuffer;
     VkCommandPool m_immediateCommandPool;
     ///
+public: // TODO: make an interface for this?
+    BindlessManager m_bindlessManager;
 
 
 };

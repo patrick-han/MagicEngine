@@ -64,6 +64,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/AssetManager.cpp
         GameCode/PlayerComponent.h
         EngineCode/Common/Math/Vector2f.h
+        EngineCode/BindlessManager.cpp
+        EngineCode/BindlessManager.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

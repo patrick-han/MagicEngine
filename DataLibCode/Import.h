@@ -49,6 +49,28 @@ inline std::string GetTextureNameFromAssimpType(aiMaterial* material, aiTextureT
     return textureName;
 }
 
+inline void LoadTextureData(const std::filesystem::path& texturePath, TextureData& textureData)
+{
+    int textureWidth = 0;
+    int textureHeight = 0;
+    int numChannels = 0;
+    int desiredChannels = 4; // TODO: non-zero if we want to force a certain number of channels
+    stbi_uc* textureData_stbi = stbi_load(texturePath.c_str(), &textureWidth, &textureHeight, &numChannels, desiredChannels);
+    std::vector<unsigned char> pixels;
+    if (textureData_stbi)
+    {
+        auto textureDataSizeBytes = textureWidth * textureHeight * desiredChannels * sizeof(stbi_uc);
+        pixels.assign(textureData_stbi, textureData_stbi + textureDataSizeBytes);
+        // test
+        if (!DoDaPointersSameData(pixels.data(), textureData_stbi, textureDataSizeBytes)) { Logger::Err("uh oh"); std::abort(); }
+        stbi_image_free(textureData_stbi);
+    }
+    textureData.width = textureWidth;
+    textureData.height = textureHeight;
+    textureData.numChannels = desiredChannels;
+    textureData.data = std::move(pixels);
+}
+
 inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *scene, const Matrix4f& transformMatrix, const std::filesystem::path& modelpath)
 {
     // Vertices
@@ -65,6 +87,13 @@ inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *s
         {
             vertex.uv_x = mesh->mTextureCoords[0][i].x;
             vertex.uv_y = mesh->mTextureCoords[0][i].y;
+        }
+
+        if (mesh->HasNormals())
+        {
+            vertex.normal.x = mesh->mNormals[i].x;
+            vertex.normal.y = mesh->mNormals[i].y;
+            vertex.normal.z = mesh->mNormals[i].z;
         }
 
         meshData.m_vertices.push_back(vertex);
@@ -92,33 +121,10 @@ inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *s
         {
             const std::string textureName = GetTextureNameFromAssimpType(material, aiTextureType_BASE_COLOR);
             std::filesystem::path texturePath = modelpath / std::filesystem::path(textureName);
-            int textureWidth = 0;
-            int textureHeight = 0;
-            int numChannels = 0;
-            int desiredChannels = 4; // TODO: non-zero if we want to force a certain number of channels
-            stbi_uc* textureData_stbi = stbi_load(texturePath.c_str(), &textureWidth, &textureHeight, &numChannels, desiredChannels);
-            std::vector<unsigned char> pixels;
-            if (textureData_stbi)
-            {
-                auto textureDataSizeBytes = textureWidth * textureHeight * desiredChannels * sizeof(stbi_uc);
-                pixels.assign(textureData_stbi, textureData_stbi + textureDataSizeBytes);
-                // test
-                if (!DoDaPointersSameData(pixels.data(), textureData_stbi, textureDataSizeBytes)) { Logger::Err("uh oh"); std::abort(); }
-                stbi_image_free(textureData_stbi);
-            }
-            TextureData textureData =
-            {
-                .width = textureWidth
-                , .height = textureHeight
-                , .numChannels = desiredChannels
-                , .data = std::move(pixels)
-            };
+            TextureData textureData;
+            LoadTextureData(texturePath, textureData);
             materialData.diffuseData = std::move(textureData);
         }
-
-
-
-
         meshData.materialData = std::move(materialData);
     }
 }
@@ -138,7 +144,7 @@ inline void ProcessAssimpNode(ModelData& modelData, aiNode *node, const aiScene 
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
         MeshData meshData;
         ProcessAssimpMesh(meshData, mesh, scene, relativeToRootTransform, modelpath);
-        modelData.m_meshes.push_back(meshData);
+        modelData.m_meshes.push_back(std::move(meshData));
         modelData.m_transforms.push_back(relativeToRootTransform); // ??
     }
     // Recursively process this node's child nodes

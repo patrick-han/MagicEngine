@@ -56,10 +56,17 @@ struct VertexInputDescription {
     uv_yAttribute.format = VK_FORMAT_R32_SFLOAT;
     uv_yAttribute.offset = offsetof(SimpleVertex, uv_y);
 
+    VkVertexInputAttributeDescription normalAttribute = {};
+    normalAttribute.binding = 0;
+    normalAttribute.location = 4;
+    normalAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
+    normalAttribute.offset = offsetof(SimpleVertex, normal);
+
     description.attributes.push_back(positionAttribute);
     description.attributes.push_back(uv_xAttribute);
     description.attributes.push_back(colorAttribute);
     description.attributes.push_back(uv_yAttribute);
+    description.attributes.push_back(normalAttribute);
     return description;
 }
 

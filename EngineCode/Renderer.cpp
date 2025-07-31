@@ -142,6 +142,9 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
     m_swapchain = _swapchain;
     VkDevice device = m_gpuctx->GetDevice();
 
+    // Bindless Manager
+    m_bindlessManager.Initialize(_gpuctx);
+
     // Per frame in flight stuff
     for (auto & f : m_perFrameInFlightData)
     {
@@ -208,6 +211,7 @@ static std::vector<char> readFileBytes(const std::string& filename) {
 struct DefaultPushConstants {
     Matrix4f model;
     Matrix4f viewProjection;
+    uint32_t diffuseTextureBindlessTextureArraySlot = 0;
 };
 //
 
@@ -215,6 +219,33 @@ void Renderer::BuildResources()
 {
     // Can be deferred later TODO
     VkDevice device = m_gpuctx->GetDevice();
+
+    {
+        // Sampler(s)
+        VkSamplerCreateInfo linearCI = {
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = VK_FILTER_LINEAR,
+            .minFilter = VK_FILTER_LINEAR,
+            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+            .anisotropyEnable = VK_FALSE,
+            // .maxAnisotropy = maxAnisotropy,
+        };
+        VK_CHECK(vkCreateSampler(device, &linearCI, nullptr, &m_linearSampler));
+
+        // Sampler(s)
+        VkSamplerCreateInfo pointCI = {
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = VK_FILTER_NEAREST,
+            .minFilter = VK_FILTER_NEAREST,
+            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+            .anisotropyEnable = VK_FALSE,
+            // .maxAnisotropy = maxAnisotropy,
+        };
+        VK_CHECK(vkCreateSampler(device, &pointCI, nullptr, &m_pointSampler));
+        m_bindlessManager.UpdateBindlessSamplers(m_linearSampler, m_pointSampler);
+    }
+
+
     std::vector<char> vspv = readFileBytes("../Shaders/triangleVertex.vertex.spv");
     std::vector<char> pspv = readFileBytes("../Shaders/trianglePixel.pixel.spv");
     VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
@@ -235,7 +266,8 @@ void Renderer::BuildResources()
     pipelineBuilder.SetVertexDescription(vd);
 
     pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
-    pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE);
+    // pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE);
+    pipelineBuilder.SetDescriptorSetLayouts(m_bindlessManager.m_descriptorSetLayout);
 
     {
 
@@ -310,11 +342,14 @@ void Renderer::BuildResources()
 void Renderer::DestroyResources()
 {
     VkDevice device = m_gpuctx->GetDevice();
-    vkDeviceWaitIdle(device);
+    WaitIdle();
+    vkDestroySampler(device, m_linearSampler, NULL);
+    vkDestroySampler(device, m_pointSampler, NULL);
     m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
     vkDestroyImageView(device, m_colorImage.view, nullptr);
     vmaDestroyImage(m_gpuctx->GetVmaAllocator(), m_colorImage.image, m_colorImage.allocation);
+    m_bindlessManager.Shutdown();
 }
 
 void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
@@ -357,6 +392,19 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         cmdEncoder.SetScissor(outputWidth, outputHeight);
         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
 
+        // Bindless set
+
+        vkCmdBindDescriptorSets(
+            cmdEncoder.Handle(),
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            m_simplePipeline.GetPipelineLayout(),
+            0, // firstSet
+            1,
+            &m_bindlessManager.m_descriptorSet, // your bindless descriptor set
+            0,
+            nullptr
+        );
+
         // TODO: render all renderables
         for (RenderableMesh& renderable : renderingInfo.meshesToRender)
         {
@@ -366,6 +414,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                 DefaultPushConstants pushConstants;
                 pushConstants.model = renderable.transform * Matrix4f::MakeScale(100.0f);
                 pushConstants.viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * renderingInfo.pCamera->GetViewMatrix();
+                pushConstants.diffuseTextureBindlessTextureArraySlot = renderable.diffuseTextureBindlessTextureArraySlot;
                 vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
             }
             cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);

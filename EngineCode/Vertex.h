@@ -10,6 +10,7 @@ struct SimpleVertex
     float uv_x;
     Vector3f color;
     float uv_y;
+    Vector3f normal;
 };
 
 }

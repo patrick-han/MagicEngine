@@ -2,7 +2,6 @@
 
 #include "Buffer.h"
 #include "Common/Math/Matrix4f.h"
-#include "Image.h"
 
 namespace Magic
 {
@@ -12,7 +11,7 @@ struct RenderableMesh
     AllocatedBuffer indexBuffer;
     uint32_t indexCount = 0;
     Matrix4f transform;
-    AllocatedImage diffuseTexture;
+    int diffuseTextureBindlessTextureArraySlot = -1;
 };
 
 }

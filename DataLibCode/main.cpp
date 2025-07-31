@@ -47,10 +47,10 @@ int main(int argc, char *argv[])
     {
         Assimp::Importer importer;
         unsigned int flags = aiProcess_Triangulate
-                                // | aiProcess_FlipUVs
+                                | aiProcess_FlipUVs
                                 // | aiProcess_CalcTangentSpace
                                 // | aiProcess_PreTransformVertices // Flattens all nodes and their relative transforms into a single node with "frozen: transforms
-                                // | aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes
+                                | aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes
                 // TODO: don't really understand how this is working tbh
                                 ;
         const aiScene* scene = importer.ReadFile(filepathStr, flags);

@@ -23,11 +23,11 @@ GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetPushConstantRanges(std::spa
     m_pushConstantRanges = ranges;
     return *this;
 }
-//
-// GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetDescriptorSetLayouts(std::span<VkDescriptorSetLayout const> layouts) {
-//     m_descriptorSetLayouts = layouts;
-//     return *this;
-// }
+
+GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetDescriptorSetLayouts(VkDescriptorSetLayout layout) {
+    m_descriptorSetLayout = layout;
+    return *this;
+}
 
 GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetExtent(uint32_t width, uint32_t height) {
     VkExtent2D extent = { width, height };
@@ -180,7 +180,7 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
-    VkPipelineLayout pipelineLayout = CreatePipelineLayout(device, m_pushConstantRanges);
+    VkPipelineLayout pipelineLayout = CreatePipelineLayout(device, m_pushConstantRanges, m_descriptorSetLayout);
 
     VkGraphicsPipelineCreateInfo pipelineCreateInfo = {
         VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -214,14 +214,14 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
 VkPipelineLayout GraphicsPipelineBuilder::CreatePipelineLayout(
     VkDevice device
     , std::span<VkPushConstantRange const> pushConstantRanges
-    // std::span<VkDescriptorSetLayout const> descriptorSetLayouts
+    , VkDescriptorSetLayout descriptorSetLayout
     ) {
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    // pipelineLayoutCreateInfo.pNext = nullptr;
-    // pipelineLayoutCreateInfo.flags = {};
-    // pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
-    // pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts.data();
+    pipelineLayoutCreateInfo.pNext = nullptr;
+    pipelineLayoutCreateInfo.flags = {};
+    pipelineLayoutCreateInfo.setLayoutCount = 1; // TODO
+    pipelineLayoutCreateInfo.pSetLayouts = &descriptorSetLayout;
     pipelineLayoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
     pipelineLayoutCreateInfo.pPushConstantRanges = pushConstantRanges.data();
 
