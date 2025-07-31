@@ -1,27 +1,27 @@
-#include "AssetManager.h"
+#include "ResourceManager.h"
 #include "Common/Log.h"
 
 namespace Magic
 {
-AssetManager::AssetManager(Renderer* pRenderer)
+ResourceManager::ResourceManager(Renderer* pRenderer)
 {
     Logger::Info("Initializing AssetManager");
     m_rctx = pRenderer;
 }
 
-AssetManager::~AssetManager()
+ResourceManager::~ResourceManager()
 {
     Logger::Info("Destroying AssetManager");
 }
 
-void AssetManager::DestroyAllAssets()
+void ResourceManager::DestroyAllAssets()
 {
     m_rctx->WaitIdle(); // TODO: This is probably too heavy handed, we need some way to distinguish which assets are actually GPU resident, but i'll worry about that later
     DestroyAllGPUResidentMeshes();
     DestroyAllGPUResidentTextures();
 }
 
-void AssetManager::DestroyAllGPUResidentMeshes()
+void ResourceManager::DestroyAllGPUResidentMeshes()
 {
     Logger::Info("AssetManager: Destroying all meshes");
     for (const RenderableMesh& renderable : m_renderableMeshes)
@@ -31,7 +31,7 @@ void AssetManager::DestroyAllGPUResidentMeshes()
     }
 }
 
-void AssetManager::DestroyAllGPUResidentTextures()
+void ResourceManager::DestroyAllGPUResidentTextures()
 {
     Logger::Info("AssetManager: Destroying all textures");
     for (const AllocatedImage& image : m_renderableImages)

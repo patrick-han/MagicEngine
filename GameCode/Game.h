@@ -6,7 +6,7 @@ namespace Magic
 {
 class Registry;
 class Camera;
-class AssetManager;
+class ResourceManager;
 struct InputState;
 class Game
 {
@@ -27,7 +27,7 @@ protected:
 private:
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<Registry> m_ecs;
-    std::unique_ptr<AssetManager> m_assetManager;
+    std::unique_ptr<ResourceManager> m_assetManager;
 };
 
 }

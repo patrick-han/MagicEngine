@@ -62,7 +62,7 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 }
 
 
-static VkImageSubresourceRange default_image_subresource_range(VkImageAspectFlags aspectMask) // Transition all mipmap levels and layers by default
+static VkImageSubresourceRange DefaultImageSubresourceRange(VkImageAspectFlags aspectMask) // Transition all mipmap levels and layers by default
 {
     VkImageSubresourceRange subImage {};
     subImage.aspectMask = aspectMask;
@@ -74,7 +74,7 @@ static VkImageSubresourceRange default_image_subresource_range(VkImageAspectFlag
     return subImage;
 }
 
-static void transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
+static void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
 {
     VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 
@@ -85,7 +85,7 @@ static void transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout c
         .oldLayout = currentLayout,
         .newLayout = newLayout,
         .image = image,
-        .subresourceRange = default_image_subresource_range(aspectMask)
+        .subresourceRange = DefaultImageSubresourceRange(aspectMask)
     };
 
     vkCmdPipelineBarrier(
@@ -107,7 +107,7 @@ AllocatedImage Renderer::UploadImage(const void *imageData, int numChannels, VkI
     AllocatedBuffer imageStagingBuffer = UploadBuffer(dataSize, imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
     ImmediateSubmit([&](VkCommandBuffer cmd) {
-        transition_image(cmd, allocatedImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        TransitionImage(cmd, allocatedImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         VkBufferImageCopy copyRegion = {};
         copyRegion.bufferOffset = 0;
@@ -123,7 +123,7 @@ AllocatedImage Renderer::UploadImage(const void *imageData, int numChannels, VkI
         // copy the buffer into the image
         vkCmdCopyBufferToImage(cmd, imageStagingBuffer.buffer, allocatedImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
-        transition_image(cmd, allocatedImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        TransitionImage(cmd, allocatedImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     });
     DestroyBuffer(imageStagingBuffer);

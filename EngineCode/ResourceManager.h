@@ -7,12 +7,12 @@
 #include "../EngineCode/Vulkan/Helpers.h" // TODO:
 namespace Magic
 {
-class AssetManager
+class ResourceManager
 // class Renderer;
 {
 public:
-    AssetManager(Renderer* pRenderer);
-    ~AssetManager();
+    ResourceManager(Renderer* pRenderer);
+    ~ResourceManager();
     std::vector<int> LoadModel(const std::string& filePath) // Should this return a list of Renderable components instead? make distinguishment between submesh/mesh?
     {
         ModelData testModel = Data::DeserializeModelData(filePath);

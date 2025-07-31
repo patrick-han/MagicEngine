@@ -6,7 +6,7 @@
 #include <SDL3/SDL_scancode.h> // Only for SCANCODES, TODO: Make a translation layer thingy
 
 #include "PlayerComponent.h"
-#include "../EngineCode/AssetManager.h"
+#include "../EngineCode/ResourceManager.h"
 #include "../EngineCode/ECS.h"
 #include "../EngineCode/Components/TransformComponent.h"
 #include "../EngineCode/Components/RenderableComponent.h"
@@ -21,7 +21,7 @@ Game::~Game() { }
 
 void Game::Initialize(Renderer* pRenderer)
 {
-    m_assetManager = std::make_unique<AssetManager>(pRenderer);
+    m_assetManager = std::make_unique<ResourceManager>(pRenderer);
     m_ecs = std::make_unique<Registry>();
     m_ecs->AddSystem<PlayerMovementSystem>();
     m_ecs->AddSystem<RenderSystem>();

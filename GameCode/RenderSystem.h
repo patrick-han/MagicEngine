@@ -2,7 +2,7 @@
 #include "../EngineCode/ECS.h"
 #include "../EngineCode/Components/RenderableComponent.h"
 #include "../EngineCode/Components/TransformComponent.h"
-#include "../EngineCode/AssetManager.h"
+#include "../EngineCode/ResourceManager.h"
 
 namespace Magic
 {
@@ -28,7 +28,7 @@ public:
 
     // TODO: Return a list of RenderableComponents? Basically I want this system to do CPU side culling / visibility and provide a list of things
     // back to the engine to render
-    [[nodiscard]] std::vector<RenderableMesh> Update(AssetManager* pAssetManager)
+    [[nodiscard]] std::vector<RenderableMesh> Update(ResourceManager* pAssetManager)
     {
         std::vector<Entity> renderableEntities = GetSystemEntities();
         std::vector<RenderableMesh> meshesToRender;
