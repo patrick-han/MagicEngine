@@ -8,3 +8,4 @@ DataLibCode/beautiful-game
 DataLibCode/orientation
 DataLibCode/*.bin
 xcode-build
+.idea/editor.xml

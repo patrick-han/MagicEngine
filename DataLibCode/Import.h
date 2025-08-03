@@ -55,9 +55,14 @@ inline void LoadTextureData(const std::filesystem::path& texturePath, TextureDat
     int textureHeight = 0;
     int numChannels = 0;
     int desiredChannels = 4; // TODO: non-zero if we want to force a certain number of channels
-    stbi_uc* textureData_stbi = stbi_load(texturePath.c_str(), &textureWidth, &textureHeight, &numChannels, desiredChannels);
+    stbi_uc* textureData_stbi = stbi_load(reinterpret_cast<char const *>(texturePath.u8string().c_str()), &textureWidth, &textureHeight, &numChannels, desiredChannels);
     std::vector<unsigned char> pixels;
-    if (textureData_stbi)
+    if (!textureData_stbi)
+    {
+        Logger::Err(std::format("Could not load texture file: {}", texturePath.string()));
+        std::exit(1);
+    }
+    else
     {
         auto textureDataSizeBytes = textureWidth * textureHeight * desiredChannels * sizeof(stbi_uc);
         pixels.assign(textureData_stbi, textureData_stbi + textureDataSizeBytes);
