@@ -253,10 +253,10 @@ void Renderer::BuildResources()
 
     VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
     VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
-        .colorAttachmentCount = 1,
-        .pColorAttachmentFormats = outRTFormats, // match swapchain format for now
-        // .depthAttachmentFormat = m_GfxDevice.m_depthImage.imageFormat,
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
+        , .colorAttachmentCount = 1
+        , .pColorAttachmentFormats = outRTFormats // match swapchain format for now
+        , .depthAttachmentFormat = m_depthFormat
     };
 
     auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
@@ -268,6 +268,8 @@ void Renderer::BuildResources()
     pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
     // pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE);
     pipelineBuilder.SetDescriptorSetLayouts(m_bindlessManager.m_descriptorSetLayout);
+    pipelineBuilder.SetDepthTestEnable(true);
+    pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
 
     {
 
@@ -285,47 +287,26 @@ void Renderer::BuildResources()
     vkDestroyShaderModule(device, vs_m, nullptr);
     vkDestroyShaderModule(device, ps_m, nullptr);
 
-    // Test triangle vertex buffer
-    {
-        // SimpleVertex v1 = {{1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
-        // SimpleVertex v2 = {{0.0f,  1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
-        // SimpleVertex v3 = {{-1.0f,  -1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
-        // m_vertices.push_back(v1);
-        // m_vertices.push_back(v2);
-        // m_vertices.push_back(v3);
-        // m_indices = {0, 2, 1}; // CCW winding order is frontfacing for all graphics pipelines
-        // m_triBuffer = UploadBuffer(sizeof(SimpleVertex) * vertices.size(), vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-        // m_triBufferIndices = UploadBuffer(sizeof(uint32_t) * indices.size(), indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-    }
-
-    // Custom model
-    {
-        // auto testModel = Data::DeserializeModelData("../DataLibCode/helmet.bin");
-        //
-        // size_t meshIndex = 0;
-        // for (const MeshData& meshData : testModel.m_meshes)
-        // {
-        //     RenderableMesh renderable;
-        //     renderable.vertexBuffer = UploadBuffer(sizeof(SimpleVertex) * meshData.m_vertices.size(), meshData.m_vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-        //     renderable.indexBuffer = UploadBuffer(sizeof(uint32_t) * meshData.m_indices.size(), meshData.m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-        //     renderable.indexCount = meshData.m_indices.size();
-        //     renderable.transform = testModel.m_transforms[meshIndex];
-        //     m_renderables.push_back(renderable);
-        //     meshIndex++;
-        // }
-        // Logger::Info("Loaded test model");
-    }
-
-
+    VkExtent3D rtExtent = {.width = static_cast<uint32_t>(outputWidth), .height = static_cast<uint32_t>(outputHeight), .depth = 1 };
     // Test color attachment
     {
-        VkExtent3D extent = {.width = static_cast<uint32_t>(outputWidth), .height = static_cast<uint32_t>(outputHeight), .depth = 1 };
-        VkImageCreateInfo colorImageInfo = TEMP_image_create_info(VK_FORMAT_B8G8R8A8_UNORM, extent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_TYPE_2D);
+        VkImageCreateInfo colorImageInfo = TEMP_image_create_info(VK_FORMAT_B8G8R8A8_UNORM, rtExtent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_TYPE_2D);
         VmaAllocationCreateInfo vmaAllocInfo = {.usage = VMA_MEMORY_USAGE_GPU_ONLY, .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
-        VK_CHECK(vmaCreateImage(m_gpuctx->GetVmaAllocator(), &colorImageInfo, &vmaAllocInfo, &m_colorImage.image, &m_colorImage.allocation, nullptr));
+        VK_CHECK(vmaCreateImage(m_gpuctx->GetVmaAllocator(), &colorImageInfo, &vmaAllocInfo, &m_rtColorImage.image, &m_rtColorImage.allocation, nullptr));
 
-        VkImageViewCreateInfo colorImageViewInfo = DefaultImageViewCreateInfo(m_colorImage.image, VK_FORMAT_B8G8R8A8_UNORM, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
-        VK_CHECK(vkCreateImageView(device, &colorImageViewInfo, nullptr, &m_colorImage.view));
+        VkImageViewCreateInfo colorImageViewInfo = DefaultImageViewCreateInfo(m_rtColorImage.image, VK_FORMAT_B8G8R8A8_UNORM, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
+        VK_CHECK(vkCreateImageView(device, &colorImageViewInfo, nullptr, &m_rtColorImage.view));
+    }
+
+    // Depth target
+    {
+        VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
+        VkImageCreateInfo depthImageInfo = TEMP_image_create_info(m_depthFormat, rtExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_TYPE_2D);
+        VmaAllocationCreateInfo vmaAllocInfo = {.usage = VMA_MEMORY_USAGE_GPU_ONLY, .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
+        VK_CHECK(vmaCreateImage(m_gpuctx->GetVmaAllocator(), &depthImageInfo, &vmaAllocInfo, &m_rtDepthImage.image, &m_rtDepthImage.allocation, nullptr));
+
+        VkImageViewCreateInfo depthImageViewInfo = DefaultImageViewCreateInfo(m_rtDepthImage.image, m_depthFormat, {}, VK_IMAGE_ASPECT_DEPTH_BIT);
+        VK_CHECK(vkCreateImageView(device, &depthImageViewInfo, nullptr, &m_rtDepthImage.view));
     }
 
     // Single timeline semaphore, shared between frames in flight
@@ -347,8 +328,12 @@ void Renderer::DestroyResources()
     vkDestroySampler(device, m_pointSampler, NULL);
     m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
-    vkDestroyImageView(device, m_colorImage.view, nullptr);
-    vmaDestroyImage(m_gpuctx->GetVmaAllocator(), m_colorImage.image, m_colorImage.allocation);
+    { // Destroy rendertargetse
+        vkDestroyImageView(device, m_rtDepthImage.view, nullptr);
+        vmaDestroyImage(m_gpuctx->GetVmaAllocator(), m_rtDepthImage.image, m_rtDepthImage.allocation);
+        vkDestroyImageView(device, m_rtColorImage.view, nullptr);
+        vmaDestroyImage(m_gpuctx->GetVmaAllocator(), m_rtColorImage.image, m_rtColorImage.allocation);
+    }
     m_bindlessManager.Shutdown();
 }
 
@@ -378,16 +363,23 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
     cmdEncoder.Reset();
     cmdEncoder.Begin();
 
-    cmdEncoder.ImageBarrier(m_colorImage
+    cmdEncoder.ImageBarrier(m_rtColorImage
     , VK_ACCESS_NONE, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
     , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    cmdEncoder.ImageBarrier(m_rtDepthImage
+    , VK_ACCESS_NONE, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+    , VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+    , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
     {
-        VkClearValue clearValue = {{{0.5f, 0.5f, 0.7f, 1.0f}}};
-        auto rai = TEMP_rendering_attachment_info(m_colorImage.view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &clearValue);
-        auto ri = TEMP_rendering_info_fullscreen(1, &rai, nullptr, outputWidth, outputHeight);
-
-        cmdEncoder.BeginRendering(ri);
+        {
+            VkClearValue clearValue = {{{0.5f, 0.5f, 0.7f, 1.0f}}};
+            auto rai_color = TEMP_rendering_attachment_info(m_rtColorImage.view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &clearValue);
+            VkClearValue depthClearValue = {.depthStencil = 1.0f};
+            auto rai_depth = TEMP_rendering_attachment_info(m_rtDepthImage.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue);
+            auto ri = TEMP_rendering_info_fullscreen(1, &rai_color, &rai_depth, outputWidth, outputHeight);
+            cmdEncoder.BeginRendering(ri);
+        }
         cmdEncoder.SetViewport(outputWidth, outputHeight);
         cmdEncoder.SetScissor(outputWidth, outputHeight);
         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
@@ -421,7 +413,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         }
         cmdEncoder.EndRendering();
     }
-    cmdEncoder.ImageBarrier(m_colorImage
+    cmdEncoder.ImageBarrier(m_rtColorImage
         , VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT
         , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
         , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -431,7 +423,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
         , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    cmdEncoder.CopyImageToImage(m_colorImage, swapchainImageData.image
+    cmdEncoder.CopyImageToImage(m_rtColorImage, swapchainImageData.image
         , VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_ASPECT_COLOR_BIT
         , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         , outputWidth, outputHeight);

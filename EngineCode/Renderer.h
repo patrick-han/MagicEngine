@@ -68,7 +68,9 @@ private:
     VkSampler m_linearSampler = VK_NULL_HANDLE;
     VkSampler m_pointSampler = VK_NULL_HANDLE;
     GraphicsPipeline m_simplePipeline;
-    AllocatedImage m_colorImage;
+    AllocatedImage m_rtColorImage;
+    AllocatedImage m_rtDepthImage;
+    const VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
 
 
 
