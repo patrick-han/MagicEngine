@@ -85,8 +85,12 @@ inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *s
         Vector4f transformedVertex = transformMatrix * Vector4f(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 1.0f);
         vertex.position = Vector3f(transformedVertex.x, transformedVertex.y, transformedVertex.z);
 
-        size_t color_i = i%3;
-        vertex.color = defaultVertexColors[color_i];
+        if (mesh->HasVertexColors(0))
+        {
+            vertex.color.x = mesh->mColors[0][i].r;
+            vertex.color.y = mesh->mColors[0][i].g;
+            vertex.color.z = mesh->mColors[0][i].b;
+        }
 
         if (mesh->HasTextureCoords(0))
         {

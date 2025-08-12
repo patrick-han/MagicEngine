@@ -30,6 +30,7 @@ public:
             };
 
             // Load mesh texture(s)
+            if (meshData.materialData.diffuseData.data.size() != 0) // TODO:
             {
                 VkExtent3D imageExtent {
                     .width = static_cast<uint32_t>(meshData.materialData.diffuseData.width)

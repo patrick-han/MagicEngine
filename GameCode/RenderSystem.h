@@ -42,6 +42,7 @@ public:
                 {
                     auto renderableMesh = pAssetManager->GetRenderableMeshByIndex(index);
                     TransformMesh(renderableMesh, transform);
+                    renderableMesh.renderableFlags = renderable.m_renderableFlags;
                     meshesToRender.push_back(renderableMesh);
                 }
             }

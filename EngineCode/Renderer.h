@@ -72,6 +72,7 @@ private:
     AllocatedImage m_rtDepthImage;
     const VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
 
+    GraphicsPipeline m_debugDrawPipeline;
 
 
     /// TODO:

@@ -47,7 +47,7 @@ void Application::Startup()
     }
 
     // Windows
-    m_windows.push_back(std::make_unique<Window>("Magic Engine", 800, 600, m_gpuctx->GetInstance()));
+    m_windows.push_back(std::make_unique<Window>("Magic Engine", 1280, 720, m_gpuctx->GetInstance()));
     std::unique_ptr<Window>& defaultWindow = m_windows[Window::DEFAULT_WINDOW];
 
     // TODO: temp

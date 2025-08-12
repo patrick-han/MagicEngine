@@ -6,6 +6,10 @@ namespace Magic
 struct TransformComponent
 {
     Matrix4f m_transform;
+    TransformComponent()
+    {
+
+    }
     TransformComponent(const Matrix4f& _transform) : m_transform(_transform)
     {
 

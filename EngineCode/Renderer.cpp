@@ -215,8 +215,7 @@ struct DefaultPushConstants {
 };
 //
 
-void Renderer::BuildResources()
-{
+void Renderer::BuildResources() {
     // Can be deferred later TODO
     VkDevice device = m_gpuctx->GetDevice();
 
@@ -245,47 +244,85 @@ void Renderer::BuildResources()
         m_bindlessManager.UpdateBindlessSamplers(m_linearSampler, m_pointSampler);
     }
 
-
-    std::vector<char> vspv = readFileBytes("../Shaders/triangleVertex.vertex.spv");
-    std::vector<char> pspv = readFileBytes("../Shaders/trianglePixel.pixel.spv");
-    VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
-    VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
-
-    VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
-    VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
-        , .colorAttachmentCount = 1
-        , .pColorAttachmentFormats = outRTFormats // match swapchain format for now
-        , .depthAttachmentFormat = m_depthFormat
-    };
-
-    auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
-    pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
-    pipelineBuilder.SetExtent(outputWidth, outputHeight);
-    auto vd = SimpleVertexDescription();
-    pipelineBuilder.SetVertexDescription(vd);
-
-    pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
-    // pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE);
-    pipelineBuilder.SetDescriptorSetLayouts(m_bindlessManager.m_descriptorSetLayout);
-    pipelineBuilder.SetDepthTestEnable(true);
-    pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
-
     {
+        std::vector<char> vspv = readFileBytes("../Shaders/triangleVertex.vertex.spv");
+        std::vector<char> pspv = readFileBytes("../Shaders/trianglePixel.pixel.spv");
+        VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
+        VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
 
-        VkPushConstantRange defaultPushConstantRange = {
-            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-            .offset = 0,
-            .size = sizeof(DefaultPushConstants)
+        VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
+        VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
+            , .colorAttachmentCount = 1
+            , .pColorAttachmentFormats = outRTFormats // match swapchain format for now
+            , .depthAttachmentFormat = m_depthFormat
         };
-        m_pushConstantRanges.push_back(defaultPushConstantRange);
-        pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
+
+        auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
+        pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
+        pipelineBuilder.SetExtent(outputWidth, outputHeight);
+        auto vd = SimpleVertexDescription();
+        pipelineBuilder.SetVertexDescription(vd);
+
+        pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
+        pipelineBuilder.SetDescriptorSetLayouts(m_bindlessManager.m_descriptorSetLayout);
+        pipelineBuilder.SetDepthTestEnable(true);
+        pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
+
+        {
+            VkPushConstantRange defaultPushConstantRange = {
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                .offset = 0,
+                .size = sizeof(DefaultPushConstants)
+            };
+            m_pushConstantRanges.push_back(defaultPushConstantRange);
+            pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
+        }
+
+        m_simplePipeline = pipelineBuilder.Build(device, vs_m, ps_m);
+
+        vkDestroyShaderModule(device, vs_m, nullptr);
+        vkDestroyShaderModule(device, ps_m, nullptr);
     }
 
-    m_simplePipeline = pipelineBuilder.Build(device, vs_m, ps_m);
+    // Debug draw pipeline
+    {
+        std::vector<char> vspv = readFileBytes("../Shaders/triangleVertex.vertex.spv");
+        std::vector<char> pspv = readFileBytes("../Shaders/triangleDebug.pixel.spv");
+        VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
+        VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
 
-    vkDestroyShaderModule(device, vs_m, nullptr);
-    vkDestroyShaderModule(device, ps_m, nullptr);
+        VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
+        VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
+            , .colorAttachmentCount = 1
+            , .pColorAttachmentFormats = outRTFormats // match swapchain format for now
+            , .depthAttachmentFormat = m_depthFormat
+        };
+        auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
+        pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
+        pipelineBuilder.SetExtent(outputWidth, outputHeight);
+        auto vd = SimpleVertexDescription();
+        pipelineBuilder.SetVertexDescription(vd);
+        pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
+        pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE);
+        // pipelineBuilder.SetDepthTestEnable(true);
+        // pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
+        {
+            VkPushConstantRange defaultPushConstantRange = {
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                .offset = 0,
+                .size = sizeof(DefaultPushConstants)
+            };
+            m_pushConstantRanges.push_back(defaultPushConstantRange);
+            pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
+        }
+        m_debugDrawPipeline = pipelineBuilder.Build(device, vs_m, ps_m);
+        vkDestroyShaderModule(device, vs_m, nullptr);
+        vkDestroyShaderModule(device, ps_m, nullptr);
+    }
+
+
 
     VkExtent3D rtExtent = {.width = static_cast<uint32_t>(outputWidth), .height = static_cast<uint32_t>(outputHeight), .depth = 1 };
     // Test color attachment
@@ -326,6 +363,7 @@ void Renderer::DestroyResources()
     WaitIdle();
     vkDestroySampler(device, m_linearSampler, NULL);
     vkDestroySampler(device, m_pointSampler, NULL);
+    m_debugDrawPipeline.Destroy();
     m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
     { // Destroy rendertargetse
@@ -397,20 +435,41 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             nullptr
         );
 
+        DefaultPushConstants pushConstants;
+        Matrix4f viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * renderingInfo.pCamera->GetViewMatrix();
+        pushConstants.viewProjection = viewProjection;
+
         // TODO: render all renderables
         for (RenderableMesh& renderable : renderingInfo.meshesToRender)
         {
-            cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
-            cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
+            if (renderable.renderableFlags == RenderableFlags::None)
             {
-                DefaultPushConstants pushConstants;
-                pushConstants.model = renderable.transform * Matrix4f::MakeScale(100.0f);
-                pushConstants.viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * renderingInfo.pCamera->GetViewMatrix();
-                pushConstants.diffuseTextureBindlessTextureArraySlot = renderable.diffuseTextureBindlessTextureArraySlot;
-                vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
+                cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
+                cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
+                {
+                    pushConstants.model = renderable.transform * Matrix4f::MakeScale(100.0f);
+                    pushConstants.diffuseTextureBindlessTextureArraySlot = renderable.diffuseTextureBindlessTextureArraySlot;
+                    vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
+                }
+                cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
             }
-            cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
         }
+
+        // TODO: Render all debug objects, this is just a dump second loop for now
+        cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
+        for (RenderableMesh& renderable : renderingInfo.meshesToRender)
+        {
+            if (renderable.renderableFlags == RenderableFlags::DrawDebug) {
+                cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
+                cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
+                {
+                    pushConstants.model = renderable.transform;
+                    vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
+                }
+                cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
+            }
+        }
+
         cmdEncoder.EndRendering();
     }
     cmdEncoder.ImageBarrier(m_rtColorImage

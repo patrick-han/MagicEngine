@@ -29,6 +29,11 @@ int main(int argc, char *argv[])
     Data::AssetType assetType = Data::AssetType::Unknown;
     std::string typeArg = argv[1];
     std::string filepathStr = argv[2];
+    std::string outputPath = "helmet.bin";
+    if (argc > 3)
+    {
+         outputPath = argv[3];
+    }
     if (typeArg == "-staticMesh")
     {
         assetType = Data::AssetType::StaticMesh;
@@ -72,9 +77,9 @@ int main(int argc, char *argv[])
         Logger::Info(std::format("Loaded model: {}", filepath.string()));
         Data::ProcessAssimpNode(modelData, scene->mRootNode, scene, dummyTransform, filepath);
 
-        Data::SerializeModelData(modelData, "helmet.bin");
+        Data::SerializeModelData(modelData, outputPath);
 
-        ModelData modelData2 = Data::DeserializeModelData("helmet.bin");
+        ModelData modelData2 = Data::DeserializeModelData(outputPath);
 
 
         Logger::Info(std::format("Processed model: {}", filepathStr));

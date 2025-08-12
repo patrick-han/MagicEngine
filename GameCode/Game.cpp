@@ -53,6 +53,13 @@ void Game::LoadContent()
         std::vector<int> renderableIndices = m_assetManager->LoadModel("../DataLibCode/helmet.bin");
         enemy.AddComponent<RenderableComponent>(renderableIndices);
     }
+
+    Entity debugSphere = m_ecs->EnqueueCreateEntity();
+    {
+        debugSphere.AddComponent<TransformComponent>(Matrix4f::MakeScale(3.0));
+        std::vector<int> renderableIndices = m_assetManager->LoadModel("../DataLibCode/debug/debugSphereOut.bin");
+        debugSphere.AddComponent<RenderableComponent>(renderableIndices, RenderableFlags::DrawDebug);
+    }
 }
 
 void Game::UnloadContent()
