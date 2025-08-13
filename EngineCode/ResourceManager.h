@@ -1,5 +1,8 @@
 #pragma once
 
+#include <map>
+#include <mutex>
+
 #include "../DataLibCode/DataSerialization.h"
 #include <vector>
 #include "Renderable.h"
@@ -13,20 +16,39 @@ class ResourceManager
 public:
     ResourceManager(Renderer* pRenderer);
     ~ResourceManager();
-    std::vector<int> LoadModel(const std::string& filePath) // Should this return a list of Renderable components instead? make distinguishment between submesh/mesh?
+
+    /*
+     * Loads the model from disk and returns a pointer to the data
+     */
+    std::uint64_t LoadModelFromDisk(const std::string& filePath, const std::string& name)
     {
-        ModelData testModel = Data::DeserializeModelData(filePath);
+        ModelData* pModelData = new ModelData(Data::DeserializeModelData(filePath));
+        std::uint64_t newHandle;
+        {
+            std::scoped_lock(m_mutex);
+            newHandle = m_nextAvailableHandle;
+            m_modelHandleToData[newHandle] = pModelData;
+            m_modelNameToHandle[name] = newHandle;
+            m_nextAvailableHandle++;
+        }
+        return newHandle;
+    }
+
+    std::vector<int> UploadModel(const std::string& name)
+    {
+        std::uint64_t handle = m_modelNameToHandle[name];
+        ModelData* testModel = m_modelHandleToData[handle];
 
         std::vector<int> renderableMeshArrayIndices; // Stores indices into m_renderableMeshes;
         size_t meshCounter = 0;
-        for (const MeshData& meshData : testModel.m_meshes)
+        for (const MeshData& meshData : testModel->m_meshes)
         {
             RenderableMesh renderable
             {
                 .vertexBuffer = m_rctx->UploadBuffer(sizeof(SimpleVertex) * meshData.m_vertices.size(), meshData.m_vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
                 , .indexBuffer = m_rctx->UploadBuffer(sizeof(uint32_t) * meshData.m_indices.size(), meshData.m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
                 , .indexCount = static_cast<uint32_t>(meshData.m_indices.size())
-                , .transform = testModel.m_transforms[meshCounter]
+                , .transform = testModel->m_transforms[meshCounter]
             };
 
             // Load mesh texture(s)
@@ -53,6 +75,14 @@ public:
         }
         return renderableMeshArrayIndices;
     }
+
+private:
+    std::mutex m_mutex;
+    std::map<std::string, uint64_t> m_modelNameToHandle;
+    std::map<uint64_t, ModelData*> m_modelHandleToData;
+    std::uint64_t m_nextAvailableHandle = 0;
+
+public:
     [[nodiscard]] RenderableMesh GetRenderableMeshByIndex(size_t index) const
     {
         return m_renderableMeshes[index];

@@ -38,7 +38,8 @@ inline void SerializeModelData(const ModelData& model, const std::string& filena
 
 }
 
-inline ModelData DeserializeModelData(const std::string& filename) {
+inline ModelData DeserializeModelData(const std::string& filename)
+{
     std::ifstream in(filename, std::ios::binary);
     if (!in) throw std::runtime_error("Failed to open file for reading");
 

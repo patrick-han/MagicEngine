@@ -28,7 +28,7 @@ public:
 
     // TODO: Return a list of RenderableComponents? Basically I want this system to do CPU side culling / visibility and provide a list of things
     // back to the engine to render
-    [[nodiscard]] std::vector<RenderableMesh> Update(ResourceManager* pAssetManager)
+    [[nodiscard]] std::vector<RenderableMesh> Update(ResourceManager* pResourceManager)
     {
         std::vector<Entity> renderableEntities = GetSystemEntities();
         std::vector<RenderableMesh> meshesToRender;
@@ -40,7 +40,7 @@ public:
             {
                 if (!ShouldCull(/*Renderable?*/))
                 {
-                    auto renderableMesh = pAssetManager->GetRenderableMeshByIndex(index);
+                    auto renderableMesh = pResourceManager->GetRenderableMeshByIndex(index);
                     TransformMesh(renderableMesh, transform);
                     renderableMesh.renderableFlags = renderable.m_renderableFlags;
                     meshesToRender.push_back(renderableMesh);

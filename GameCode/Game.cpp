@@ -34,30 +34,48 @@ void Game::LoadContent()
     // Make a free camera pointing down +Z with +X left and +Y up
     m_camera = std::make_unique<Camera>(Vector3f(0.0f, 0.0f, 0.0f), Vector3f(0.0f, 0.0f, 1.0f));
 
+    auto t1 = std::thread([&]()
+    {
+        m_assetManager->LoadModelFromDisk("../DataLibCode/helmet.bin", "helmet1");
+    });
+    auto t2 = std::thread([&]()
+    {
+        m_assetManager->LoadModelFromDisk("../DataLibCode/scene.bin", "scene");
+    });
+    auto t3 = std::thread([&]()
+    {
+        m_assetManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
+    });
+
+    t1.join();
+    t2.join();
+    t3.join();
+
+
 
     Entity player = m_ecs->EnqueueCreateEntity();
     {
         Matrix4f t;
         // t.m03 = 20;
         player.AddComponent<TransformComponent>(t);
-        std::vector<int> renderableIndices = m_assetManager->LoadModel("../DataLibCode/helmet.bin");
+        std::vector<int> renderableIndices = m_assetManager->UploadModel("helmet1");
         player.AddComponent<RenderableComponent>(renderableIndices);
         player.AddComponent<PlayerComponent>(50.0f);
     }
 
 
-    Entity enemy = m_ecs->EnqueueCreateEntity();
+    Entity scene = m_ecs->EnqueueCreateEntity();
     {
         Matrix4f t;
-        enemy.AddComponent<TransformComponent>(t);
-        std::vector<int> renderableIndices = m_assetManager->LoadModel("../DataLibCode/helmet.bin");
-        enemy.AddComponent<RenderableComponent>(renderableIndices);
+        scene.AddComponent<TransformComponent>(t);
+        std::vector<int> renderableIndices = m_assetManager->UploadModel("scene");
+        scene.AddComponent<RenderableComponent>(renderableIndices);
     }
 
     Entity debugSphere = m_ecs->EnqueueCreateEntity();
     {
         debugSphere.AddComponent<TransformComponent>(Matrix4f::MakeScale(3.0));
-        std::vector<int> renderableIndices = m_assetManager->LoadModel("../DataLibCode/debug/debugSphereOut.bin");
+        std::vector<int> renderableIndices = m_assetManager->UploadModel("debugSphere");
         debugSphere.AddComponent<RenderableComponent>(renderableIndices, RenderableFlags::DrawDebug);
     }
 }
