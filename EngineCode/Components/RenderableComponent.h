@@ -6,11 +6,11 @@ namespace Magic
 
 struct RenderableComponent
 {
-    RenderableComponent(const std::vector<int>& _renderableMeshIndices, RenderableFlags renderableFlags = RenderableFlags::None) : m_renderableMeshIndices(_renderableMeshIndices), m_renderableFlags(renderableFlags)
+    RenderableComponent(std::uint64_t resourceHandle, RenderableFlags renderableFlags = RenderableFlags::None) : handle(resourceHandle), m_renderableFlags(renderableFlags)
     {
 
     }
-    std::vector<int> m_renderableMeshIndices; // index into AssetManager array
+    std::uint64_t handle;
     RenderableFlags m_renderableFlags;
 };
 }

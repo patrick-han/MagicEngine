@@ -34,11 +34,13 @@ public:
         return newHandle;
     }
 
-    std::vector<int> UploadModel(const std::string& name)
+    void UploadModel(const uint64_t handle)
     {
-        std::uint64_t handle = m_modelNameToHandle[name];
-        ModelData* testModel = m_modelHandleToData[handle];
-
+        ModelData* testModel = nullptr;
+        {
+            std::scoped_lock(m_mutex);
+            testModel = m_modelHandleToData[handle];
+        }
         std::vector<int> renderableMeshArrayIndices; // Stores indices into m_renderableMeshes;
         size_t meshCounter = 0;
         for (const MeshData& meshData : testModel->m_meshes)
@@ -73,13 +75,35 @@ public:
             m_renderableMeshes.push_back(renderable);
             meshCounter++;
         }
-        return renderableMeshArrayIndices;
+        m_modelHandleToRenderableMeshIndices[handle] = std::move(renderableMeshArrayIndices);
+        delete testModel;
+
+        {
+            std::scoped_lock(m_mutex);
+            m_modelHandleToData.erase(handle);
+        }
+    }
+
+    void UploadModel(const std::string& name)
+    {
+        std::uint64_t handle;
+        {
+            std::scoped_lock(m_mutex);
+            handle = m_modelNameToHandle[name];
+        }
+        UploadModel(handle);
+    }
+
+    const std::vector<int>& GetRenderableMeshIndices(std::uint64_t handle)
+    {
+        return m_modelHandleToRenderableMeshIndices[handle];
     }
 
 private:
+    // These data structures may be accessed by multiple threads
     std::mutex m_mutex;
-    std::map<std::string, uint64_t> m_modelNameToHandle;
-    std::map<uint64_t, ModelData*> m_modelHandleToData;
+    std::map<std::string, std::uint64_t> m_modelNameToHandle;
+    std::map<std::uint64_t, ModelData*> m_modelHandleToData;
     std::uint64_t m_nextAvailableHandle = 0;
 
 public:
@@ -92,6 +116,9 @@ private:
     void DestroyAllGPUResidentMeshes();
     void DestroyAllGPUResidentTextures();
     Renderer* m_rctx;
+
+    // These data structures should only be accessed by a single render thread
+    std::map<std::uint64_t, std::vector<int>> m_modelHandleToRenderableMeshIndices;
     std::vector<RenderableMesh> m_renderableMeshes; // TODO: This probably doesn't belong here
     std::vector<AllocatedImage> m_renderableImages; // TODO: This probably doesn't belong here
 };

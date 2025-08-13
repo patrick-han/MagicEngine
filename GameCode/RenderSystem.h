@@ -36,7 +36,8 @@ public:
         {
             auto& renderable = entity.GetComponent<RenderableComponent>();
             auto& transform = entity.GetComponent<TransformComponent>();
-            for (auto index : renderable.m_renderableMeshIndices)
+            const auto& renderableMeshIndices = pResourceManager->GetRenderableMeshIndices(renderable.handle);
+            for (const auto& index : renderableMeshIndices)
             {
                 if (!ShouldCull(/*Renderable?*/))
                 {
