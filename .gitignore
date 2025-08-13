@@ -6,6 +6,7 @@ DataLibCode/sponza
 DataLibCode/multiple-scenes
 DataLibCode/beautiful-game
 DataLibCode/orientation
+DataLibCode/ue5level
 DataLibCode/*.bin
 xcode-build
 .idea/editor.xml

@@ -30,7 +30,7 @@ private:
     VkPipelineRenderingCreateInfoKHR m_pipelineRenderingCreateInfo;
     VertexInputDescription m_vertexDescription;
     std::span<VkPushConstantRange const> m_pushConstantRanges;
-    VkDescriptorSetLayout m_descriptorSetLayout;
+    VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
     VkExtent2D m_extent {0, 0};
     bool m_blendEnable = false;
     VkCullModeFlags m_cullMode = VK_CULL_MODE_NONE;

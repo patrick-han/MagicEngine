@@ -220,8 +220,13 @@ VkPipelineLayout GraphicsPipelineBuilder::CreatePipelineLayout(
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.pNext = nullptr;
     pipelineLayoutCreateInfo.flags = {};
-    pipelineLayoutCreateInfo.setLayoutCount = 1; // TODO
-    pipelineLayoutCreateInfo.pSetLayouts = &descriptorSetLayout;
+    pipelineLayoutCreateInfo.setLayoutCount = 0; // TODO
+    pipelineLayoutCreateInfo.pSetLayouts = nullptr;
+    if (descriptorSetLayout != VK_NULL_HANDLE)
+    {
+        pipelineLayoutCreateInfo.setLayoutCount = 1;
+        pipelineLayoutCreateInfo.pSetLayouts = &descriptorSetLayout;
+    }
     pipelineLayoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
     pipelineLayoutCreateInfo.pPushConstantRanges = pushConstantRanges.data();
 
