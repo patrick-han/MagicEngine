@@ -8,6 +8,9 @@
 #include "Renderable.h"
 #include "Renderer.h" // TODO: move to .cpp file
 #include "../EngineCode/Vulkan/Helpers.h" // TODO:
+
+#include "Timing.h"
+#include "JobSystem.h"
 namespace Magic
 {
 class ResourceManager
@@ -22,10 +25,12 @@ public:
      */
     std::uint64_t LoadModelFromDisk(const std::string& filePath, const std::string& name)
     {
+        auto start = std::chrono::steady_clock::now();
         ModelData* pModelData = new ModelData(Data::DeserializeModelData(filePath));
+        Logger::Info(std::format("LoadModelFromDisk({}) = {} ms\n\n", name, since(start).count()));
         std::uint64_t newHandle;
         {
-            std::scoped_lock(m_mutex);
+            std::scoped_lock lock(m_mutex);
             newHandle = m_nextAvailableHandle;
             m_modelHandleToData[newHandle] = pModelData;
             m_modelNameToHandle[name] = newHandle;
@@ -34,68 +39,109 @@ public:
         return newHandle;
     }
 
-    void UploadModel(const uint64_t handle)
+    bool UploadModel(const uint64_t handle)
     {
+        auto start = std::chrono::steady_clock::now();
+
         ModelData* testModel = nullptr;
         {
-            std::scoped_lock(m_mutex);
-            testModel = m_modelHandleToData[handle];
+            std::scoped_lock lock(m_mutex);
+            if (m_modelHandleToData.find(handle) != m_modelHandleToData.end())
+            {
+                testModel = m_modelHandleToData[handle];
+            }
+            else
+            {
+                return false;
+            }
         }
         std::vector<int> renderableMeshArrayIndices; // Stores indices into m_renderableMeshes;
         size_t meshCounter = 0;
         for (const MeshData& meshData : testModel->m_meshes)
         {
-            RenderableMesh renderable
+            RenderableMesh renderable;
             {
-                .vertexBuffer = m_rctx->UploadBuffer(sizeof(SimpleVertex) * meshData.m_vertices.size(), meshData.m_vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
-                , .indexBuffer = m_rctx->UploadBuffer(sizeof(uint32_t) * meshData.m_indices.size(), meshData.m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
-                , .indexCount = static_cast<uint32_t>(meshData.m_indices.size())
-                , .transform = testModel->m_transforms[meshCounter]
-            };
+                JobSystem::Execute([&renderable, &meshData= std::as_const(meshData), this]()
+                {
+                    renderable.vertexBuffer = m_rctx->UploadBuffer(sizeof(SimpleVertex) * meshData.m_vertices.size(), meshData.m_vertices.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+                });
 
-            // Load mesh texture(s)
-            if (meshData.materialData.diffuseData.data.size() != 0) // TODO:
-            {
-                VkExtent3D imageExtent {
-                    .width = static_cast<uint32_t>(meshData.materialData.diffuseData.width)
-                    , .height = static_cast<uint32_t>(meshData.materialData.diffuseData.height)
-                    , .depth = 1
-                };
-                VkFormat format = VK_FORMAT_R8G8B8A8_UNORM; // TODO: hardcoded default format
-                VkImageCreateInfo imci = TEMP_image_create_info(format, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
-                AllocatedImage diffuseTexture = m_rctx->UploadImage(meshData.materialData.diffuseData.data.data(), meshData.materialData.diffuseData.numChannels, imci);
-                VkImageViewCreateInfo imvci = DefaultImageViewCreateInfo(diffuseTexture.image, format, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
-                m_rctx->TEMP_CreateImageViewForAllocatedImage(imvci, diffuseTexture);
-                m_renderableImages.push_back(diffuseTexture);
+                JobSystem::Execute([&renderable, &meshData= std::as_const(meshData), this]()
+                {
+                    renderable.indexBuffer = m_rctx->UploadBuffer(sizeof(uint32_t) * meshData.m_indices.size(), meshData.m_indices.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+                });
 
-                renderable.diffuseTextureBindlessTextureArraySlot = m_rctx->m_bindlessManager.AddToBindlessTextureArray(diffuseTexture); // TODO: temp
+
+
+                renderable.indexCount = static_cast<uint32_t>(meshData.m_indices.size());
+                renderable.transform = testModel->m_transforms[meshCounter];
+
+                // Load mesh texture(s)
+                if (meshData.materialData.diffuseData.data.size() != 0) // TODO:
+                {
+                    AllocatedImage diffuseTexture;
+                    {
+                        VkExtent3D imageExtent {
+                            .width = static_cast<uint32_t>(meshData.materialData.diffuseData.width)
+                            , .height = static_cast<uint32_t>(meshData.materialData.diffuseData.height)
+                            , .depth = 1
+                        };
+                        VkFormat format = VK_FORMAT_R8G8B8A8_UNORM; // TODO: hardcoded default format
+                        VkImageCreateInfo imci = TEMP_image_create_info(format, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
+                        diffuseTexture = m_rctx->UploadImage(meshData.materialData.diffuseData.data.data(), meshData.materialData.diffuseData.numChannels, imci);
+                        VkImageViewCreateInfo imvci = DefaultImageViewCreateInfo(diffuseTexture.image, format, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
+                        m_rctx->TEMP_CreateImageViewForAllocatedImage(imvci, diffuseTexture);
+                    }
+                    m_renderableImages.push_back(diffuseTexture);
+
+                    renderable.diffuseTextureBindlessTextureArraySlot = m_rctx->m_bindlessManager.AddToBindlessTextureArray(diffuseTexture); // TODO: temp
+                }
+                JobSystem::Wait();
             }
 
             renderableMeshArrayIndices.push_back(m_renderableMeshes.size());
             m_renderableMeshes.push_back(renderable);
             meshCounter++;
         }
+
+
+
+        Logger::Info(std::format("UploadModel() = {} ms\n\n", since(start).count()));
         m_modelHandleToRenderableMeshIndices[handle] = std::move(renderableMeshArrayIndices);
         delete testModel;
 
         {
-            std::scoped_lock(m_mutex);
+            std::scoped_lock lock(m_mutex);
             m_modelHandleToData.erase(handle);
         }
+
+        return true; // success
     }
 
-    void UploadModel(const std::string& name)
+    bool UploadModel(const std::string& name)
     {
         std::uint64_t handle;
         {
-            std::scoped_lock(m_mutex);
-            handle = m_modelNameToHandle[name];
+            std::scoped_lock lock(m_mutex);
+            if (m_modelNameToHandle.find(name) != m_modelNameToHandle.end())
+            {
+                handle = m_modelNameToHandle[name];
+            }
+            else
+            {
+                return false;
+            }
         }
-        UploadModel(handle);
+        return UploadModel(handle);
     }
 
-    const std::vector<int>& GetRenderableMeshIndices(std::uint64_t handle)
+    const std::vector<int>& GetRenderableMeshIndices(const std::string& name)
     {
+        std::uint64_t handle;
+        {
+            std::scoped_lock lock(m_mutex);
+            handle = m_modelNameToHandle[name];
+        }
         return m_modelHandleToRenderableMeshIndices[handle];
     }
 
@@ -113,6 +159,16 @@ public:
     }
     void DestroyAllAssets();
 private:
+    void DestroyAllLoadedModels()
+    {
+        std::scoped_lock lock(m_mutex);
+        for (const auto& [key, value] : m_modelHandleToData)
+        {
+            std::uint64_t handle = key;
+            ModelData* data = value;
+            m_modelHandleToData.erase(handle);
+        }
+    }
     void DestroyAllGPUResidentMeshes();
     void DestroyAllGPUResidentTextures();
     Renderer* m_rctx;

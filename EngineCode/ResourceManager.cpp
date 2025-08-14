@@ -16,7 +16,8 @@ ResourceManager::~ResourceManager()
 
 void ResourceManager::DestroyAllAssets()
 {
-    m_rctx->WaitIdle(); // TODO: This is probably too heavy handed, we need some way to distinguish which assets are actually GPU resident, but i'll worry about that later
+    DestroyAllLoadedModels();
+    m_rctx->WaitIdle();
     DestroyAllGPUResidentMeshes();
     DestroyAllGPUResidentTextures();
 }

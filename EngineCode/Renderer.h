@@ -74,6 +74,9 @@ private:
 
     GraphicsPipeline m_debugDrawPipeline;
 
+public:
+    std::vector<int> m_errorModelMeshIndices;
+private:
 
     /// TODO:
     // Immediate rendering resources

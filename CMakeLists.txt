@@ -66,6 +66,9 @@ add_executable(MagicEngine main.cpp
         EngineCode/Common/Math/Vector2f.h
         EngineCode/BindlessManager.cpp
         EngineCode/BindlessManager.h
+        EngineCode/Timing.h
+        EngineCode/JobSystem.h
+        EngineCode/JobSystem.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)

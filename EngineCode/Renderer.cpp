@@ -7,7 +7,10 @@
 #include "Camera.h"
 #include <fstream>
 #include <cassert>
+#include <thread>
+
 #include "CommandEncoder.h"
+#include "Timing.h"
 
 #include "../DataLibCode/DataSerialization.h" // TODO: find better organization for this maebbe
 
@@ -37,7 +40,6 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
         nullptr
     ));
 
-    // Copy data into mapped memory
     void* data;
     vmaMapMemory(allocator, allocatedBuffer.allocation, &data);
     memcpy(data, bufferData, bufferSize);
