@@ -32,9 +32,9 @@ void Game::Initialize(Renderer* pRenderer)
     m_ecs->AddSystem<RenderSystem>();
 
 
-    errorModelHandle = m_assetManager->LoadModelFromDisk("../DataLibCode/debug/errorOut.bin", "error");
-    m_assetManager->UploadModel(errorModelHandle);
-    pRenderer->m_errorModelMeshIndices = m_assetManager->GetRenderableMeshIndices("errorS");
+    // errorModelHandle = m_assetManager->LoadModelFromDisk("../DataLibCode/debug/errorOut.bin", "error");
+    // m_assetManager->UploadModel(errorModelHandle);
+    // pRenderer->m_errorModelMeshIndices = m_assetManager->GetRenderableMeshIndices("errorS");
 }
 
 // testing

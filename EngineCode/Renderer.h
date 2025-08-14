@@ -43,7 +43,7 @@ public:
     [[nodiscard]] PerFrameInFlightData GetFrameInFlightData(int frameNumber) const { return m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight]; };
     void SignalFrameInFlight(int frameNumber, uint64_t _signalValue) { m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight].signalValue = _signalValue; };
 
-    void TEMP_CreateImageViewForAllocatedImage(const VkImageViewCreateInfo& imageViewCreateInfo, AllocatedImage& allocatedImage)
+    void CreateImageViewForAllocatedImage(const VkImageViewCreateInfo& imageViewCreateInfo, AllocatedImage& allocatedImage)
     {
         vkCreateImageView(m_gpuctx->GetDevice(), &imageViewCreateInfo, nullptr, &allocatedImage.view);
     }
