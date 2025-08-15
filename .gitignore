@@ -9,6 +9,7 @@ DataLibCode/orientation
 DataLibCode/ue5level
 DataLibCode/super-sponza
 DataLibCode/debug
+DataLibCode/ada
 DataLibCode/*.bin
 xcode-build
 .idea/editor.xml
