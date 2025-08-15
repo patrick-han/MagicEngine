@@ -26,7 +26,7 @@ void Game::Initialize(Renderer* pRenderer)
 {
     JobSystem::Initialize();
 
-    m_assetManager = std::make_unique<ResourceManager>(pRenderer);
+    m_resouceManager = std::make_unique<ResourceManager>(pRenderer);
     m_ecs = std::make_unique<Registry>();
     m_ecs->AddSystem<PlayerMovementSystem>();
     m_ecs->AddSystem<RenderSystem>();
@@ -38,10 +38,9 @@ void Game::Initialize(Renderer* pRenderer)
 }
 
 // testing
-// static std::uint64_t h1;
-static std::uint64_t h2;
-static std::uint64_t h3;
-static ENTITY_ID playerId;
+static ResourceHandle h1;
+static ResourceHandle h2;
+static ResourceHandle h3;
 
 void Game::LoadContent()
 {
@@ -49,60 +48,65 @@ void Game::LoadContent()
     // Make a free camera pointing down +Z with +X left and +Y up
     m_camera = std::make_unique<Camera>(Vector3f(0.0f, 10.0f, -500.0f), Vector3f(0.0f, 0.0f, 1.0f));
 
-
-    // auto t1 = std::thread([&]()
-    // {
-    //     h1 = m_assetManager->LoadModelFromDisk("../DataLibCode/helmet.bin", "helmet1");
-    // });
-
     JobSystem::Execute([&]()
     {
-        h2 = m_assetManager->LoadModelFromDisk("../DataLibCode/scene.bin", "scene");
+        h1 = m_resouceManager->LoadModelFromDisk("../DataLibCode/helmet.bin", "player");
     });
     JobSystem::Execute([&]()
     {
-        h3 = m_assetManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
+        h2 = m_resouceManager->LoadModelFromDisk("../DataLibCode/scene.bin", "scene");
+    });
+    JobSystem::Execute([&]()
+    {
+        h3 = m_resouceManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
     });
     JobSystem::Wait();
 
+    m_resouceManager->UploadModel(h1);
+    m_resouceManager->UploadModel(h2);
+    m_resouceManager->UploadModel(h3);
 
     Entity player = m_ecs->EnqueueCreateEntity();
-    playerId = player.GetId();
     {
-        Matrix4f t;
-        // t.m03 = 20;
         player.AddComponent<TransformComponent>(Matrix4f::MakeScale(0.25f));
-        // player.AddComponent<RenderableComponent>(h1);
-        player.AddComponent<RenderableComponent>(10293, "../DataLibCode/super-sponza.bin", "player");
+        if (auto handle = m_resouceManager->GetResourceHandleByName("player"))
+        {
+            player.AddComponent<RenderableComponent>(*handle);
+        }
         player.AddComponent<PlayerComponent>(50.0f);
     }
-
 
     Entity scene = m_ecs->EnqueueCreateEntity();
     {
         Matrix4f t;
         scene.AddComponent<TransformComponent>(t);
-        scene.AddComponent<RenderableComponent>(h2, "../DataLibCode/scene.bin", "scene");
+        if (auto handle = m_resouceManager->GetResourceHandleByName("scene"))
+        {
+            scene.AddComponent<RenderableComponent>(*handle);
+        }
     }
 
     Entity debugSphere = m_ecs->EnqueueCreateEntity();
     {
         debugSphere.AddComponent<TransformComponent>(Matrix4f::MakeScale(3.0));
-        debugSphere.AddComponent<RenderableComponent>(h3, "../DataLibCode/debug/debugSphereOut.bin", "debugSphere", RenderableFlags::DrawDebug);
+        if (auto handle = m_resouceManager->GetResourceHandleByName("debugSphere"))
+        {
+            debugSphere.AddComponent<RenderableComponent>(*handle, RenderableFlags::DrawDebug);
+        }
     }
 }
 
 void Game::UnloadContent()
 {
     Logger::Info("Unload MyGame content");
-    m_assetManager->DestroyAllAssets();
+    m_resouceManager->DestroyAllAssets();
 }
 
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
     m_ecs->Update();
 
-    auto meshesToRender = m_ecs->GetSystem<RenderSystem>().Update(m_assetManager.get(), errorModelHandle);
+    auto meshesToRender = m_ecs->GetSystem<RenderSystem>().Update(m_resouceManager.get(), errorModelHandle);
 
     m_camera->Rotate(inputState.mouseXOffset, inputState.mouseYOffset, true);
     float cameraSpeed = 20.0f;
@@ -149,23 +153,6 @@ void Game::UnloadContent()
     if (inputState.keyState[SDL_SCANCODE_PAGEDOWN]) {
         playerMovementVector.y = -1.0f;
     }
-
-    // Stream test
-    Entity player(playerId);
-    const auto& transform = m_ecs->GetComponent<TransformComponent>(player);
-    Vector3f playerPos = Vector3f(transform.m_transform.m03, transform.m_transform.m13, transform.m_transform.m23);
-    Vector3f cameraPos = m_camera->GetPosition();
-
-    if ((playerPos-cameraPos).Length() < 450) {
-
-        auto& renderable = m_ecs->GetComponent<RenderableComponent>(player);
-        if (!renderable.testFlag)
-        {
-            Logger::Info("Start streaming...");
-        }
-        renderable.testFlag = true;
-    }
-
 
 
     m_ecs->GetSystem<PlayerMovementSystem>().Update(playerMovementVector, deltaTime);

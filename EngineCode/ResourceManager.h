@@ -7,48 +7,58 @@
 #include <vector>
 #include "Renderable.h"
 #include "Renderer.h" // TODO: move to .cpp file
-#include "../EngineCode/Vulkan/Helpers.h" // TODO:
-
+#include "Common/Log.h"
 #include "Timing.h"
 #include "JobSystem.h"
 namespace Magic
 {
+
+using ResourceHandle = std::uint64_t;
+
 class ResourceManager
 // class Renderer;
 {
 public:
-    ResourceManager(Renderer* pRenderer);
-    ~ResourceManager();
+    ResourceManager(Renderer* pRenderer)
+    {
+        Logger::Info("Initializing AssetManager");
+        m_rctx = pRenderer;
+    }
+
+    ~ResourceManager()
+    {
+        Logger::Info("Destroying AssetManager");
+    }
+
 
     /*
      * Loads the model from disk and returns a pointer to the data
      */
-    std::uint64_t LoadModelFromDisk(const std::string& filePath, const std::string& name)
+    ResourceHandle LoadModelFromDisk(const std::string& filePath, const std::string& name)
     {
         auto start = std::chrono::steady_clock::now();
         ModelData* pModelData = new ModelData(Data::DeserializeModelData(filePath));
         Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, since(start).count()));
-        std::uint64_t newHandle;
+        ResourceHandle newHandle = m_nextAvailableHandle.load();
+        m_nextAvailableHandle.fetch_add(1);
         {
             std::scoped_lock lock(m_mutex);
-            newHandle = m_nextAvailableHandle;
-            m_handleToLoadedModelData[newHandle] = pModelData;
+            m_loadedModels[newHandle] = pModelData;
             m_nameToModelHandle[name] = newHandle;
-            m_nextAvailableHandle++;
         }
         return newHandle;
     }
 
-    bool UploadModel(const uint64_t handle)
+    bool UploadModel(const ResourceHandle handle)
     {
         auto start = std::chrono::steady_clock::now();
 
         ModelData* testModel = nullptr;
         {
             std::scoped_lock lock(m_mutex);
-            if (m_handleToLoadedModelData.find(handle) != m_handleToLoadedModelData.end())
+            if (m_loadedModels.find(handle) != m_loadedModels.end())
             {
-                testModel = m_handleToLoadedModelData[handle];
+                testModel = m_loadedModels[handle];
             }
             else
             {
@@ -94,7 +104,7 @@ public:
                                 , .depth = 1
                             };
                             VkFormat format = VK_FORMAT_R8G8B8A8_UNORM; // TODO: hardcoded default format
-                            VkImageCreateInfo imci = TEMP_image_create_info(format, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
+                            VkImageCreateInfo imci = DefaultImageCreateInfo(format, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
                             {
                                 std::scoped_lock lock(imageUploadJobsMutex);
                                 imageUploadJobs.emplace_back(imageExtent, imci, format, meshData.materialData.diffuseData.data.data(), meshData.materialData.diffuseData.numChannels, meshCounter);
@@ -127,75 +137,77 @@ public:
 
         m_renderableMeshes.insert(m_renderableMeshes.end(), renderableMeshesForThisModel.begin(), renderableMeshesForThisModel.end());
         Logger::Info(std::format("UploadModel() total = {} ms\n\n", since(start).count()));
-        m_modelHandleToRenderableMeshIndices[handle] = std::move(renderableMeshArrayIndices);
-        delete testModel;
-
-        {
-            std::scoped_lock lock(m_mutex);
-            m_handleToLoadedModelData.erase(handle);
-        }
-
+        m_handleToRenderableMeshIndices[handle] = std::move(renderableMeshArrayIndices);
         return true; // success
     }
 
-    bool UploadModel(const std::string& name)
+    std::optional<ResourceHandle> GetResourceHandleByName(const std::string& name)
     {
-        std::uint64_t handle;
+        std::scoped_lock lock(m_mutex);
+        if (auto it = m_nameToModelHandle.find(name); it != m_nameToModelHandle.end())
         {
-            std::scoped_lock lock(m_mutex);
-            if (m_nameToModelHandle.find(name) != m_nameToModelHandle.end())
-            {
-                handle = m_nameToModelHandle[name];
-            }
-            else
-            {
-                return false;
-            }
+            return it->second;
         }
-        return UploadModel(handle);
+        return std::nullopt;
     }
 
-    const std::vector<int>& GetRenderableMeshIndices(const std::string& name)
+    const std::vector<int>& GetRenderableMeshIndicesByHandle(const ResourceHandle handle)
     {
-        std::uint64_t handle;
-        {
-            std::scoped_lock lock(m_mutex);
-            handle = m_nameToModelHandle[name];
-        }
-        return m_modelHandleToRenderableMeshIndices[handle];
+        return m_handleToRenderableMeshIndices[handle];
     }
 
 private:
     // These data structures may be accessed by multiple threads
     std::mutex m_mutex;
-    std::map<std::string, std::uint64_t> m_nameToModelHandle;
-    std::map<std::uint64_t, ModelData*> m_handleToLoadedModelData;
-    std::uint64_t m_nextAvailableHandle = 0;
+    std::map<std::string, ResourceHandle> m_nameToModelHandle;
+    std::map<ResourceHandle, ModelData*> m_loadedModels;
+    std::atomic<ResourceHandle> m_nextAvailableHandle = 0;
 
 public:
     [[nodiscard]] RenderableMesh GetRenderableMeshByIndex(size_t index) const
     {
         return m_renderableMeshes[index];
     }
-    void DestroyAllAssets();
+    void DestroyAllAssets()
+    {
+        DestroyAllLoadedModels();
+        m_rctx->WaitIdle();
+        DestroyAllGPUResidentMeshes();
+        DestroyAllGPUResidentTextures();
+    }
 private:
     void DestroyAllLoadedModels()
     {
         std::scoped_lock lock(m_mutex);
-        for (const auto& [key, value] : m_handleToLoadedModelData)
+        for (auto& [handle, ptr] : m_loadedModels)
         {
-            std::uint64_t handle = key;
-            ModelData* data = value;
-            m_handleToLoadedModelData.erase(handle);
+            delete ptr;
+        }
+        m_loadedModels.clear();
+        m_nameToModelHandle.clear(); // likely also want to clear name map
+    }
+    void DestroyAllGPUResidentMeshes()
+    {
+        Logger::Info("AssetManager: Destroying all meshes");
+        for (const RenderableMesh& renderable : m_renderableMeshes)
+        {
+            m_rctx->DestroyBuffer(renderable.vertexBuffer);
+            m_rctx->DestroyBuffer(renderable.indexBuffer);
         }
     }
-    void DestroyAllGPUResidentMeshes();
-    void DestroyAllGPUResidentTextures();
+    void DestroyAllGPUResidentTextures()
+    {
+        Logger::Info("AssetManager: Destroying all textures");
+        for (const AllocatedImage& image : m_renderableImages)
+        {
+            m_rctx->DestroyImage(image);
+        }
+    }
     Renderer* m_rctx;
 
     // These data structures should only be accessed by a single render thread
-    std::map<std::uint64_t, std::vector<int>> m_modelHandleToRenderableMeshIndices;
-    std::vector<RenderableMesh> m_renderableMeshes; // TODO: This probably doesn't belong here
-    std::vector<AllocatedImage> m_renderableImages; // TODO: This probably doesn't belong here
+    std::map<ResourceHandle, std::vector<int>> m_handleToRenderableMeshIndices;
+    std::vector<RenderableMesh> m_renderableMeshes;
+    std::vector<AllocatedImage> m_renderableImages;
 };
 }
