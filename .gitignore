@@ -7,6 +7,7 @@ DataLibCode/multiple-scenes
 DataLibCode/beautiful-game
 DataLibCode/orientation
 DataLibCode/ue5level
+DataLibCode/ada
 DataLibCode/*.bin
 xcode-build
 .idea/editor.xml
