@@ -7,7 +7,10 @@
 #include "Camera.h"
 #include <fstream>
 #include <cassert>
+#include <thread>
+
 #include "CommandEncoder.h"
+#include "Timing.h"
 
 #include "../DataLibCode/DataSerialization.h" // TODO: find better organization for this maebbe
 
@@ -37,7 +40,6 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
         nullptr
     ));
 
-    // Copy data into mapped memory
     void* data;
     vmaMapMemory(allocator, allocatedBuffer.allocation, &data);
     memcpy(data, bufferData, bufferSize);
@@ -327,7 +329,7 @@ void Renderer::BuildResources() {
     VkExtent3D rtExtent = {.width = static_cast<uint32_t>(outputWidth), .height = static_cast<uint32_t>(outputHeight), .depth = 1 };
     // Test color attachment
     {
-        VkImageCreateInfo colorImageInfo = TEMP_image_create_info(VK_FORMAT_B8G8R8A8_UNORM, rtExtent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_TYPE_2D);
+        VkImageCreateInfo colorImageInfo = DefaultImageCreateInfo(VK_FORMAT_B8G8R8A8_UNORM, rtExtent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_TYPE_2D);
         VmaAllocationCreateInfo vmaAllocInfo = {.usage = VMA_MEMORY_USAGE_GPU_ONLY, .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
         VK_CHECK(vmaCreateImage(m_gpuctx->GetVmaAllocator(), &colorImageInfo, &vmaAllocInfo, &m_rtColorImage.image, &m_rtColorImage.allocation, nullptr));
 
@@ -338,7 +340,7 @@ void Renderer::BuildResources() {
     // Depth target
     {
         VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
-        VkImageCreateInfo depthImageInfo = TEMP_image_create_info(m_depthFormat, rtExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_TYPE_2D);
+        VkImageCreateInfo depthImageInfo = DefaultImageCreateInfo(m_depthFormat, rtExtent, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_TYPE_2D);
         VmaAllocationCreateInfo vmaAllocInfo = {.usage = VMA_MEMORY_USAGE_GPU_ONLY, .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
         VK_CHECK(vmaCreateImage(m_gpuctx->GetVmaAllocator(), &depthImageInfo, &vmaAllocInfo, &m_rtDepthImage.image, &m_rtDepthImage.allocation, nullptr));
 

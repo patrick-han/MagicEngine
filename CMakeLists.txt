@@ -61,11 +61,13 @@ add_executable(MagicEngine main.cpp
         EngineCode/Components/RenderableComponent.h
         GameCode/RenderSystem.h
         EngineCode/ResourceManager.h
-        EngineCode/ResourceManager.cpp
         GameCode/PlayerComponent.h
         EngineCode/Common/Math/Vector2f.h
         EngineCode/BindlessManager.cpp
         EngineCode/BindlessManager.h
+        EngineCode/Timing.h
+        EngineCode/JobSystem.h
+        EngineCode/JobSystem.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)
