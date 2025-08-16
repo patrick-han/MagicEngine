@@ -1,6 +1,6 @@
 #pragma once
 #include "../EngineCode/ECS.h"
-#include "../EngineCode/Components/RenderableComponent.h"
+#include "../EngineCode/Components/RenderableMeshComponent.h"
 #include "../EngineCode/Components/TransformComponent.h"
 #include "../EngineCode/ResourceManager.h"
 
@@ -14,7 +14,7 @@ class RenderSystem : public System
 public:
     RenderSystem()
     {
-        RequireComponent<RenderableComponent>();
+        RequireComponent<RenderableMeshComponent>();
         RequireComponent<TransformComponent>();
     }
 
@@ -23,31 +23,23 @@ public:
         return false;
     }
 
-    static void TransformMesh(RenderableMesh& mesh, const TransformComponent& transform)
+    static void TransformMesh(RenderableMeshComponent& mesh, const TransformComponent& transform)
     {
         mesh.transform = transform.m_transform * mesh.transform;
     }
 
-    // TODO: Return a list of RenderableComponents? Basically I want this system to do CPU side culling / visibility and provide a list of things
-    // back to the engine to render
-    [[nodiscard]] std::vector<RenderableMesh> Update(ResourceManager* pResourceManager, const std::uint64_t errorModelHandle)
+    [[nodiscard]] std::vector<RenderableMeshComponent> Update(ResourceManager* pResourceManager, const std::uint64_t errorModelHandle)
     {
         std::vector<Entity> renderableEntities = GetSystemEntities();
-        std::vector<RenderableMesh> meshesToRender;
+        std::vector<RenderableMeshComponent> meshesToRender;
         for (const Entity& entity : renderableEntities)
         {
-            auto& renderable = entity.GetComponent<RenderableComponent>();
+            auto& renderable = entity.GetComponent<RenderableMeshComponent>();
             auto& transform = entity.GetComponent<TransformComponent>();
-            const auto& renderableMeshIndices = pResourceManager->GetRenderableMeshIndicesByHandle(renderable.handle);
-            for (const auto& index : renderableMeshIndices)
+            if (!ShouldCull(/*Renderable?*/))
             {
-                if (!ShouldCull(/*Renderable?*/))
-                {
-                    RenderableMesh renderableMesh = pResourceManager->GetRenderableMeshByIndex(index);
-                    TransformMesh(renderableMesh, transform);
-                    renderableMesh.renderableFlags = renderable.m_renderableFlags;
-                    meshesToRender.push_back(renderableMesh);
-                }
+                TransformMesh(renderable, transform);
+                meshesToRender.push_back(renderable);
             }
         }
         return meshesToRender;

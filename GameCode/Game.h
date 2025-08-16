@@ -27,7 +27,7 @@ protected:
 private:
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<Registry> m_ecs;
-    std::unique_ptr<ResourceManager> m_resouceManager;
+    std::unique_ptr<ResourceManager> m_resourceManager;
 };
 
 }

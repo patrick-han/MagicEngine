@@ -9,10 +9,12 @@
 #include "../EngineCode/ResourceManager.h"
 #include "../EngineCode/ECS.h"
 #include "../EngineCode/Components/TransformComponent.h"
-#include "../EngineCode/Components/RenderableComponent.h"
+#include "../EngineCode/Components/RenderableMeshComponent.h"
 #include "PlayerMovementSystem.h"
 #include "RenderSystem.h"
 #include "../EngineCode/JobSystem.h"
+#include <vector>
+#include <cassert>
 
 namespace Magic
 {
@@ -26,21 +28,15 @@ void Game::Initialize(Renderer* pRenderer)
 {
     JobSystem::Initialize();
 
-    m_resouceManager = std::make_unique<ResourceManager>(pRenderer);
+
     m_ecs = std::make_unique<Registry>();
+    m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_ecs.get());
     m_ecs->AddSystem<PlayerMovementSystem>();
     m_ecs->AddSystem<RenderSystem>();
-
-
-    // errorModelHandle = m_assetManager->LoadModelFromDisk("../DataLibCode/debug/errorOut.bin", "error");
-    // m_assetManager->UploadModel(errorModelHandle);
-    // pRenderer->m_errorModelMeshIndices = m_assetManager->GetRenderableMeshIndices("errorS");
+    // m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/errorOut.bin", "error");
+    // std::vector<Entity> errorMeshEntities = m_resourceManager->UploadModel("error");
 }
 
-// testing
-static ResourceHandle h1;
-static ResourceHandle h2;
-static ResourceHandle h3;
 
 void Game::LoadContent()
 {
@@ -50,29 +46,25 @@ void Game::LoadContent()
 
     JobSystem::Execute([&]()
     {
-        h1 = m_resouceManager->LoadModelFromDisk("../DataLibCode/helmet.bin", "player");
+        m_resourceManager->LoadModelFromDisk("../DataLibCode/helmet.bin", "player");
     });
     JobSystem::Execute([&]()
     {
-        h2 = m_resouceManager->LoadModelFromDisk("../DataLibCode/scene.bin", "scene");
+        m_resourceManager->LoadModelFromDisk("../DataLibCode/scene.bin", "scene");
     });
     JobSystem::Execute([&]()
     {
-        h3 = m_resouceManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
+        m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
     });
     JobSystem::Wait();
 
-    m_resouceManager->UploadModel(h1);
-    m_resouceManager->UploadModel(h2);
-    m_resouceManager->UploadModel(h3);
+    std::vector<Entity> playerMeshEntities = m_resourceManager->UploadModel("player");
+    std::vector<Entity> sceneMeshEntities = m_resourceManager->UploadModel("scene");
+    std::vector<Entity> debugSphereMeshEntities = m_resourceManager->UploadModel("debugSphere");
 
     Entity player = m_ecs->EnqueueCreateEntity();
     {
         player.AddComponent<TransformComponent>(Matrix4f::MakeScale(0.25f));
-        if (auto handle = m_resouceManager->GetResourceHandleByName("player"))
-        {
-            player.AddComponent<RenderableComponent>(*handle);
-        }
         player.AddComponent<PlayerComponent>(50.0f);
     }
 
@@ -80,33 +72,25 @@ void Game::LoadContent()
     {
         Matrix4f t;
         scene.AddComponent<TransformComponent>(t);
-        if (auto handle = m_resouceManager->GetResourceHandleByName("scene"))
-        {
-            scene.AddComponent<RenderableComponent>(*handle);
-        }
     }
 
     Entity debugSphere = m_ecs->EnqueueCreateEntity();
     {
         debugSphere.AddComponent<TransformComponent>(Matrix4f::MakeScale(3.0));
-        if (auto handle = m_resouceManager->GetResourceHandleByName("debugSphere"))
-        {
-            debugSphere.AddComponent<RenderableComponent>(*handle, RenderableFlags::DrawDebug);
-        }
     }
 }
 
 void Game::UnloadContent()
 {
     Logger::Info("Unload MyGame content");
-    m_resouceManager->DestroyAllAssets();
+    m_resourceManager->DestroyAllAssets();
 }
 
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
     m_ecs->Update();
 
-    auto meshesToRender = m_ecs->GetSystem<RenderSystem>().Update(m_resouceManager.get(), errorModelHandle);
+    auto meshesToRender = m_ecs->GetSystem<RenderSystem>().Update(m_resourceManager.get(), errorModelHandle);
 
     m_camera->Rotate(inputState.mouseXOffset, inputState.mouseYOffset, true);
     float cameraSpeed = 20.0f;

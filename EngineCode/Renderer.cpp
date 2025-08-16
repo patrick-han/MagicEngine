@@ -442,7 +442,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         pushConstants.viewProjection = viewProjection;
 
         // TODO: render all renderables
-        for (RenderableMesh& renderable : renderingInfo.meshesToRender)
+        for (RenderableMeshComponent& renderable : renderingInfo.meshesToRender)
         {
             if (renderable.renderableFlags == RenderableFlags::None)
             {
@@ -450,7 +450,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                 cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
                 {
                     pushConstants.model = renderable.transform * Matrix4f::MakeScale(100.0f);
-                    pushConstants.diffuseTextureBindlessTextureArraySlot = renderable.diffuseTextureBindlessTextureArraySlot;
+                    pushConstants.diffuseTextureBindlessTextureArraySlot = renderable.diffuseTextureBindlessArraySlot;
                     vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
                 }
                 cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
@@ -459,7 +459,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 
         // TODO: Render all debug objects, this is just a dump second loop for now
         cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
-        for (RenderableMesh& renderable : renderingInfo.meshesToRender)
+        for (RenderableMeshComponent& renderable : renderingInfo.meshesToRender)
         {
             if (renderable.renderableFlags == RenderableFlags::DrawDebug) {
                 cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);

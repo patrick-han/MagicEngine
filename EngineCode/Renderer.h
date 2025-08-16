@@ -43,9 +43,11 @@ public:
     [[nodiscard]] PerFrameInFlightData GetFrameInFlightData(int frameNumber) const { return m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight]; };
     void SignalFrameInFlight(int frameNumber, uint64_t _signalValue) { m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight].signalValue = _signalValue; };
 
-    void CreateImageViewForAllocatedImage(const VkImageViewCreateInfo& imageViewCreateInfo, AllocatedImage& allocatedImage)
+    [[nodiscard]] VkImageView CreateViewForAllocatedImage(const VkImageViewCreateInfo& imageViewCreateInfo)
     {
-        vkCreateImageView(m_gpuctx->GetDevice(), &imageViewCreateInfo, nullptr, &allocatedImage.view);
+        VkImageView view;
+        vkCreateImageView(m_gpuctx->GetDevice(), &imageViewCreateInfo, nullptr, &view);
+        return view;
     }
 private:
     friend class Application;

@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "Renderable.h"
+#include "Components/RenderableMeshComponent.h"
 
 namespace Magic
 {
@@ -8,6 +8,6 @@ class Camera;
 struct RenderingInfo
 {
     const Camera* const pCamera;
-    std::vector<RenderableMesh> meshesToRender;
+    std::vector<RenderableMeshComponent> meshesToRender;
 };
 }

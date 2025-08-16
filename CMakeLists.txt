@@ -53,12 +53,11 @@ add_executable(MagicEngine main.cpp
         EngineCode/Common/Math/Math.h
         EngineCode/Input.h
         EngineCode/RenderingInfo.h
-        EngineCode/Renderable.h
+        EngineCode/Components/RenderableMeshComponent.h
         EngineCode/ECS.h
         EngineCode/ECS.cpp
         EngineCode/Components/TransformComponent.h
         GameCode/PlayerMovementSystem.h
-        EngineCode/Components/RenderableComponent.h
         GameCode/RenderSystem.h
         EngineCode/ResourceManager.h
         GameCode/PlayerComponent.h

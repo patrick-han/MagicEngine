@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Buffer.h"
-#include "Common/Math/Matrix4f.h"
+#include "../Buffer.h"
+#include "../Common/Math/Matrix4f.h"
 
 namespace Magic
 {
@@ -13,13 +13,13 @@ enum class RenderableFlags : std::uint8_t
     // , TransferDestination = 1 << 1
 };
 
-struct RenderableMesh
+struct RenderableMeshComponent
 {
     AllocatedBuffer vertexBuffer;
     AllocatedBuffer indexBuffer;
     uint32_t indexCount = 0;
     Matrix4f transform;
-    int diffuseTextureBindlessTextureArraySlot = -1;
+    int diffuseTextureBindlessArraySlot = -1;
     RenderableFlags renderableFlags = RenderableFlags::None;
 };
 
