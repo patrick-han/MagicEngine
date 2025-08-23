@@ -122,16 +122,15 @@ public:
     {
         VkCommandBuffer cmd = m_streamingCommandBuffer;
         TransitionImage(cmd, image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        VkBufferImageCopy copyRegion = {
-            .bufferOffset = 0
-            , .bufferRowLength = 0
-            , .bufferImageHeight = 0
-            , .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT
-            , .imageSubresource.mipLevel = 0
-            , .imageSubresource.baseArrayLayer = 0
-            , .imageSubresource.layerCount = 1
-            , .imageExtent = extent
-        };
+        VkBufferImageCopy copyRegion = {};
+        copyRegion.bufferOffset = 0;
+        copyRegion.bufferRowLength = 0;
+        copyRegion.bufferImageHeight = 0;
+        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.imageSubresource.mipLevel = 0;
+        copyRegion.imageSubresource.baseArrayLayer = 0;
+        copyRegion.imageSubresource.layerCount = 1;
+        copyRegion.imageExtent = extent;
         vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
         TransitionImage(cmd, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);

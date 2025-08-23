@@ -46,25 +46,26 @@ void Game::LoadContent()
 
     JobSystem::Execute([&]()
     {
-        m_resourceManager->LoadModelFromDisk("../DataLibCode/helmet.bin", "player");
-    });
-    JobSystem::Execute([&]()
-    {
         m_resourceManager->LoadModelFromDisk("../DataLibCode/scene.bin", "scene");
     });
     JobSystem::Execute([&]()
     {
         m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
     });
-    JobSystem::Wait();
+    JobSystem::Wait(); // Artificially test super-sponza load
+
+    JobSystem::Execute([&]()
+    {
+        m_resourceManager->LoadModelFromDisk("../DataLibCode/super-sponza.bin", "player");
+    });
 
     // std::vector<Entity> playerMeshEntities = m_resourceManager->UploadModel("player");
     // std::vector<Entity> sceneMeshEntities = m_resourceManager->UploadModel("scene");
     // std::vector<Entity> debugSphereMeshEntities = m_resourceManager->UploadModel("debugSphere");
 
-    std::vector<Entity> playerMeshEntities = m_resourceManager->EnqueueUploadModel("player");
-    std::vector<Entity> sceneMeshEntities = m_resourceManager->EnqueueUploadModel("scene");
-    std::vector<Entity> debugSphereMeshEntities = m_resourceManager->EnqueueUploadModel("debugSphere");
+    m_resourceManager->EnqueueUploadModel("player");
+    m_resourceManager->EnqueueUploadModel("scene");
+    m_resourceManager->EnqueueUploadModel("debugSphere");
 
     // Entity player = m_ecs->EnqueueCreateEntity();
     // {
@@ -94,6 +95,7 @@ void Game::UnloadContent()
 {
     m_ecs->Update();
 
+    m_resourceManager->ProcessModelUploadJobs();
     m_resourceManager->ProcessBufferUploadJobs();
     m_resourceManager->ProcessImageUploadJobs();
     m_resourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();

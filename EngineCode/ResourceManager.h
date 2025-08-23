@@ -42,10 +42,15 @@ public:
         ModelData* pModelData = new ModelData(Data::DeserializeModelData(filePath));
         Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, since(start).count()));
         {
-            std::scoped_lock lock(m_mutex);
+            std::scoped_lock lock(m_loadedModelDataMutex);
             m_loadedModels[name] = pModelData;
         }
     }
+
+    struct ModelUploadJob
+    {
+        std::string modelName;
+    };
 
     struct BufferUploadJob
     {
@@ -77,68 +82,88 @@ public:
         size_t associatedMeshIndex;
     };
 
+    std::vector<ModelUploadJob> m_pendingModelUploads;
     std::queue<BufferUploadJob> m_pendingBufferUploads;
     std::queue<ImageUploadJob> m_pendingImageUploads;
 
-    std::vector<Entity> EnqueueUploadModel(const std::string& name)
+    void EnqueueUploadModel(const std::string& name)
     {
-        ModelData* testModel = nullptr;
-        if (m_loadedModels.find(name) != m_loadedModels.end())
+        m_pendingModelUploads.emplace_back(name);
+    }
+
+    void ProcessModelUploadJobs()
+    {
+        if (m_pendingModelUploads.empty())
         {
-            testModel = m_loadedModels[name];
+            return;
         }
-        else
+
+        for (auto it = m_pendingModelUploads.begin(); it != m_pendingModelUploads.end();)
         {
-            Logger::Err("Could not find Model name");
-            std::abort();
-        }
+            const ModelUploadJob& job = *it;
 
-        std::vector<Entity> meshEntities;
-
-        size_t meshCounter = 0;
-        for (const MeshData& meshData : testModel->m_meshes)
-        {
-            Entity meshEntity = m_ecs->EnqueueCreateEntity();
-            // We can go ahead and fill out some of the data now and wait for buffers later
-            RenderableMeshComponent renderable;
-            renderable.indexCount = static_cast<uint32_t>(meshData.m_indices.size());
-            renderable.transform = testModel->m_transforms[meshCounter];
-            meshEntity.AddComponent<RenderableMeshComponent>(renderable);
-            Matrix4f matrix;
-            meshEntity.AddComponent<TransformComponent>(matrix); // TODO
-            meshEntities.push_back(meshEntity);
-
-            BufferUploadJob vertexBufferJob = {
-                .numBytes = sizeof(SimpleVertex) * meshData.m_vertices.size()
-                , .data = static_cast<const void*>(meshData.m_vertices.data())
-                , .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-                , .associatedEntity = meshEntity
-            };
-
-            BufferUploadJob indexBufferJob = {
-                .numBytes = sizeof(uint32_t) * meshData.m_indices.size()
-                , .data = static_cast<const void*>(meshData.m_indices.data())
-                , .usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-                , .associatedEntity = meshEntity
-            };
-            m_pendingBufferUploads.push(vertexBufferJob);
-            m_pendingBufferUploads.push(indexBufferJob);
-  
-            if (meshData.materialData.diffuseData.data.size() != 0) // TODO:
+            ModelData* testModel = nullptr;
             {
-                VkExtent3D imageExtent 
+                std::scoped_lock lock(m_loadedModelDataMutex);
+                if (m_loadedModels.find(job.modelName) != m_loadedModels.end())
                 {
-                    .width = static_cast<uint32_t>(meshData.materialData.diffuseData.width)
-                    , .height = static_cast<uint32_t>(meshData.materialData.diffuseData.height)
-                    , .depth = 1
-                };
-                const VkImageCreateInfo imci = DefaultImageCreateInfo(g_defaultTextureFormat, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
-
-                m_pendingImageUploads.emplace(imageExtent, imci, /*format,*/ meshData.materialData.diffuseData.data.data(), meshData.materialData.diffuseData.numChannels, meshEntity);
+                    testModel = m_loadedModels[job.modelName];
+                }
+                else
+                {
+                    ++it;
+                    continue;
+                }
             }
+
+            std::vector<Entity> meshEntities;
+
+            size_t meshCounter = 0;
+            for (const MeshData& meshData : testModel->m_meshes)
+            {
+                Entity meshEntity = m_ecs->EnqueueCreateEntity();
+                // We can go ahead and fill out some of the data now and wait for buffers later
+                RenderableMeshComponent renderable;
+                renderable.indexCount = static_cast<uint32_t>(meshData.m_indices.size());
+                renderable.transform = testModel->m_transforms[meshCounter];
+                meshEntity.AddComponent<RenderableMeshComponent>(renderable);
+                Matrix4f matrix;
+                meshEntity.AddComponent<TransformComponent>(matrix); // TODO
+                meshEntities.push_back(meshEntity);
+
+                BufferUploadJob vertexBufferJob = {
+                    .numBytes = sizeof(SimpleVertex) * meshData.m_vertices.size()
+                    , .data = static_cast<const void*>(meshData.m_vertices.data())
+                    , .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+                    , .associatedEntity = meshEntity
+                };
+
+                BufferUploadJob indexBufferJob = {
+                    .numBytes = sizeof(uint32_t) * meshData.m_indices.size()
+                    , .data = static_cast<const void*>(meshData.m_indices.data())
+                    , .usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+                    , .associatedEntity = meshEntity
+                };
+                m_pendingBufferUploads.push(vertexBufferJob);
+                m_pendingBufferUploads.push(indexBufferJob);
+
+                if (meshData.materialData.diffuseData.data.size() != 0) // TODO:
+                {
+                    VkExtent3D imageExtent
+                    {
+                        .width = static_cast<uint32_t>(meshData.materialData.diffuseData.width)
+                        , .height = static_cast<uint32_t>(meshData.materialData.diffuseData.height)
+                        , .depth = 1
+                    };
+                    const VkImageCreateInfo imci = DefaultImageCreateInfo(g_defaultTextureFormat, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
+
+                    m_pendingImageUploads.emplace(imageExtent, imci, /*format,*/ meshData.materialData.diffuseData.data.data(), meshData.materialData.diffuseData.numChannels, meshEntity);
+                }
+            }
+            it = m_pendingModelUploads.erase(it);
+            m_renderableMeshes.insert(m_renderableMeshes.end(), meshEntities.begin(), meshEntities.end());
+            // return meshEntities;
         }
-        m_renderableMeshes.insert(m_renderableMeshes.end(), meshEntities.begin(), meshEntities.end());
-        return meshEntities;
     }
 
     void ProcessBufferUploadJobs()
@@ -295,7 +320,7 @@ public:
 
 private:
     // These data structures may be accessed by multiple threads when loading from disk
-    std::mutex m_mutex;
+    std::mutex m_loadedModelDataMutex;
     std::map<std::string, ModelData*> m_loadedModels;
 
 public:
@@ -309,7 +334,7 @@ public:
 private:
     void DestroyAllLoadedModels()
     {
-        std::scoped_lock lock(m_mutex);
+        std::scoped_lock lock(m_loadedModelDataMutex);
         for (auto& [name, ptr] : m_loadedModels)
         {
             delete ptr;
