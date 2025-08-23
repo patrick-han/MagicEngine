@@ -72,16 +72,6 @@ public:
 
     static const VkFormat g_defaultTextureFormat = VK_FORMAT_R8G8B8A8_UNORM; // TODO: hardcoded default format
 
-    struct ImageUploadJobSynchronous
-    {
-        VkExtent3D extent;
-        VkImageCreateInfo imageCreateInfo;
-        VkFormat format;
-        const unsigned char* imageData;
-        int numChannels;
-        size_t associatedMeshIndex;
-    };
-
     std::vector<ModelUploadJob> m_pendingModelUploads;
     std::queue<BufferUploadJob> m_pendingBufferUploads;
     std::queue<ImageUploadJob> m_pendingImageUploads;
@@ -201,23 +191,31 @@ public:
         {
             return;
         }
-        m_rctx->ResetAndBeginStreamingCommandBuffer();
+        Renderer::StreamingCommandBuffer* sbuf = m_rctx->ResetAndBeginStreamingCommandBuffer();
+        if (!sbuf)
+        {
+            return; // No available command buffers
+        }
 
-        while(!m_pendingImageUploads.empty())
+        constexpr size_t batchSize = 3;
+        size_t batchDone = 0;
+        while(!m_pendingImageUploads.empty() && batchDone < batchSize)
         {
             auto job = m_pendingImageUploads.front();
-            auto& renderable = job.associatedEntity.GetComponent<RenderableMeshComponent>();
             m_pendingImageUploads.pop();
+            
+            auto& renderable = job.associatedEntity.GetComponent<RenderableMeshComponent>();
             renderable.diffuseImage = m_rctx->CreateGPUOnlyImage(job.imageCreateInfo);
             const auto extent = job.extent;
             constexpr size_t bytesPerChannel = 1;
             const size_t dataSize = extent.width * extent.height * job.numChannels * bytesPerChannel;
             AllocatedBuffer stagingBuffer = m_rctx->UploadBuffer(dataSize, job.imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-            renderable.diffuseTextureStreamingTimelineReadyValue = m_rctx->EnqueueImageUploadJob(renderable.diffuseImage, stagingBuffer, extent);
+            renderable.diffuseTextureStreamingTimelineReadyValue = m_rctx->EnqueueImageUploadJob(sbuf, renderable.diffuseImage, stagingBuffer, extent);
             // m_rctx->DestroyBuffer(stagingBuffer); // TODO: Round robin staging buffers
+            batchDone++;
         }
 
-        m_rctx->EndAndSubmitStreamingCommandBuffer();
+        m_rctx->EndAndSubmitStreamingCommandBuffer(sbuf);
     }
 
     void PollImageUploadJobsFinishedAndUpdateRenderables()
@@ -242,6 +240,15 @@ public:
 
 
     // Synchronous upload, stalls entire frame!
+    struct ImageUploadJobSynchronous
+    {
+        VkExtent3D extent;
+        VkImageCreateInfo imageCreateInfo;
+        VkFormat format;
+        const unsigned char* imageData;
+        int numChannels;
+        size_t associatedMeshIndex;
+    };
     std::vector<Entity> UploadModel(const std::string& name)
     {
         ModelData* testModel = nullptr;

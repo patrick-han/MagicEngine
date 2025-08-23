@@ -163,20 +163,21 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
     }
 
     // Streaming resources
+    for (StreamingCommandBuffer& sbuf : m_streamingCommandBuffers)
     {
         VkCommandPoolCreateInfo commandPoolCreateInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
             , .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
             , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
         };
-        vkCreateCommandPool(m_gpuctx->GetDevice(), &commandPoolCreateInfo, nullptr, &m_streamingCommandPool);
-        VkCommandBufferAllocateInfo streamingCmdBufferAllocInfo {
+        VK_CHECK(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &sbuf.pool));
+        VkCommandBufferAllocateInfo cmdBufferAllocInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
-            , .commandPool = m_streamingCommandPool
+            , .commandPool = sbuf.pool
             , .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
             , .commandBufferCount = 1
         };
-        vkAllocateCommandBuffers(m_gpuctx->GetDevice(), &streamingCmdBufferAllocInfo, &m_streamingCommandBuffer);
+        VK_CHECK(vkAllocateCommandBuffers(m_gpuctx->GetDevice(), &cmdBufferAllocInfo, &sbuf.cmd));
     }
 }
 
@@ -542,7 +543,10 @@ void Renderer::Shutdown()
     VkDevice device = m_gpuctx->GetDevice();
 
     vkDestroySemaphore(device, m_streamingTimelineSemaphore, nullptr);
-    vkDestroyCommandPool(m_gpuctx->GetDevice(), m_streamingCommandPool, nullptr);
+    for (StreamingCommandBuffer& s : m_streamingCommandBuffers)
+    {
+        vkDestroyCommandPool(device, s.pool, nullptr);
+    }
 
     vkDestroyCommandPool(m_gpuctx->GetDevice(), m_immediateCommandPool, nullptr);
     vkDestroyFence(m_gpuctx->GetDevice(), m_immediateFence, nullptr);

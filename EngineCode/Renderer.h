@@ -104,23 +104,51 @@ private:
     uint64_t m_timelineValue = 0;
 
     // Resource streaming
+public:
+    struct StreamingCommandBuffer
+    {
+        VkCommandPool pool;
+        VkCommandBuffer cmd;
+        uint64_t timelineFinished = 0;
+    };
+private:
     VkSemaphore m_streamingTimelineSemaphore = VK_NULL_HANDLE;
-    VkCommandBuffer m_streamingCommandBuffer;
-    VkCommandPool m_streamingCommandPool;
+    // VkCommandPool m_streamingCommandPool;
+    // VkCommandBuffer m_streamingCommandBuffer;
+    static constexpr size_t g_numberOfStreamingCommandBuffers = 5;
+    std::array<StreamingCommandBuffer, g_numberOfStreamingCommandBuffers> m_streamingCommandBuffers;
     uint64_t m_streamingTimelineValue = 0;
 public:
-    void ResetAndBeginStreamingCommandBuffer()
+    [[nodiscard]] StreamingCommandBuffer* ResetAndBeginStreamingCommandBuffer()
     {
-        vkResetCommandBuffer(m_streamingCommandBuffer, {});
+        const uint64_t currentTimelineValue = GetCurrentStreamingTimelineValue();
+
+        StreamingCommandBuffer* pBuf = nullptr;
+        for (StreamingCommandBuffer& sbuf : m_streamingCommandBuffers)
+        {
+            if (currentTimelineValue >= sbuf.timelineFinished)
+            {
+                pBuf = &sbuf;
+                break;
+            }
+        }
+        if (pBuf == nullptr)
+        {
+            return nullptr; // No available command buffers
+        }
+        VkCommandBuffer streamingCommandBuffer = pBuf->cmd;
+
+        vkResetCommandBuffer(streamingCommandBuffer, {});
         VkCommandBufferBeginInfo beginInfo = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         };
-        vkBeginCommandBuffer(m_streamingCommandBuffer, &beginInfo);
+        vkBeginCommandBuffer(streamingCommandBuffer, &beginInfo);
+        return pBuf;
     }
-    [[nodiscard]] uint64_t EnqueueImageUploadJob(AllocatedImage image, AllocatedBuffer stagingBuffer, VkExtent3D extent)
+    [[nodiscard]] uint64_t EnqueueImageUploadJob(StreamingCommandBuffer* sbuf, AllocatedImage image, AllocatedBuffer stagingBuffer, VkExtent3D extent)
     {
-        VkCommandBuffer cmd = m_streamingCommandBuffer;
+        VkCommandBuffer cmd = sbuf->cmd;
         TransitionImage(cmd, image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         VkBufferImageCopy copyRegion = {};
         copyRegion.bufferOffset = 0;
@@ -137,10 +165,11 @@ public:
         m_streamingTimelineValue++;
         return m_streamingTimelineValue;
     }
-    void EndAndSubmitStreamingCommandBuffer()
+    void EndAndSubmitStreamingCommandBuffer(StreamingCommandBuffer* sbuf)
     {
-        vkEndCommandBuffer(m_streamingCommandBuffer);
+        vkEndCommandBuffer(sbuf->cmd);
         uint64_t valueToSignal = m_streamingTimelineValue;
+        sbuf->timelineFinished = valueToSignal;
         VkTimelineSemaphoreSubmitInfo timelineInfo {
             .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
             .waitSemaphoreValueCount = 0,
@@ -156,7 +185,7 @@ public:
             .pWaitSemaphores = nullptr,
             .pWaitDstStageMask = nullptr,
             .commandBufferCount = 1,
-            .pCommandBuffers = &m_streamingCommandBuffer,
+            .pCommandBuffers = &sbuf->cmd,
             .signalSemaphoreCount = 1,
             .pSignalSemaphores = semaphoresToSignal
         };

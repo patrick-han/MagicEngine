@@ -47,7 +47,7 @@ void Application::Startup()
     }
 
     // Windows
-    m_windows.push_back(std::make_unique<Window>("pooey", 1280, 720, m_gpuctx->GetInstance()));
+    m_windows.push_back(std::make_unique<Window>("pooey", 1920, 1080, m_gpuctx->GetInstance()));
     std::unique_ptr<Window>& defaultWindow = m_windows[Window::DEFAULT_WINDOW];
 
     // TODO: temp
