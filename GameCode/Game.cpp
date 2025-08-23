@@ -58,26 +58,30 @@ void Game::LoadContent()
     });
     JobSystem::Wait();
 
-    std::vector<Entity> playerMeshEntities = m_resourceManager->UploadModel("player");
-    std::vector<Entity> sceneMeshEntities = m_resourceManager->UploadModel("scene");
-    std::vector<Entity> debugSphereMeshEntities = m_resourceManager->UploadModel("debugSphere");
+    // std::vector<Entity> playerMeshEntities = m_resourceManager->UploadModel("player");
+    // std::vector<Entity> sceneMeshEntities = m_resourceManager->UploadModel("scene");
+    // std::vector<Entity> debugSphereMeshEntities = m_resourceManager->UploadModel("debugSphere");
 
-    Entity player = m_ecs->EnqueueCreateEntity();
-    {
-        player.AddComponent<TransformComponent>(Matrix4f::MakeScale(0.25f));
-        player.AddComponent<PlayerComponent>(50.0f);
-    }
+    std::vector<Entity> playerMeshEntities = m_resourceManager->EnqueueUploadModel("player");
+    std::vector<Entity> sceneMeshEntities = m_resourceManager->EnqueueUploadModel("scene");
+    std::vector<Entity> debugSphereMeshEntities = m_resourceManager->EnqueueUploadModel("debugSphere");
 
-    Entity scene = m_ecs->EnqueueCreateEntity();
-    {
-        Matrix4f t;
-        scene.AddComponent<TransformComponent>(t);
-    }
+    // Entity player = m_ecs->EnqueueCreateEntity();
+    // {
+    //     player.AddComponent<TransformComponent>(Matrix4f::MakeScale(0.25f));
+    //     player.AddComponent<PlayerComponent>(50.0f);
+    // }
 
-    Entity debugSphere = m_ecs->EnqueueCreateEntity();
-    {
-        debugSphere.AddComponent<TransformComponent>(Matrix4f::MakeScale(3.0));
-    }
+    // Entity scene = m_ecs->EnqueueCreateEntity();
+    // {
+    //     Matrix4f t;
+    //     scene.AddComponent<TransformComponent>(t);
+    // }
+
+    // Entity debugSphere = m_ecs->EnqueueCreateEntity();
+    // {
+    //     debugSphere.AddComponent<TransformComponent>(Matrix4f::MakeScale(3.0));
+    // }
 }
 
 void Game::UnloadContent()
@@ -89,6 +93,11 @@ void Game::UnloadContent()
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
     m_ecs->Update();
+
+    m_resourceManager->ProcessBufferUploadJobs();
+    m_resourceManager->ProcessImageUploadJobs();
+    m_resourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
+
 
     auto meshesToRender = m_ecs->GetSystem<RenderSystem>().Update(m_resourceManager.get(), errorModelHandle);
 

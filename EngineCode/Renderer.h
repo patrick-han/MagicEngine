@@ -14,6 +14,45 @@
 
 namespace Magic
 {
+
+inline VkImageSubresourceRange DefaultImageSubresourceRange(VkImageAspectFlags aspectMask) // Transition all mipmap levels and layers by default
+{
+    VkImageSubresourceRange subImage {};
+    subImage.aspectMask = aspectMask;
+    subImage.baseMipLevel = 0;
+    subImage.levelCount = VK_REMAINING_MIP_LEVELS;
+    subImage.baseArrayLayer = 0;
+    subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    return subImage;
+}
+
+inline void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
+{
+    VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+
+    VkImageMemoryBarrier imageBarrier {
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT,
+        .oldLayout = currentLayout,
+        .newLayout = newLayout,
+        .image = image,
+        .subresourceRange = DefaultImageSubresourceRange(aspectMask)
+    };
+
+    vkCmdPipelineBarrier(
+        cmd,
+        VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        {},
+        0, nullptr,
+        0, nullptr,
+        1, &imageBarrier
+    );
+}
+
+
 class GPUContext;
 class Swapchain;
 class Camera;
@@ -26,6 +65,7 @@ public:
     [[nodiscard]] AllocatedBuffer UploadBuffer(size_t bufferSize, const void* bufferData, VkBufferUsageFlags usage);
     void DestroyBuffer(AllocatedBuffer allocatedBuffer);
 
+    [[nodiscard]] AllocatedImage CreateGPUOnlyImage(VkImageCreateInfo imageCreateInfo);
     [[nodiscard]] AllocatedImage UploadImage(const void *imageData, int numChannels, VkImageCreateInfo imageCreateInfo);
     void DestroyImage(AllocatedImage allocatedImage);
 
@@ -62,6 +102,73 @@ private:
     std::array<PerFrameInFlightData, g_kMaxFramesInFlight> m_perFrameInFlightData;
     VkSemaphore m_timelineSemaphore = VK_NULL_HANDLE;
     uint64_t m_timelineValue = 0;
+
+    // Resource streaming
+    VkSemaphore m_streamingTimelineSemaphore = VK_NULL_HANDLE;
+    VkCommandBuffer m_streamingCommandBuffer;
+    VkCommandPool m_streamingCommandPool;
+    uint64_t m_streamingTimelineValue = 0;
+public:
+    void ResetAndBeginStreamingCommandBuffer()
+    {
+        vkResetCommandBuffer(m_streamingCommandBuffer, {});
+        VkCommandBufferBeginInfo beginInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        };
+        vkBeginCommandBuffer(m_streamingCommandBuffer, &beginInfo);
+    }
+    [[nodiscard]] uint64_t EnqueueImageUploadJob(AllocatedImage image, AllocatedBuffer stagingBuffer, VkExtent3D extent)
+    {
+        VkCommandBuffer cmd = m_streamingCommandBuffer;
+        TransitionImage(cmd, image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        VkBufferImageCopy copyRegion = {
+            .bufferOffset = 0
+            , .bufferRowLength = 0
+            , .bufferImageHeight = 0
+            , .imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT
+            , .imageSubresource.mipLevel = 0
+            , .imageSubresource.baseArrayLayer = 0
+            , .imageSubresource.layerCount = 1
+            , .imageExtent = extent
+        };
+        vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        TransitionImage(cmd, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        m_streamingTimelineValue++;
+        return m_streamingTimelineValue;
+    }
+    void EndAndSubmitStreamingCommandBuffer()
+    {
+        vkEndCommandBuffer(m_streamingCommandBuffer);
+        uint64_t valueToSignal = m_streamingTimelineValue;
+        VkTimelineSemaphoreSubmitInfo timelineInfo {
+            .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+            .waitSemaphoreValueCount = 0,
+            .pWaitSemaphoreValues = nullptr,
+            .signalSemaphoreValueCount = 1,
+            .pSignalSemaphoreValues = &valueToSignal
+        };
+        VkSemaphore semaphoresToSignal[] = { m_streamingTimelineSemaphore };
+        VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = &timelineInfo,
+            .waitSemaphoreCount = 0,
+            .pWaitSemaphores = nullptr,
+            .pWaitDstStageMask = nullptr,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &m_streamingCommandBuffer,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = semaphoresToSignal
+        };
+        vkQueueSubmit(m_gpuctx->GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    }
+    uint64_t GetCurrentStreamingTimelineValue()
+    {
+        uint64_t value;
+        vkGetSemaphoreCounterValue(m_gpuctx->GetDevice(), m_streamingTimelineSemaphore, &value);
+        return value;
+    }
 private:
 
     // TODO:

@@ -53,7 +53,8 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 }
 
 
-[[nodiscard]] static AllocatedImage CreateGPUOnlyImage(VkImageCreateInfo imageCreateInfo, VmaAllocator allocator) {
+[[nodiscard]] AllocatedImage Renderer::CreateGPUOnlyImage(VkImageCreateInfo imageCreateInfo) {
+    VmaAllocator allocator = m_gpuctx->GetVmaAllocator();
     VmaAllocationCreateInfo vmaAllocInfo = {};
     vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     vmaAllocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -64,46 +65,11 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 }
 
 
-static VkImageSubresourceRange DefaultImageSubresourceRange(VkImageAspectFlags aspectMask) // Transition all mipmap levels and layers by default
-{
-    VkImageSubresourceRange subImage {};
-    subImage.aspectMask = aspectMask;
-    subImage.baseMipLevel = 0;
-    subImage.levelCount = VK_REMAINING_MIP_LEVELS;
-    subImage.baseArrayLayer = 0;
-    subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
-    return subImage;
-}
-
-static void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
-{
-    VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-
-    VkImageMemoryBarrier imageBarrier {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
-        .dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT,
-        .oldLayout = currentLayout,
-        .newLayout = newLayout,
-        .image = image,
-        .subresourceRange = DefaultImageSubresourceRange(aspectMask)
-    };
-
-    vkCmdPipelineBarrier(
-        cmd,
-        VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-        VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-        {},
-        0, nullptr,
-        0, nullptr,
-        1, &imageBarrier
-    );
-}
 
 AllocatedImage Renderer::UploadImage(const void *imageData, int numChannels, VkImageCreateInfo imageCreateInfo)
 {
-    AllocatedImage allocatedImage = CreateGPUOnlyImage(imageCreateInfo, m_gpuctx->GetVmaAllocator());
+    AllocatedImage allocatedImage = CreateGPUOnlyImage(imageCreateInfo);
     size_t bytesPerChannel = 1;
     size_t dataSize = imageCreateInfo.extent.width * imageCreateInfo.extent.height * numChannels * bytesPerChannel;
     AllocatedBuffer imageStagingBuffer = UploadBuffer(dataSize, imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
@@ -185,7 +151,6 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
             , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
         };
         vkCreateCommandPool(m_gpuctx->GetDevice(), &commandPoolCreateInfo, nullptr, &m_immediateCommandPool);
-        // Immediate command buffer
         VkCommandBufferAllocateInfo immCmdBufferAllocInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
             , .commandPool = m_immediateCommandPool
@@ -195,6 +160,23 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
         vkAllocateCommandBuffers(m_gpuctx->GetDevice(), &immCmdBufferAllocInfo, &m_immediateCommandBuffer);
         VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
         vkCreateFence(m_gpuctx->GetDevice(), &fenceCreateInfo, nullptr, &m_immediateFence);
+    }
+
+    // Streaming resources
+    {
+        VkCommandPoolCreateInfo commandPoolCreateInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
+            , .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+            , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
+        };
+        vkCreateCommandPool(m_gpuctx->GetDevice(), &commandPoolCreateInfo, nullptr, &m_streamingCommandPool);
+        VkCommandBufferAllocateInfo streamingCmdBufferAllocInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
+            , .commandPool = m_streamingCommandPool
+            , .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
+            , .commandBufferCount = 1
+        };
+        vkAllocateCommandBuffers(m_gpuctx->GetDevice(), &streamingCmdBufferAllocInfo, &m_streamingCommandBuffer);
     }
 }
 
@@ -357,6 +339,15 @@ void Renderer::BuildResources() {
         VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &m_timelineSemaphore));
     }
 
+    // Timeline semaphore for resource streaming system image uploads
+    {
+        VkSemaphoreCreateInfo        createInfo = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        VkSemaphoreTypeCreateInfoKHR type_create_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR, .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE, .initialValue = 0 };
+        createInfo.pNext              = &type_create_info;
+
+        VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &m_streamingTimelineSemaphore));
+    }
+
 }
 
 void Renderer::DestroyResources()
@@ -505,7 +496,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         // Submit the command buffer with a timeline semaphore
         VkTimelineSemaphoreSubmitInfo timelineInfo{
             .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-            .waitSemaphoreValueCount = 0,         // No waits
+            .waitSemaphoreValueCount = 0,
             .pWaitSemaphoreValues = nullptr,
             .signalSemaphoreValueCount = 2,
             .pSignalSemaphoreValues = values
@@ -550,6 +541,9 @@ void Renderer::Shutdown()
 {
     VkDevice device = m_gpuctx->GetDevice();
 
+    vkDestroySemaphore(device, m_streamingTimelineSemaphore, nullptr);
+    vkDestroyCommandPool(m_gpuctx->GetDevice(), m_streamingCommandPool, nullptr);
+
     vkDestroyCommandPool(m_gpuctx->GetDevice(), m_immediateCommandPool, nullptr);
     vkDestroyFence(m_gpuctx->GetDevice(), m_immediateFence, nullptr);
 
@@ -578,7 +572,6 @@ void Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)> &&functi
 
     vkEndCommandBuffer(m_immediateCommandBuffer);
 
-    // Submit immediate workload
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .waitSemaphoreCount = 0,

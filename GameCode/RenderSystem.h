@@ -18,8 +18,12 @@ public:
         RequireComponent<TransformComponent>();
     }
 
-    bool ShouldCull()
+    bool ShouldCull(const RenderableMeshComponent& renderable)
     {
+        if (!renderable.buffersReady || !renderable.texturesReady)
+        {
+            return true;
+        }
         return false;
     }
 
@@ -36,7 +40,7 @@ public:
         {
             auto& renderable = entity.GetComponent<RenderableMeshComponent>();
             auto& transform = entity.GetComponent<TransformComponent>();
-            if (!ShouldCull(/*Renderable?*/))
+            if (!ShouldCull(renderable))
             {
                 TransformMesh(renderable, transform);
                 meshesToRender.push_back(renderable);

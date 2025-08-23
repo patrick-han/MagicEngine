@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Buffer.h"
+#include "../Image.h"
 #include "../Common/Math/Matrix4f.h"
 
 namespace Magic
@@ -19,8 +20,12 @@ struct RenderableMeshComponent
     AllocatedBuffer indexBuffer;
     uint32_t indexCount = 0;
     Matrix4f transform;
+    AllocatedImage diffuseImage;
     int diffuseTextureBindlessArraySlot = -1;
+    uint64_t diffuseTextureStreamingTimelineReadyValue = 0;
     RenderableFlags renderableFlags = RenderableFlags::None;
+    bool buffersReady = false;
+    bool texturesReady = false;
 };
 
 }
