@@ -10,6 +10,8 @@
 #include <iostream>
 #include "Input.h"
 #include "../GameCode/Game.h"
+#include "Platform.h"
+#include "JobSystem.h"
 
 
 namespace Magic
@@ -26,6 +28,7 @@ Application::~Application() { }
 
 void Application::Startup()
 {
+    JobSystem::Initialize();
     Logger::Info("Initializing Application");
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -47,7 +50,11 @@ void Application::Startup()
     }
 
     // Windows
+#if PLATFORM_WINDOWS
     m_windows.push_back(std::make_unique<Window>("pooey", 1920, 1080, m_gpuctx->GetInstance()));
+#elif PLATFORM_MACOS
+    m_windows.push_back(std::make_unique<Window>("pooey", 1280, 720, m_gpuctx->GetInstance()));
+#endif
     std::unique_ptr<Window>& defaultWindow = m_windows[Window::DEFAULT_WINDOW];
 
     // TODO: temp

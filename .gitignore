@@ -14,3 +14,5 @@ DataLibCode/orientation-test
 DataLibCode/*.bin
 xcode-build
 .idea/editor.xml
+.idea/misc.xml
+.cursorignore

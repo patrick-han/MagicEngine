@@ -42,7 +42,7 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
 
     void* data;
     vmaMapMemory(allocator, allocatedBuffer.allocation, &data);
-    memcpy(data, bufferData, bufferSize);
+    std::memcpy(data, bufferData, bufferSize);
     vmaUnmapMemory(allocator, allocatedBuffer.allocation);
     return allocatedBuffer;
 }
@@ -182,8 +182,9 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
 }
 
 static std::vector<char> readFileBytes(const std::string& filename) {
+    Logger::Info(std::format("cwd = {}", std::filesystem::current_path().string()));
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
-    if (!file.is_open()) { throw std::runtime_error("Failed to open file!"); }
+     if (!file.is_open()) { throw std::runtime_error("Failed to open file!"); }
     const std::size_t fileSize = (std::size_t) file.tellg();
     std::vector<char> buffer(fileSize);
     file.seekg(0);
@@ -291,15 +292,7 @@ void Renderer::BuildResources() {
         pipelineBuilder.SetVertexDescription(vd);
         pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
         pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE);
-        // pipelineBuilder.SetDepthTestEnable(true);
-        // pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
         {
-            VkPushConstantRange defaultPushConstantRange = {
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                .offset = 0,
-                .size = sizeof(DefaultPushConstants)
-            };
-            m_pushConstantRanges.push_back(defaultPushConstantRange);
             pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
         }
         m_debugDrawPipeline = pipelineBuilder.Build(device, vs_m, ps_m);

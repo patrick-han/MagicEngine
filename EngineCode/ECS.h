@@ -9,6 +9,8 @@
 #include <deque>
 #include <format>
 
+#define ECS_LOGGING 0
+
 namespace Magic
 {
 template <typename Tag, typename T, T default_value>
@@ -237,7 +239,9 @@ public:
 
         m_entityIdToIndex.erase(entityId);
         m_indexToEntityId.erase(indexOfLastEntity);
+#if ECS_LOGGING 
         Logger::Info("remove entity!");
+#endif
         m_packedSize--;
     }
 
@@ -342,9 +346,10 @@ void Registry::AddComponent(Entity entity, TArgs&& ...args) {
 
     // Update entity component signature
     m_entityComponentSignatures[entityId.GetValue()].set(componentId.GetValue());
-
+#if ECS_LOGGING 
     Logger::Info(std::format("Component id: {} was added to entity id: {}", componentId.GetValue(), entityId.GetValue()));
     Logger::Info(std::format("Component id: {} --> pool size: {}", componentId.GetValue(), componentPool->GetSize()));
+#endif
 }
 
 template <typename TComponent>
@@ -358,8 +363,9 @@ void Registry::RemoveComponent(Entity entity) {
     componentPool->Remove(entityId);
 
     m_entityComponentSignatures[entityId.GetValue()].set(componentId.GetValue(), false);
-
+#if ECS_LOGGING 
     Logger::Info(std::format("Component id: {} was removed from entity id: {}", componentId.GetValue(), entityId.GetValue()));
+#endif
 }
 
 template <typename TComponent>
