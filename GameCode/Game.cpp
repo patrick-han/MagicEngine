@@ -101,7 +101,7 @@ void Game::UnloadContent()
     m_resourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
 
 
-    auto meshesToRender = m_ecs->GetSystem<RenderSystem>().Update(m_resourceManager.get(), errorModelHandle);
+    auto meshesToRender = m_ecs->GetSystem<RenderSystem>().Update();
 
     m_camera->Rotate(inputState.mouseXOffset, inputState.mouseYOffset, true);
     float cameraSpeed = 20.0f;

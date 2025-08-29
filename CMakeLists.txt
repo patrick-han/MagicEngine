@@ -67,6 +67,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/Timing.h
         EngineCode/JobSystem.h
         EngineCode/JobSystem.cpp
+        EngineCode/Allocators.h
+        EngineCode/Limits.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

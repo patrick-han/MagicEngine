@@ -3,6 +3,7 @@
 #include "Vulkan/Helpers.h"
 #include "Image.h"
 #include <array>
+#include "Limits.h"
 
 namespace Magic
 {
@@ -19,15 +20,15 @@ void BindlessManager::Initialize(GPUContext* gpuctx)
     m_gpuctx = gpuctx;
     // Create a global descriptor pool, and let it know how many of each descriptor type we want up front
     std::array<VkDescriptorPoolSize, 2> descriptorPoolSizes {{
-        { VK_DESCRIPTOR_TYPE_SAMPLER, maxSamplerCount},
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, maxBindlessResourceCount}
+        { VK_DESCRIPTOR_TYPE_SAMPLER, g_maxBindlessSamplerCount},
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, g_maxBindlessResourceCount}
     }};
     {
         VkDescriptorPoolCreateInfo poolCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             .pNext = nullptr,
             .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT, // Allows us to update textures in a bindless array
-            .maxSets = maxBindlessResourceCount + maxSamplerCount, // ? potentially 1 set for each resource
+            .maxSets = g_maxBindlessResourceCount + g_maxBindlessSamplerCount, // ? potentially 1 set for each resource
             .poolSizeCount = static_cast<uint32_t>(descriptorPoolSizes.size()),
             .pPoolSizes = descriptorPoolSizes.data()
         };
@@ -87,7 +88,7 @@ void BindlessManager::Initialize(GPUContext* gpuctx)
         VkDescriptorSetVariableDescriptorCountAllocateInfoEXT variableDescriptorCountInfo { // This is specifically for the texture array binding
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT,
             .descriptorSetCount = 1,
-            .pDescriptorCounts = &maxBindlessResourceCount
+            .pDescriptorCounts = &g_maxBindlessResourceCount
         };
         VkDescriptorSetAllocateInfo allocateInfo = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
@@ -115,7 +116,7 @@ int BindlessManager::AddToBindlessTextureArray(const AllocatedImage &texture)
         m_freeTextureSlots.pop_back();
         return freeIndex;
     }
-    if (m_numberOfBindlessTexturesAddedSoFar == maxBindlessResourceCount)
+    if (m_numberOfBindlessTexturesAddedSoFar == g_maxBindlessResourceCount)
     {
         Logger::Err("Ran out of bindless slots!"); // TODO:
         std::abort();

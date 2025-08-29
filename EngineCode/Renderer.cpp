@@ -426,9 +426,11 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         Matrix4f viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * renderingInfo.pCamera->GetViewMatrix();
         pushConstants.viewProjection = viewProjection;
 
-        // TODO: render all renderables
-        for (RenderableMeshComponent& renderable : renderingInfo.meshesToRender)
+        // TODO: BAD ergonomics tbh
+        const RenderableMeshComponent* pMesh = renderingInfo.meshesToRender.dataStart;
+        for (int i = 0; i < renderingInfo.meshesToRender.objectCount; i++, pMesh++)
         {
+            const auto& renderable = *pMesh;
             if (renderable.renderableFlags == RenderableFlags::None)
             {
                 cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
@@ -442,10 +444,12 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             }
         }
 
-        // TODO: Render all debug objects, this is just a dump second loop for now
+        // TODO: Render all debug objects, this is just a dumb second loop for now
         cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
-        for (RenderableMeshComponent& renderable : renderingInfo.meshesToRender)
+        pMesh = renderingInfo.meshesToRender.dataStart;
+        for (int i = 0; i < renderingInfo.meshesToRender.objectCount; i++, pMesh++)
         {
+            const auto& renderable = *pMesh;
             if (renderable.renderableFlags == RenderableFlags::DrawDebug) {
                 cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
                 cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);

@@ -2,12 +2,13 @@
 #include "../EngineCode/ECS.h"
 #include "../EngineCode/Components/RenderableMeshComponent.h"
 #include "../EngineCode/Components/TransformComponent.h"
-#include "../EngineCode/ResourceManager.h"
+#include "../EngineCode/Allocators.h"
+#include "../EngineCode/Limits.h"
 
 namespace Magic
 {
 
-static bool flag = true;
+inline std::unique_ptr<RenderableMeshAllocator> g_renderablePool;
 
 class RenderSystem : public System
 {
@@ -16,6 +17,7 @@ public:
     {
         RequireComponent<RenderableMeshComponent>();
         RequireComponent<TransformComponent>();
+        g_renderablePool = std::make_unique<RenderableMeshAllocator>(g_maxRenderablesPerFrame);
     }
 
     bool ShouldCull(const RenderableMeshComponent& renderable)
@@ -32,10 +34,10 @@ public:
         mesh.transform = transform.m_transform * mesh.transform;
     }
 
-    [[nodiscard]] std::vector<RenderableMeshComponent> Update(ResourceManager* pResourceManager, const std::uint64_t errorModelHandle)
+    [[nodiscard]] RenderableMeshAllocator::Payload Update()
     {
+        g_renderablePool->Reset();
         std::vector<Entity> renderableEntities = GetSystemEntities();
-        std::vector<RenderableMeshComponent> meshesToRender;
         for (const Entity& entity : renderableEntities)
         {
             auto& renderable = entity.GetComponent<RenderableMeshComponent>();
@@ -43,11 +45,16 @@ public:
             if (!ShouldCull(renderable))
             {
                 TransformMesh(renderable, transform);
-                meshesToRender.push_back(renderable);
+                RenderableMeshComponent* alloc = g_renderablePool->Allocate();
+                if (alloc == nullptr)
+                {
+                    Logger::Err("Renderable pool ran out of space!");
+                    break;
+                }
+                *alloc = renderable;
             }
         }
-        return meshesToRender;
-        
+        return g_renderablePool->GetState();
     }
 };
 
