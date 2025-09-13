@@ -26,9 +26,6 @@ static std::uint64_t errorModelHandle;
 
 void Game::Initialize(Renderer* pRenderer)
 {
-    JobSystem::Initialize();
-
-
     m_ecs = std::make_unique<Registry>();
     m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_ecs.get());
     m_ecs->AddSystem<PlayerMovementSystem>();

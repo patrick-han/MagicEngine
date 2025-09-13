@@ -185,6 +185,8 @@ public:
         }
     }
 
+    std::vector<AllocatedBuffer> toDestroy;
+
     void ProcessImageUploadJobs()
     {
         if (m_pendingImageUploads.empty())
@@ -212,6 +214,7 @@ public:
             AllocatedBuffer stagingBuffer = m_rctx->UploadBuffer(dataSize, job.imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
             renderable.diffuseTextureStreamingTimelineReadyValue = m_rctx->EnqueueImageUploadJob(sbuf, renderable.diffuseImage, stagingBuffer, extent);
             // m_rctx->DestroyBuffer(stagingBuffer); // TODO: Round robin staging buffers
+            toDestroy.push_back(stagingBuffer);
             batchDone++;
         }
 
@@ -333,38 +336,50 @@ private:
 public:
     void DestroyAllAssets()
     {
+        for (auto& b: toDestroy)
+        {
+            m_rctx->DestroyBuffer(b);
+        }
         DestroyAllLoadedModels();
         m_rctx->WaitIdle();
         DestroyAllGPUResidentMeshes();
         DestroyAllGPUResidentTextures();
+        JobSystem::Wait();
     }
 private:
     void DestroyAllLoadedModels()
     {
-        std::scoped_lock lock(m_loadedModelDataMutex);
-        for (auto& [name, ptr] : m_loadedModels)
-        {
-            delete ptr;
-        }
-        m_loadedModels.clear();
+            for (const auto& [name, ptr] : m_loadedModels)
+            {
+                delete ptr;
+            }
+            std::scoped_lock lock(m_loadedModelDataMutex);
+            m_loadedModels.clear();
+            Logger::Info("ResourceManager: Destroyed all RAM loaded models");
+        
     }
     void DestroyAllGPUResidentMeshes()
     {
-        Logger::Info("ResourceManager: Destroying all meshes");
-        for (const Entity& meshEntity : m_renderableMeshes)
-        {
-            const auto& renderable = meshEntity.GetComponent<RenderableMeshComponent>();
-            m_rctx->DestroyBuffer(renderable.vertexBuffer);
-            m_rctx->DestroyBuffer(renderable.indexBuffer);
-        }
+        
+        JobSystem::Execute([this](){
+            for (const Entity& meshEntity : m_renderableMeshes)
+            {
+                const auto& renderable = meshEntity.GetComponent<RenderableMeshComponent>();
+                m_rctx->DestroyBuffer(renderable.vertexBuffer);
+                m_rctx->DestroyBuffer(renderable.indexBuffer);
+            }
+            Logger::Info("ResourceManager: Destroyed all meshes");
+        });
     }
     void DestroyAllGPUResidentTextures()
     {
-        Logger::Info("ResourceManager: Destroying all textures");
-        for (const AllocatedImage& image : m_renderableImages)
-        {
-            m_rctx->DestroyImage(image);
-        }
+        JobSystem::Execute([this](){
+            for (const AllocatedImage& image : m_renderableImages)
+            {
+                m_rctx->DestroyImage(image);
+            }
+            Logger::Info("ResourceManager: Destroyed all textures");
+        });
     }
     Renderer* m_rctx;
     Registry* m_ecs;
