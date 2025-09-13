@@ -33,6 +33,8 @@ public:
     [[nodiscard]] Matrix4f GetProjectionMatrix(float width, float height, float near, float far, float fovY) const;
 
     void PrintDebug(bool pos, bool vecs, bool yawpitch) const;
+    void Freeze() { m_frozen = true; }
+    void UnFreeze() { m_frozen = false; }
 private:
     // Matrix4f m_toWorld;
     Vector3f m_position;
@@ -42,6 +44,7 @@ private:
     Vector3f m_worldUp;
     float m_yaw;
     float m_pitch;
+    bool m_frozen;
 };
 
 

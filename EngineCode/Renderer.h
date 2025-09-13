@@ -226,6 +226,9 @@ public: // TODO: make an interface for this?
     BindlessManager m_bindlessManager;
 
 
+    // IMGUI
+    VkDescriptorPool m_imguiDescriptorPool;
+
 };
 
 }

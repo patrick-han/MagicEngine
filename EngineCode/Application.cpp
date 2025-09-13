@@ -14,6 +14,13 @@
 #include "JobSystem.h"
 
 
+// IMGUI
+#include "ThirdParty/imgui/imgui.h"
+#include "ThirdParty/imgui/imgui_impl_sdl3.h"
+#define IMGUI_IMPL_VULKAN_USE_VOLK
+#include "ThirdParty/imgui/imgui_impl_vulkan.h"
+
+
 namespace Magic
 {
 
@@ -22,6 +29,15 @@ static float deltaTime = 0.0f; // Time between current and last frame
 static uint64_t lastFrameTick = 0;
 static uint64_t currentFrameTick = 0;
 //
+
+static void imgui_check_vk_result(VkResult err)
+{
+    if (err == 0)
+        return;
+    fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
+    if (err < 0)
+        abort();
+}
 
 Application::Application() { }
 Application::~Application() { }
@@ -53,7 +69,7 @@ void Application::Startup()
 #if PLATFORM_WINDOWS
     m_windows.push_back(std::make_unique<Window>("pooey", 1920, 1080, m_gpuctx->GetInstance()));
 #elif PLATFORM_MACOS
-    m_windows.push_back(std::make_unique<Window>("pooey", 1280, 720, m_gpuctx->GetInstance()));
+    m_windows.push_back(std::make_unique<Window>("pooey", 1920, 1080, m_gpuctx->GetInstance()));
 #endif
     std::unique_ptr<Window>& defaultWindow = m_windows[Window::DEFAULT_WINDOW];
 
@@ -75,6 +91,39 @@ void Application::Startup()
     // TODO: move this somewhere else, probably a Camera class
     m_rctx->outputWidth = defaultWindow->GetWidth();
     m_rctx->outputHeight = defaultWindow->GetHeight();
+
+    // IMGUI
+    {
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+        ImGui_ImplSDL3_InitForVulkan(static_cast<SDL_Window*>(defaultWindow->GetNativeWindowHandle()));
+        ImGui_ImplVulkan_InitInfo init_info = {};
+        init_info.Instance = m_gpuctx->GetInstance();
+        init_info.PhysicalDevice = m_gpuctx->GetPhysicalDevice();
+        init_info.Device = m_gpuctx->GetDevice();
+        init_info.QueueFamily = m_gpuctx->GetGraphicsQueueFamilyIndex();
+        init_info.Queue = m_gpuctx->GetGraphicsQueue();
+        init_info.PipelineCache = VK_NULL_HANDLE;
+        init_info.DescriptorPool = m_rctx->m_imguiDescriptorPool;
+        init_info.Subpass = 0;
+        init_info.MinImageCount = g_kDesiredSwapchainImageCount;
+        init_info.ImageCount = m_swapchains[Window::DEFAULT_WINDOW]->GetImageCount();
+        init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+        init_info.Allocator = VK_NULL_HANDLE;
+        init_info.CheckVkResultFn = imgui_check_vk_result;
+        init_info.UseDynamicRendering = true;
+        VkFormat colorFmt = m_swapchains[Window::DEFAULT_WINDOW]->GetFormat();
+        VkPipelineRenderingCreateInfo prci{ .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+                                            .colorAttachmentCount = 1,
+                                            .pColorAttachmentFormats = &colorFmt };
+        init_info.PipelineRenderingCreateInfo = prci;
+        IM_ASSERT(init_info.ImageCount >= init_info.MinImageCount);
+        ImGui_ImplVulkan_Init(&init_info);
+    }
 }
 
 void Application::Run(Game& game)
@@ -97,6 +146,11 @@ void Application::Run(Game& game)
             break; // Quit
         }
 
+        {
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplSDL3_NewFrame();
+        }
+
         RenderingInfo renderingInfo = game.Update(inputState, deltaTime);
         m_rctx->DoWork(m_frameNumber, renderingInfo);
         m_frameNumber++;
@@ -109,6 +163,11 @@ void Application::Run(Game& game)
 void Application::Shutdown()
 {
     Logger::Info("Shutting down Application");
+    {
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplSDL3_Shutdown();
+        ImGui::DestroyContext();
+    }
     for (std::unique_ptr<Swapchain>& swapchain : m_swapchains)
     {
         swapchain.reset();
@@ -123,6 +182,8 @@ void Application::Shutdown()
     delete m_gpuctx;
 }
 
+static bool g_bReleaseMouse = false;
+
 bool Application::SampleInput(InputState& inputState)
 {
     // Handle events on queue
@@ -130,7 +191,7 @@ bool Application::SampleInput(InputState& inputState)
     SDL_Event sdlEvent;
     while (SDL_PollEvent(&sdlEvent))
     {
-
+        ImGui_ImplSDL3_ProcessEvent(&sdlEvent);
         switch (sdlEvent.type)
         {
             case SDL_EVENT_QUIT:
@@ -141,6 +202,18 @@ bool Application::SampleInput(InputState& inputState)
             case SDL_EVENT_KEY_DOWN:
             {
                 if (sdlEvent.key.key == SDLK_ESCAPE) { bQuit = true; }
+                if (sdlEvent.key.key == SDLK_GRAVE)
+                {
+                    g_bReleaseMouse = !g_bReleaseMouse;
+                    if (g_bReleaseMouse)
+                    {
+                        SDL_SetWindowRelativeMouseMode(static_cast<SDL_Window*>(m_windows[Window::DEFAULT_WINDOW]->GetNativeWindowHandle()), false);
+                    }
+                    else
+                    {
+                        SDL_SetWindowRelativeMouseMode(static_cast<SDL_Window*>(m_windows[Window::DEFAULT_WINDOW]->GetNativeWindowHandle()), true);
+                    }
+                }
                 break;
             }
             case SDL_EVENT_WINDOW_RESIZED:
@@ -166,6 +239,7 @@ bool Application::SampleInput(InputState& inputState)
         }
     }
     inputState.keyState = SDL_GetKeyboardState(nullptr);
+    inputState.shouldFreezeCamera = g_bReleaseMouse;
     return !bQuit;
 }
 }

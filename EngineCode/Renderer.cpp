@@ -13,7 +13,9 @@
 #include "Timing.h"
 
 #include "../DataLibCode/DataSerialization.h" // TODO: find better organization for this maebbe
-
+#include "ThirdParty/imgui/imgui.h"
+#define IMGUI_IMPL_VULKAN_USE_VOLK
+#include "ThirdParty/imgui/imgui_impl_vulkan.h"
 namespace Magic
 {
 
@@ -178,6 +180,23 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
             , .commandBufferCount = 1
         };
         VK_CHECK(vkAllocateCommandBuffers(m_gpuctx->GetDevice(), &cmdBufferAllocInfo, &sbuf.cmd));
+    }
+
+    // Imgui resources
+    {
+        VkDescriptorPoolSize pool_sizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE },
+        };
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 0;
+        for (VkDescriptorPoolSize& pool_size : pool_sizes)
+            pool_info.maxSets += pool_size.descriptorCount;
+        pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
+        VK_CHECK(vkCreateDescriptorPool(m_gpuctx->GetDevice(), &pool_info, VK_NULL_HANDLE, &m_imguiDescriptorPool));
     }
 }
 
@@ -397,14 +416,14 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
     , VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
     , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
     {
-        {
-            VkClearValue clearValue = {{{0.5f, 0.5f, 0.7f, 1.0f}}};
-            auto rai_color = TEMP_rendering_attachment_info(m_rtColorImage.view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &clearValue);
-            VkClearValue depthClearValue = {.depthStencil = 1.0f};
-            auto rai_depth = TEMP_rendering_attachment_info(m_rtDepthImage.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue);
-            auto ri = TEMP_rendering_info_fullscreen(1, &rai_color, &rai_depth, outputWidth, outputHeight);
-            cmdEncoder.BeginRendering(ri);
-        }
+
+        VkClearValue clearValue = {{{0.5f, 0.5f, 0.7f, 1.0f}}};
+        auto rai_color = TEMP_rendering_attachment_info(m_rtColorImage.view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &clearValue);
+        VkClearValue depthClearValue = {.depthStencil = 1.0f};
+        auto rai_depth = TEMP_rendering_attachment_info(m_rtDepthImage.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue);
+        auto ri = TEMP_rendering_info_fullscreen(1, &rai_color, &rai_depth, outputWidth, outputHeight);
+        cmdEncoder.BeginRendering(ri);
+
         cmdEncoder.SetViewport(outputWidth, outputHeight);
         cmdEncoder.SetScissor(outputWidth, outputHeight);
         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
@@ -478,10 +497,48 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         , outputWidth, outputHeight);
 
-    cmdEncoder.ImageBarrier(swapchainImageData.image
-        , VK_ACCESS_TRANSFER_WRITE_BIT, {}
-        , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    // cmdEncoder.ImageBarrier(swapchainImageData.image
+    //     , VK_ACCESS_TRANSFER_WRITE_BIT, {}
+    //     , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+    //     , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+
+    {
+        cmdEncoder.ImageBarrier(swapchainImageData.image,
+            VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+        ImGui::NewFrame();
+        ImGui::ShowDemoWindow(); // Show demo window! :)
+        ImGui::Render();
+
+        VkRenderingAttachmentInfo uiColor{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView = swapchainImageData.image.view,
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,              // keep the copied scene
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE
+        };
+        VkRenderingInfoKHR uiRI = {};
+        uiRI.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        VkRect2D renderArea = {};
+        renderArea.extent.width = outputWidth;
+        renderArea.extent.height = outputHeight;
+        uiRI.renderArea = renderArea;
+        uiRI.layerCount = 1;
+        uiRI.colorAttachmentCount = 1;
+        uiRI.pColorAttachments = &uiColor;
+        cmdEncoder.BeginRendering(uiRI);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdEncoder.Handle());
+        cmdEncoder.EndRendering();
+
+        cmdEncoder.ImageBarrier(swapchainImageData.image,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, {},
+    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    }
+
 
     cmdEncoder.End();
 

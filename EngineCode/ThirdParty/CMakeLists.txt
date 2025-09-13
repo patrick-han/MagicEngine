@@ -18,3 +18,24 @@ target_link_libraries(ThirdPartyLibraries INTERFACE SDL3::SDL3)
 # Volk
 add_subdirectory(volk)
 target_link_libraries(ThirdPartyLibraries INTERFACE volk)
+
+#Imgui
+add_library(IMGUI STATIC)
+target_sources(IMGUI PRIVATE
+        imgui/imconfig.h
+        imgui/imgui.h
+        imgui/imgui_demo.cpp
+        imgui/imgui_draw.cpp
+        imgui/imgui.cpp
+        imgui/imgui_impl_sdl3.h
+        imgui/imgui_impl_sdl3.cpp
+        imgui/imgui_impl_vulkan.h
+        imgui/imgui_impl_vulkan.cpp
+        imgui/imgui_internal.h
+        imgui/imgui_tables.cpp
+        imgui/imgui_widgets.cpp
+        imgui/imstb_rectpack.h
+)
+target_compile_definitions(IMGUI PRIVATE IMGUI_IMPL_VULKAN_USE_VOLK)
+target_include_directories(IMGUI PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/SDL/include/" "${Vulkan_INCLUDE_DIR}")
+target_link_libraries(ThirdPartyLibraries INTERFACE IMGUI)

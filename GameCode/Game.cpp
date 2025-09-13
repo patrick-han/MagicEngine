@@ -100,6 +100,15 @@ void Game::UnloadContent()
 
     auto meshesToRender = m_ecs->GetSystem<RenderSystem>().Update();
 
+    if (inputState.shouldFreezeCamera)
+    {
+        m_camera->Freeze();
+    }
+    else
+    {
+        m_camera->UnFreeze();
+    }
+
     m_camera->Rotate(inputState.mouseXOffset, inputState.mouseYOffset, true);
     float cameraSpeed = 20.0f;
     if (inputState.keyState[SDL_SCANCODE_LSHIFT]) {
