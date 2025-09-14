@@ -295,6 +295,8 @@ public:
 
     void Update(); // Runs at the end of the main loop Update();
 
+    int GetNumberOfEntities() { return m_numEntities; }
+
 private:
     int m_numEntities = 0;
 

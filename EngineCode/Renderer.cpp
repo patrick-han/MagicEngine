@@ -504,13 +504,27 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 
 
     {
-        cmdEncoder.ImageBarrier(swapchainImageData.image,
-            VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        cmdEncoder.ImageBarrier(swapchainImageData.image
+            , VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+            , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+            , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
         ImGui::NewFrame();
-        ImGui::ShowDemoWindow(); // Show demo window! :)
+        // ImGui::ShowDemoWindow();
+        ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+        ImGui::SetNextWindowPos(ImVec2(0, 0)); // Top left
+        ImGui::SetNextWindowSize(ImVec2(250, displaySize.y/2));
+
+        ImGui::Begin("Engine Info", nullptr, flags);
+        ImGui::Text("Entity Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.entityCount);
+        ImGui::Text("RAM Resident Model Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.ramResidentModelCount);
+        ImGui::Text("Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.meshCount);
+        ImGui::Text("Texture Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.textureCount);
+        ImGui::Text("Pending Model Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingModelUploadCount);
+        ImGui::Text("Pending Buffer Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingBufferUploadCount);
+        ImGui::Text("Pending Image Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingImageUploadCount);
+        ImGui::End();
         ImGui::Render();
 
         VkRenderingAttachmentInfo uiColor{
@@ -533,10 +547,10 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdEncoder.Handle());
         cmdEncoder.EndRendering();
 
-        cmdEncoder.ImageBarrier(swapchainImageData.image,
-            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, {},
-    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        cmdEncoder.ImageBarrier(swapchainImageData.image
+            , VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, {}
+            , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+            , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     }
 
 
@@ -595,6 +609,7 @@ void Renderer::WaitIdle()
 void Renderer::Shutdown()
 {
     VkDevice device = m_gpuctx->GetDevice();
+    vkDestroyDescriptorPool(device, m_imguiDescriptorPool, nullptr);
 
     vkDestroySemaphore(device, m_streamingTimelineSemaphore, nullptr);
     for (StreamingCommandBuffer& s : m_streamingCommandBuffers)

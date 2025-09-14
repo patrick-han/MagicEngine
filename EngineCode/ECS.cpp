@@ -54,6 +54,7 @@ Entity Registry::EnqueueCreateEntity() {
 
 void Registry::EnqueueKillEntity(Entity entity) {
     m_entitiesToBeKilled.insert(entity);
+    m_numEntities--;
 }
 
 void Registry::AddEntityToSystems(Entity entity) {

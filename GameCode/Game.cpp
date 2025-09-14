@@ -155,12 +155,28 @@ void Game::UnloadContent()
         playerMovementVector.y = -1.0f;
     }
 
+    if (inputState.keyState[SDL_SCANCODE_U]) {
+            m_resourceManager->DestroyAllLoadedModels();
+    }
+
 
     m_ecs->GetSystem<PlayerMovementSystem>().Update(playerMovementVector, deltaTime);
+
+    GameStats stats = 
+    {
+        .entityCount = m_ecs->GetNumberOfEntities()
+        , .ramResidentModelCount = m_resourceManager->GetRAMResidentModelCount()
+        , .meshCount = m_resourceManager->GetMeshCount()
+        , .textureCount = m_resourceManager->GetTextureCount()
+        , .pendingModelUploadCount = m_resourceManager->GetPendingModelUploadJobCount()
+        , .pendingBufferUploadCount = m_resourceManager->GetPendingBufferUploadJobCount()
+        , .pendingImageUploadCount = m_resourceManager->GetPendingImageUploadJobCount()
+    };
 
     RenderingInfo renderingInfo = {
         .pCamera = m_camera.get()
       , .meshesToRender = meshesToRender
+      , .gameStats = stats
     };
     return renderingInfo;
 }
