@@ -514,7 +514,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         ImVec2 displaySize = ImGui::GetIO().DisplaySize;
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
         ImGui::SetNextWindowPos(ImVec2(0, 0)); // Top left
-        ImGui::SetNextWindowSize(ImVec2(250, displaySize.y/2));
+        ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
 
         ImGui::Begin("Engine Info", nullptr, flags);
         ImGui::Text("Entity Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.entityCount);
@@ -525,6 +525,13 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         ImGui::Text("Pending Buffer Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingBufferUploadCount);
         ImGui::Text("Pending Image Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingImageUploadCount);
         ImGui::End();
+
+        ImGui::SetNextWindowPos(ImVec2(0, displaySize.y / 2)); // Top left
+        ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
+        ImGui::Begin("Scene Outline", nullptr, flags);
+        ImGui::End();
+
+
         ImGui::Render();
 
         VkRenderingAttachmentInfo uiColor{

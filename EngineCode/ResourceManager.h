@@ -262,13 +262,20 @@ public:
 // private:
     void DestroyAllLoadedModels()
     {
-            for (const auto& [name, ptr] : m_loadedModels)
-            {
-                delete ptr;
-            }
+        // std::scoped_lock lock(m_loadedModelDataMutex);
+        // for (const auto& [name, ptr] : m_loadedModels)
+        // {
+        //     delete ptr;
+        // }
+        // m_loadedModels.clear();
+
+        std::map<std::string, ModelData*> to_free;
+        {
             std::scoped_lock lock(m_loadedModelDataMutex);
-            m_loadedModels.clear();
-            Logger::Info("ResourceManager: Destroyed all RAM loaded models");
+            to_free.swap(m_loadedModels);
+        }
+        for (auto& [_, p] : to_free) delete p; // safe; no one else can see them now
+        Logger::Info("ResourceManager: Destroyed all RAM loaded models");
         
     }
     void DestroyAllGPUResidentMeshes()

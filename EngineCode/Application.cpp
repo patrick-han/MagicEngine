@@ -65,12 +65,29 @@ void Application::Startup()
         m_gpuctx->Startup(sdlExtensions);
     }
 
+    // Query displays
+    const SDL_DisplayMode* mode;
+    {
+        int numDisplays;
+        SDL_DisplayID *displays = SDL_GetDisplays(&numDisplays);
+        Logger::Info(std::format("Found {} display(s)", numDisplays));
+        std::vector<uint32_t> displayIds(numDisplays);
+        for (int i = 0; i < numDisplays; i++)
+        {
+            SDL_DisplayID displayId = displays[i];
+            displayIds[i] = displayId;
+            Logger::Info(std::format("Display: {}", displayId));
+        }
+        mode = SDL_GetCurrentDisplayMode(displayIds[0]); // Chose the first display
+        SDL_free(displays);
+    }
+
+    int chosenWidth = mode->w;
+    int chosenHeight = mode->h;
+
     // Windows
-#if PLATFORM_WINDOWS
-    m_windows.push_back(std::make_unique<Window>("pooey", 1920, 1080, m_gpuctx->GetInstance()));
-#elif PLATFORM_MACOS
-    m_windows.push_back(std::make_unique<Window>("pooey", 1920, 1080, m_gpuctx->GetInstance()));
-#endif
+    m_windows.push_back(std::make_unique<Window>("pooey", chosenWidth-100, chosenHeight-100, m_gpuctx->GetInstance()));
+
     std::unique_ptr<Window>& defaultWindow = m_windows[Window::DEFAULT_WINDOW];
 
     // TODO: temp

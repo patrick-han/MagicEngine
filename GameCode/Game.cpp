@@ -156,7 +156,9 @@ void Game::UnloadContent()
     }
 
     if (inputState.keyState[SDL_SCANCODE_U]) {
+        JobSystem::Execute([this](){
             m_resourceManager->DestroyAllLoadedModels();
+        });
     }
 
 
