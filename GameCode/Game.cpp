@@ -2,6 +2,7 @@
 #include "../EngineCode/Common/Log.h"
 #include "../EngineCode/Camera.h"
 #include "../EngineCode/Input.h"
+#include "../EngineCode/World.h"
 
 #include <SDL3/SDL_scancode.h> // Only for SCANCODES, TODO: Make a translation layer thingy
 
@@ -26,14 +27,19 @@ static std::uint64_t errorModelHandle;
 
 void Game::Initialize(Renderer* pRenderer)
 {
-    m_ecs = std::make_unique<Registry>();
-    m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_ecs.get());
-    m_ecs->AddSystem<PlayerMovementSystem>();
-    m_ecs->AddSystem<RenderSystem>();
+    m_pWorld = new World;
+    m_ecs = std::make_unique<ECS::Registry>();
+    m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_ecs.get(), m_pWorld);
+    m_ecs->AddSystem<ECS::PlayerMovementSystem>();
+    m_ecs->AddSystem<ECS::RenderSystem>();
     // m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/errorOut.bin", "error");
     // std::vector<Entity> errorMeshEntities = m_resourceManager->UploadModel("error");
 }
 
+void Game::Shutdown()
+{
+    delete m_pWorld;
+}
 
 void Game::LoadContent()
 {
@@ -53,12 +59,8 @@ void Game::LoadContent()
 
     JobSystem::Execute([&]()
     {
-        m_resourceManager->LoadModelFromDisk("../DataLibCode/super-sponza.bin", "player");
+        m_resourceManager->LoadModelFromDisk("../DataLibCode/sponza.bin", "player");
     });
-
-    // std::vector<Entity> playerMeshEntities = m_resourceManager->UploadModel("player");
-    // std::vector<Entity> sceneMeshEntities = m_resourceManager->UploadModel("scene");
-    // std::vector<Entity> debugSphereMeshEntities = m_resourceManager->UploadModel("debugSphere");
 
     m_resourceManager->EnqueueUploadModel("player");
     m_resourceManager->EnqueueUploadModel("scene");
@@ -98,7 +100,7 @@ void Game::UnloadContent()
     m_resourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
 
 
-    auto meshesToRender = m_ecs->GetSystem<RenderSystem>().Update();
+    auto meshesToRender = m_ecs->GetSystem<ECS::RenderSystem>().Update();
 
     if (inputState.shouldFreezeCamera)
     {
@@ -162,7 +164,7 @@ void Game::UnloadContent()
     }
 
 
-    m_ecs->GetSystem<PlayerMovementSystem>().Update(playerMovementVector, deltaTime);
+    m_ecs->GetSystem<ECS::PlayerMovementSystem>().Update(playerMovementVector, deltaTime);
 
     GameStats stats = 
     {

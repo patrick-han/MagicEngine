@@ -5,7 +5,7 @@
 #include "../EngineCode/Allocators.h"
 #include "../EngineCode/Limits.h"
 
-namespace Magic
+namespace Magic::ECS
 {
 
 inline std::unique_ptr<RenderableMeshAllocator> g_renderablePool;

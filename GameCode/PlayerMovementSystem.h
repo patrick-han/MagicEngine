@@ -4,7 +4,7 @@
 #include "PlayerComponent.h"
 #include "../EngineCode/Common/Math/Vector3f.h"
 
-namespace Magic
+namespace Magic::ECS
 {
 
 class PlayerMovementSystem : public System

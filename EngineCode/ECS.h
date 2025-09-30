@@ -11,7 +11,7 @@
 
 #define ECS_LOGGING 0
 
-namespace Magic
+namespace Magic::ECS
 {
 template <typename Tag, typename T, T default_value>
 class ID {
@@ -79,14 +79,14 @@ typedef ID<struct IComponent, int, -1> COMPONENT_ID;
 // Define custom hash for ENTITY_ID
 namespace std {
     template<>
-    struct hash<Magic::ENTITY_ID> {
-        std::size_t operator()(const Magic::ENTITY_ID& id) const noexcept {
+    struct hash<Magic::ECS::ENTITY_ID> {
+        std::size_t operator()(const Magic::ECS::ENTITY_ID& id) const noexcept {
             return hash<int>()(id.GetValue());
         }
     };
 }
 
-namespace Magic
+namespace Magic::ECS
 {
 // using ENTITY_ID = int;
 // using COMPONENT_ID = int;

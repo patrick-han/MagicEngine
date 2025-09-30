@@ -3,7 +3,7 @@
 #include <format>
 #include "Common/Log.h"
 
-namespace Magic
+namespace Magic::ECS
 {
 
 COMPONENT_ID IComponent::m_nextId = COMPONENT_ID(0);

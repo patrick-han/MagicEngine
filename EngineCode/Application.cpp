@@ -60,7 +60,6 @@ void Application::Startup()
         {
             sdlExtensions[i] = sdlVulkanExtensions[i];
         }
-        // m_gpuctx = std::make_unique<GPUContext>();
         m_gpuctx = new GPUContext();
         m_gpuctx->Startup(sdlExtensions);
     }
@@ -87,12 +86,8 @@ void Application::Startup()
 
     // Windows
     m_windows.push_back(std::make_unique<Window>("pooey", chosenWidth-100, chosenHeight-100, m_gpuctx->GetInstance()));
-
     std::unique_ptr<Window>& defaultWindow = m_windows[Window::DEFAULT_WINDOW];
-
-    // TODO: temp
     SDL_SetWindowRelativeMouseMode((SDL_Window*)defaultWindow->GetNativeWindowHandle(), true);
-    //
 
     m_swapchains.push_back(std::make_unique<Swapchain>(
         m_gpuctx->GetDevice()
@@ -114,9 +109,6 @@ void Application::Startup()
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-
         ImGui_ImplSDL3_InitForVulkan(static_cast<SDL_Window*>(defaultWindow->GetNativeWindowHandle()));
         ImGui_ImplVulkan_InitInfo init_info = {};
         init_info.Instance = m_gpuctx->GetInstance();
@@ -172,6 +164,7 @@ void Application::Run(Game& game)
         m_rctx->DoWork(m_frameNumber, renderingInfo);
         m_frameNumber++;
     }
+    game.Shutdown();
     game.UnloadContent();
     m_rctx->DestroyResources();
 }
@@ -206,6 +199,7 @@ bool Application::SampleInput(InputState& inputState)
     // Handle events on queue
     bool bQuit = false;
     SDL_Event sdlEvent;
+    SDL_Window* defaultWindowHandle = static_cast<SDL_Window*>(m_windows[Window::DEFAULT_WINDOW]->GetNativeWindowHandle());
     while (SDL_PollEvent(&sdlEvent))
     {
         ImGui_ImplSDL3_ProcessEvent(&sdlEvent);
@@ -224,11 +218,11 @@ bool Application::SampleInput(InputState& inputState)
                     g_bReleaseMouse = !g_bReleaseMouse;
                     if (g_bReleaseMouse)
                     {
-                        SDL_SetWindowRelativeMouseMode(static_cast<SDL_Window*>(m_windows[Window::DEFAULT_WINDOW]->GetNativeWindowHandle()), false);
+                        SDL_SetWindowRelativeMouseMode(defaultWindowHandle, false);
                     }
                     else
                     {
-                        SDL_SetWindowRelativeMouseMode(static_cast<SDL_Window*>(m_windows[Window::DEFAULT_WINDOW]->GetNativeWindowHandle()), true);
+                        SDL_SetWindowRelativeMouseMode(defaultWindowHandle, true);
                     }
                 }
                 break;

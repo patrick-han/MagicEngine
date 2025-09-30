@@ -510,7 +510,6 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
         ImGui::NewFrame();
-        // ImGui::ShowDemoWindow();
         ImVec2 displaySize = ImGui::GetIO().DisplaySize;
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
         ImGui::SetNextWindowPos(ImVec2(0, 0)); // Top left
