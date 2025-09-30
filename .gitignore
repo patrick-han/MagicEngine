@@ -16,3 +16,5 @@ xcode-build
 .idea/editor.xml
 .idea/misc.xml
 .cursorignore
+
+EngineCode/imgui.ini

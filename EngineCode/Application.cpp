@@ -164,8 +164,8 @@ void Application::Run(Game& game)
         m_rctx->DoWork(m_frameNumber, renderingInfo);
         m_frameNumber++;
     }
-    game.Shutdown();
     game.UnloadContent();
+    game.Shutdown();
     m_rctx->DestroyResources();
 }
 

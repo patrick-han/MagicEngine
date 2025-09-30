@@ -201,7 +201,7 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
 }
 
 static std::vector<char> readFileBytes(const std::string& filename) {
-    Logger::Info(std::format("cwd = {}", std::filesystem::current_path().string()));
+    // Logger::Info(std::format("cwd = {}", std::filesystem::current_path().string()));
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
      if (!file.is_open()) { throw std::runtime_error("Failed to open file!"); }
     const std::size_t fileSize = (std::size_t) file.tellg();
