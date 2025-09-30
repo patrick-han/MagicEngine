@@ -445,40 +445,35 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         Matrix4f viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * renderingInfo.pCamera->GetViewMatrix();
         pushConstants.viewProjection = viewProjection;
 
-        // TODO: BAD ergonomics tbh
-        const RenderableMeshComponent* pMesh = renderingInfo.meshesToRender.dataStart;
-        for (int i = 0; i < renderingInfo.meshesToRender.objectCount; i++, pMesh++)
+        for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
         {
-            const auto& renderable = *pMesh;
-            if (renderable.renderableFlags == RenderableFlags::None)
-            {
-                cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
-                cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
+            // if (pSubMesh->renderableFlags == RenderableFlags::None)
+            // {
+                cmdEncoder.BindVertexBufferSimple(pSubMesh->vertexBuffer);
+                cmdEncoder.BindIndexBufferSimple(pSubMesh->indexBuffer);
                 {
-                    pushConstants.model = renderable.transform * Matrix4f::MakeScale(100.0f);
-                    pushConstants.diffuseTextureBindlessTextureArraySlot = renderable.diffuseTextureBindlessArraySlot;
+                    pushConstants.model = pSubMesh->m_localMatrix * Matrix4f::MakeScale(100.0f);
+                    pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;
                     vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
                 }
-                cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
-            }
+                cmdEncoder.DrawIndexedSimple(pSubMesh->indexCount, 0);
+            // }
         }
 
         // TODO: Render all debug objects, this is just a dumb second loop for now
-        cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
-        pMesh = renderingInfo.meshesToRender.dataStart;
-        for (int i = 0; i < renderingInfo.meshesToRender.objectCount; i++, pMesh++)
-        {
-            const auto& renderable = *pMesh;
-            if (renderable.renderableFlags == RenderableFlags::DrawDebug) {
-                cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
-                cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
-                {
-                    pushConstants.model = renderable.transform;
-                    vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
-                }
-                cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
-            }
-        }
+        // cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
+        // for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
+        // {
+        //     if (pSubMesh->renderableFlags == RenderableFlags::DrawDebug) {
+        //         cmdEncoder.BindVertexBufferSimple(pSubMesh->vertexBuffer);
+        //         cmdEncoder.BindIndexBufferSimple(pSubMesh->indexBuffer);
+        //         {
+        //             pushConstants.model = pSubMesh->m_localMatrix;
+        //             vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
+        //         }
+        //         cmdEncoder.DrawIndexedSimple(pSubMesh->indexCount, 0);
+        //     }
+        // }
 
         cmdEncoder.EndRendering();
     }

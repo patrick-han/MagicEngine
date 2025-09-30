@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdlib>
-
+#include "Components/RenderableMeshComponent.h"
 namespace Magic
 {
 

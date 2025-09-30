@@ -90,6 +90,27 @@ void Game::UnloadContent()
     m_resourceManager->DestroyAllAssets();
 }
 
+
+// using SubMeshAllocator = FixedTypeLinearAllocator<SubMesh*>;
+
+// static SubMeshAllocator g_renderablePool;
+// TEMP
+bool ShouldCull(SubMesh* subMesh)
+{
+    if (!subMesh->buffersReady || !subMesh->texturesReady)
+    {
+        return true;
+    }
+    return false;
+}
+
+static void TransformMesh(SubMesh* pSubMesh, const Matrix4f& transform)
+{
+    // pSubMesh->transform = transform * mesh.transform;
+}
+
+// TEMP
+
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
     m_ecs->Update();
@@ -100,7 +121,30 @@ void Game::UnloadContent()
     m_resourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
 
 
-    auto meshesToRender = m_ecs->GetSystem<ECS::RenderSystem>().Update();
+    // auto meshesToRender = m_ecs->GetSystem<ECS::RenderSystem>().Update();
+    std::vector<SubMesh*> meshesToRender;
+    {
+        // g_renderablePool.Reset();
+        for (MeshEntity* pMeshEntity : m_pWorld->m_meshEntities)
+        {
+            for (SubMesh* pSubMesh : pMeshEntity->m_subMeshes)
+            {
+                if (!ShouldCull(pSubMesh))
+                {
+                    // TransformMesh(renderable, transform);
+                    // SubMesh* alloc = g_renderablePool.Allocate();
+                    // if (alloc == nullptr)
+                    // {
+                    //     Logger::Err("Renderable pool ran out of space!");
+                    //     break;
+                    // }
+                    // *alloc = subMesh;
+                    meshesToRender.push_back(pSubMesh);
+                }
+            }
+        }
+        // g_renderablePool.GetState();
+    }
 
     if (inputState.shouldFreezeCamera)
     {
