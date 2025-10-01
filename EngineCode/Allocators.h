@@ -1,13 +1,12 @@
 #pragma once
-#include <cstdlib>
-#include "Components/RenderableMeshComponent.h"
+#include <unordered_map>
+#include <unordered_set>
 namespace Magic
 {
 
-
-// Use for POD types that can work with just a blob of memory with no construction/destruction
+// Use for POD types that can work with just a blob of memory with no construction/destruction and relatively short life times (like per-frame)
 template <typename T>
-class FixedTypeLinearAllocator
+class FixedPODTypeLinearAllocator
 {
     size_t m_bytesAllocated = 0;
     size_t m_objectsAllocated = 0;
@@ -20,14 +19,14 @@ public:
         T* dataStart = nullptr;
         size_t objectCount = 0;
     };
-    explicit FixedTypeLinearAllocator(size_t numObjects)
+    explicit FixedPODTypeLinearAllocator(size_t numObjects)
     {
         const size_t typeSize = sizeof(T);
         m_data = static_cast<T*>(std::malloc(numObjects * typeSize));
         m_maxObjects = numObjects;
         m_allocPointer = m_data;
     }
-    ~FixedTypeLinearAllocator()
+    ~FixedPODTypeLinearAllocator()
     {
         std::free(m_data);
     }
@@ -61,6 +60,54 @@ public:
 
 };
 
-using RenderableMeshAllocator = FixedTypeLinearAllocator<Magic::RenderableMeshComponent>;
+
+
+// Use for POD types that can work with just a blob of memory with no construction/destruction and can be pooled together
+template <typename T>
+class FixedPODTypePoolAllocator
+{
+    size_t m_objectsAllocated = 0;
+    size_t m_maxObjects = 0;
+    T* m_data;
+    std::unordered_set<size_t> m_freeSlots;
+    std::unordered_map<T*, size_t> m_pTypeToSlot;
+public:
+    explicit FixedPODTypePoolAllocator(size_t numObjects)
+    {
+        const size_t typeSize = sizeof(T);
+        m_data = static_cast<T*>(std::malloc(numObjects * typeSize));
+        m_maxObjects = numObjects;
+        for (size_t i = 0; i < m_maxObjects; i++)
+        {
+            m_freeSlots.insert(i);
+        }
+    }
+    ~FixedPODTypePoolAllocator()
+    {
+        std::free(m_data);
+    }
+    T* Allocate()
+    {
+        if (m_freeSlots.empty())
+        {
+            return nullptr;
+        }
+        m_objectsAllocated += 1;
+        auto it = m_freeSlots.begin();
+        size_t freeSlot = *it;
+        m_freeSlots.erase(it);
+        return m_data + freeSlot;
+    }
+
+    void Free(T* pType)
+    {
+        if (m_pTypeToSlot.find(pType) != m_pTypeToSlot.end())
+        {
+            m_freeSlots.insert(m_pTypeToSlot.at(pType));
+            m_pTypeToSlot.erase(pType);
+            m_objectsAllocated -= 1;
+        }
+    }
+};
 
 }

@@ -11,6 +11,7 @@ class Registry;
 
 class Camera;
 class ResourceManager;
+class MemoryManager;
 struct InputState;
 class World;
 class Game
@@ -34,6 +35,7 @@ private:
     std::unique_ptr<Camera> m_camera;
     std::unique_ptr<ECS::Registry> m_ecs;
     std::unique_ptr<ResourceManager> m_resourceManager;
+    std::unique_ptr<MemoryManager> m_memoryManager;
     World* m_pWorld;
 };
 

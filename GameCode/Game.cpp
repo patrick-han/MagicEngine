@@ -6,13 +6,10 @@
 
 #include <SDL3/SDL_scancode.h> // Only for SCANCODES, TODO: Make a translation layer thingy
 
-#include "PlayerComponent.h"
 #include "../EngineCode/ResourceManager.h"
+#include "../EngineCode/MemoryManager.h"
 #include "../EngineCode/ECS.h"
-#include "../EngineCode/Components/TransformComponent.h"
-#include "../EngineCode/Components/RenderableMeshComponent.h"
 #include "PlayerMovementSystem.h"
-#include "RenderSystem.h"
 #include "../EngineCode/JobSystem.h"
 #include <vector>
 #include <cassert>
@@ -27,18 +24,23 @@ static std::uint64_t errorModelHandle;
 
 void Game::Initialize(Renderer* pRenderer)
 {
-    m_pWorld = new World;
+    
     m_ecs = std::make_unique<ECS::Registry>();
-    m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_ecs.get(), m_pWorld);
+    m_memoryManager = std::make_unique<MemoryManager>();
+    m_pWorld = new World(m_memoryManager.get());
+    m_memoryManager->Initialize();
+    m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_pWorld, m_memoryManager.get());
     m_ecs->AddSystem<ECS::PlayerMovementSystem>();
-    m_ecs->AddSystem<ECS::RenderSystem>();
     // m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/errorOut.bin", "error");
     // std::vector<Entity> errorMeshEntities = m_resourceManager->UploadModel("error");
 }
 
 void Game::Shutdown()
 {
+    m_pWorld->Destroy();
     delete m_pWorld;
+    m_memoryManager->Shutdown();
+    
 }
 
 void Game::LoadContent()
@@ -59,7 +61,7 @@ void Game::LoadContent()
 
     JobSystem::Execute([&]()
     {
-        m_resourceManager->LoadModelFromDisk("../DataLibCode/sponza.bin", "player");
+        m_resourceManager->LoadModelFromDisk("../DataLibCode/super-sponza.bin", "player");
     });
 
     m_resourceManager->EnqueueUploadModel("player");
@@ -91,25 +93,15 @@ void Game::UnloadContent()
 }
 
 
-// using SubMeshAllocator = FixedTypeLinearAllocator<SubMesh*>;
-
-// static SubMeshAllocator g_renderablePool;
 // TEMP
 bool ShouldCull(SubMesh* subMesh)
 {
-    if (!subMesh->buffersReady || !subMesh->texturesReady)
+    if (!subMesh->vertexBufferReady || !subMesh->indexBufferReady || !subMesh->texturesReady)
     {
         return true;
     }
     return false;
 }
-
-static void TransformMesh(SubMesh* pSubMesh, const Matrix4f& transform)
-{
-    // pSubMesh->transform = transform * mesh.transform;
-}
-
-// TEMP
 
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
@@ -120,30 +112,18 @@ static void TransformMesh(SubMesh* pSubMesh, const Matrix4f& transform)
     m_resourceManager->ProcessImageUploadJobs();
     m_resourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
 
-
-    // auto meshesToRender = m_ecs->GetSystem<ECS::RenderSystem>().Update();
     std::vector<SubMesh*> meshesToRender;
     {
-        // g_renderablePool.Reset();
-        for (MeshEntity* pMeshEntity : m_pWorld->m_meshEntities)
+        for (MeshEntity* pMeshEntity : m_pWorld->GetMeshEntities())
         {
-            for (SubMesh* pSubMesh : pMeshEntity->m_subMeshes)
+            for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
                 if (!ShouldCull(pSubMesh))
                 {
-                    // TransformMesh(renderable, transform);
-                    // SubMesh* alloc = g_renderablePool.Allocate();
-                    // if (alloc == nullptr)
-                    // {
-                    //     Logger::Err("Renderable pool ran out of space!");
-                    //     break;
-                    // }
-                    // *alloc = subMesh;
                     meshesToRender.push_back(pSubMesh);
                 }
             }
         }
-        // g_renderablePool.GetState();
     }
 
     if (inputState.shouldFreezeCamera)

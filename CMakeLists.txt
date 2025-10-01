@@ -53,12 +53,10 @@ add_executable(MagicEngine main.cpp
         EngineCode/Common/Math/Math.h
         EngineCode/Input.h
         EngineCode/RenderingInfo.h
-        EngineCode/Components/RenderableMeshComponent.h
         EngineCode/ECS.h
         EngineCode/ECS.cpp
         EngineCode/Components/TransformComponent.h
         GameCode/PlayerMovementSystem.h
-        GameCode/RenderSystem.h
         EngineCode/ResourceManager.h
         GameCode/PlayerComponent.h
         EngineCode/Common/Math/Vector2f.h
@@ -72,6 +70,11 @@ add_executable(MagicEngine main.cpp
         EngineCode/World.h
         EngineCode/World.cpp
         EngineCode/Entity.h
+        EngineCode/SubMesh.h
+        EngineCode/MeshEntity.h
+        EngineCode/MeshEntity.cpp
+        EngineCode/MemoryManager.h
+        EngineCode/MemoryManager.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)

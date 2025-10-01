@@ -1,9 +1,6 @@
 #pragma once
 #include <vector>
-// #include "Components/RenderableMeshComponent.h"
-#include "Entity.h" // TODO:
-#include "Allocators.h"
-
+#include "SubMesh.h"
 namespace Magic
 {
 
@@ -23,7 +20,6 @@ class Camera;
 struct RenderingInfo
 {
     const Camera* const pCamera;
-    // RenderableMeshAllocator::Payload meshesToRender;
     std::vector<SubMesh*> meshesToRender;
     GameStats gameStats;
 };
