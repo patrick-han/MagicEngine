@@ -72,6 +72,7 @@ class FixedPODTypePoolAllocator
     std::unordered_set<size_t> m_freeSlots;
     std::unordered_map<T*, size_t> m_pTypeToSlot;
 public:
+    static constexpr T DefaultConstructedObject;
     explicit FixedPODTypePoolAllocator(size_t numObjects)
     {
         const size_t typeSize = sizeof(T);
@@ -86,7 +87,7 @@ public:
     {
         std::free(m_data);
     }
-    T* Allocate()
+    T* AllocateDefault()
     {
         if (m_freeSlots.empty())
         {
@@ -96,6 +97,7 @@ public:
         auto it = m_freeSlots.begin();
         size_t freeSlot = *it;
         m_freeSlots.erase(it);
+        std::memcpy(m_data + freeSlot, &DefaultConstructedObject, sizeof(T)); // Clear the leftover data from a possible previous allocation using this slot
         return m_data + freeSlot;
     }
 

@@ -21,7 +21,8 @@ void MemoryManager::Shutdown()
 
 SubMesh* MemoryManager::AllocateSubMesh()
 {
-    return m_pSubMeshPool->Allocate();
+    auto p = m_pSubMeshPool->AllocateDefault();
+    return p;
 }
 
 void MemoryManager::FreeSubMesh(SubMesh* pSubMesh)
