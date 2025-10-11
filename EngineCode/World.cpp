@@ -1,11 +1,12 @@
 #include "World.h"
 #include "MemoryManager.h"
+#include "Renderer.h"
 #include <algorithm>
 
 namespace Magic
 {
-World::World(MemoryManager* pMemoryManager)
-    : m_pMemoryManager(pMemoryManager)
+World::World(MemoryManager* pMemoryManager, Renderer* pRenderer)
+    : m_pMemoryManager(pMemoryManager), m_pRenderer(pRenderer)
 {
 }
 
@@ -33,6 +34,11 @@ void World::RemoveMeshEntity(MeshEntity* pMeshEntity)
         for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
         {
             m_pMemoryManager->FreeSubMesh(pSubMesh);
+            // This doesnt work because a frame in flight might be using one of these resources, need to queue them for desctruction after mesh entity
+            // gets removed from the world (and as a result can never get passed to the Renderer)
+            // m_pRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
+            // m_pRenderer->DestroyBuffer(pSubMesh->indexBuffer);
+            // m_pRenderer->DestroyImage(pSubMesh->diffuseImage);
         }
         *it = m_meshEntities.back();
         m_meshEntities.pop_back();

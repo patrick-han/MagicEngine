@@ -2,6 +2,8 @@
 #include "Buffer.h"
 #include "Image.h"
 #include "Common/Math/Matrix4f.h"
+#include "Common/AABB.h"
+
 namespace Magic
 {
 class MeshEntity;
@@ -20,6 +22,8 @@ struct SubMesh
     bool vertexBufferReady = false;
     bool indexBufferReady = false;
     bool texturesReady = false;
+    bool hasTexture = true;
+    AABB3f aabb;
 };
 
 }

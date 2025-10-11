@@ -201,15 +201,19 @@ private:
 
     // TODO:
     std::vector<VkPushConstantRange> m_pushConstantRanges;
+    std::vector<VkPushConstantRange> m_boundingBoxPushConstantRanges;
     //
     VkSampler m_linearSampler = VK_NULL_HANDLE;
     VkSampler m_pointSampler = VK_NULL_HANDLE;
     GraphicsPipeline m_simplePipeline;
+    GraphicsPipeline m_simplePipelineVertexColors;
     AllocatedImage m_rtColorImage;
     AllocatedImage m_rtDepthImage;
     const VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
 
-    GraphicsPipeline m_debugDrawPipeline;
+    GraphicsPipeline m_debugDrawPipeline; // bounding box
+    bool m_renderBoundingBoxes = false;
+
 
 public:
     std::vector<int> m_errorModelMeshIndices;

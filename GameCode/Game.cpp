@@ -27,12 +27,10 @@ void Game::Initialize(Renderer* pRenderer)
     
     m_ecs = std::make_unique<ECS::Registry>();
     m_memoryManager = std::make_unique<MemoryManager>();
-    m_pWorld = new World(m_memoryManager.get());
+    m_pWorld = new World(m_memoryManager.get(), pRenderer);
     m_memoryManager->Initialize();
     m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_pWorld, m_memoryManager.get());
     m_ecs->AddSystem<ECS::PlayerMovementSystem>();
-    // m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/errorOut.bin", "error");
-    // std::vector<Entity> errorMeshEntities = m_resourceManager->UploadModel("error");
 }
 
 void Game::Shutdown()
@@ -47,43 +45,30 @@ void Game::LoadContent()
 {
     Logger::Info("Load MyGame content");
     // Make a free camera pointing down +Z with +X left and +Y up
-    m_camera = std::make_unique<Camera>(Vector3f(0.0f, 10.0f, -500.0f), Vector3f(0.0f, 0.0f, 1.0f));
+    m_camera = std::make_unique<Camera>(Vector3f(0.0f, 10.0f, -100.0f), Vector3f(0.0f, 0.0f, 1.0f));
 
     JobSystem::Execute([&]()
     {
         m_resourceManager->LoadModelFromDisk("../DataLibCode/scene.bin", "scene");
     });
-    JobSystem::Execute([&]()
-    {
-        m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
-    });
+    // JobSystem::Execute([&]()
+    // {
+    //     m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
+    // });
     JobSystem::Wait(); // Artificially test super-sponza load
 
     JobSystem::Execute([&]()
     {
-        m_resourceManager->LoadModelFromDisk("../DataLibCode/super-sponza.bin", "player");
+        // m_resourceManager->LoadModelFromDisk("../DataLibCode/super-sponza.bin", "player");
+        m_resourceManager->LoadModelFromDisk("../DataLibCode/beautiful-game.bin", "player");
+        // m_resourceManager->LoadModelFromDisk("../DataLibCode/orientation-test/OrientationTestOut.bin", "player");
+        // m_resourceManager->LoadModelFromDisk("../DataLibCode/sponza.bin", "player");
     });
 
     m_resourceManager->EnqueueUploadModel("player");
     m_resourceManager->EnqueueUploadModel("scene");
-    m_resourceManager->EnqueueUploadModel("debugSphere");
+    // m_resourceManager->EnqueueUploadModel("debugSphere");
 
-    // Entity player = m_ecs->EnqueueCreateEntity();
-    // {
-    //     player.AddComponent<TransformComponent>(Matrix4f::MakeScale(0.25f));
-    //     player.AddComponent<PlayerComponent>(50.0f);
-    // }
-
-    // Entity scene = m_ecs->EnqueueCreateEntity();
-    // {
-    //     Matrix4f t;
-    //     scene.AddComponent<TransformComponent>(t);
-    // }
-
-    // Entity debugSphere = m_ecs->EnqueueCreateEntity();
-    // {
-    //     debugSphere.AddComponent<TransformComponent>(Matrix4f::MakeScale(3.0));
-    // }
 }
 
 void Game::UnloadContent()
@@ -102,6 +87,8 @@ bool ShouldCull(SubMesh* subMesh)
     }
     return false;
 }
+
+bool a = true;
 
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
@@ -182,9 +169,16 @@ bool ShouldCull(SubMesh* subMesh)
     }
 
     if (inputState.keyState[SDL_SCANCODE_U]) {
-        JobSystem::Execute([this](){
-            m_resourceManager->DestroyAllLoadedModels();
-        });
+        // JobSystem::Execute([this](){
+        //     m_resourceManager->DestroyAllLoadedModels();
+        // });
+        if (a)
+        {
+            auto m = m_pWorld->GetMeshEntities();
+            m_pWorld->RemoveMeshEntity(m[0]);
+            a = false;
+        }
+        
     }
 
 

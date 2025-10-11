@@ -7,10 +7,11 @@
 namespace Magic
 {
 class MemoryManager;
+class Renderer;
 class World
 {
 public:
-    World(MemoryManager* pMemoryManager);
+    World(MemoryManager* pMemoryManager, Renderer* pRenderer);
     ~World();
 
     void Destroy();
@@ -19,6 +20,7 @@ public:
     void RemoveMeshEntity(MeshEntity* pMeshEntity);
     [[nodiscard]] std::span<MeshEntity* const> GetMeshEntities() const;
 private:
+    Renderer* m_pRenderer;
     MemoryManager* m_pMemoryManager;
     void DestroyAllMeshEntities();
     std::vector<MeshEntity*> m_meshEntities;

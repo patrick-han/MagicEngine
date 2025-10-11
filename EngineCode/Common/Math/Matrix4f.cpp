@@ -155,6 +155,11 @@ Matrix4f Matrix4f::InvertedRigid() {
     return m;
 }
 
+Vector3f Matrix4f::GetTranslate() const
+{
+    return Vector3f(m03, m13, m23);
+}
+
 float Matrix4f::Trace() {
     return m00 + m11 + m22 + m33;
 }

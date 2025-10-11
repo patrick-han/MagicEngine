@@ -218,6 +218,14 @@ struct DefaultPushConstants {
     Matrix4f viewProjection;
     uint32_t diffuseTextureBindlessTextureArraySlot = 0;
 };
+// 4 bytes * 4 components * 8 corners = 128 bytes
+struct BoundingBoxPushConstants {
+    Vector3f min;
+    float pad0;
+    Vector3f max;
+    float pad1;
+    Matrix4f viewProjection;
+};
 //
 
 void Renderer::BuildResources() {
@@ -290,10 +298,47 @@ void Renderer::BuildResources() {
         vkDestroyShaderModule(device, ps_m, nullptr);
     }
 
-    // Debug draw pipeline
     {
         std::vector<char> vspv = readFileBytes("../Shaders/triangleVertex.vertex.spv");
-        std::vector<char> pspv = readFileBytes("../Shaders/triangleDebug.pixel.spv");
+        std::vector<char> pspv = readFileBytes("../Shaders/trianglePixelVertexColorsOnly.pixel.spv");
+        VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
+        VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
+        VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
+        VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
+            , .colorAttachmentCount = 1
+            , .pColorAttachmentFormats = outRTFormats // match swapchain format for now
+            , .depthAttachmentFormat = m_depthFormat
+        };
+
+        auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
+        pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
+        pipelineBuilder.SetExtent(outputWidth, outputHeight);
+        auto vd = SimpleVertexDescription();
+        pipelineBuilder.SetVertexDescription(vd);
+
+        pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
+        pipelineBuilder.SetDescriptorSetLayouts(m_bindlessManager.m_descriptorSetLayout);
+        pipelineBuilder.SetDepthTestEnable(true);
+        pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
+
+        {
+            VkPushConstantRange defaultPushConstantRange = {
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                .offset = 0,
+                .size = sizeof(DefaultPushConstants)
+            };
+            pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
+        }
+        m_simplePipelineVertexColors = pipelineBuilder.Build(device, vs_m, ps_m);
+        vkDestroyShaderModule(device, vs_m, nullptr);
+        vkDestroyShaderModule(device, ps_m, nullptr);
+    }
+
+    // Bounding box 
+    {
+        std::vector<char> vspv = readFileBytes("../Shaders/aabbVertex.vertex.spv");
+        std::vector<char> pspv = readFileBytes("../Shaders/aabbPixel.pixel.spv");
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
         VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
 
@@ -307,12 +352,19 @@ void Renderer::BuildResources() {
         auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
         pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
         pipelineBuilder.SetExtent(outputWidth, outputHeight);
-        auto vd = SimpleVertexDescription();
-        pipelineBuilder.SetVertexDescription(vd);
-        pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
-        pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE);
+        // pipelineBuilder.SetDepthTestEnable(true);
+        // pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
+        // pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
+        // pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE); // Seemingly irrelevant for line topologies
+        pipelineBuilder.SetInputAssemblyPrimitiveTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
         {
-            pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
+            VkPushConstantRange boundingBoxPushConstantRange = {
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                .offset = 0,
+                .size = sizeof(BoundingBoxPushConstants)
+            };
+            m_boundingBoxPushConstantRanges.push_back(boundingBoxPushConstantRange);
+            pipelineBuilder.SetPushConstantRanges(m_boundingBoxPushConstantRanges);
         }
         m_debugDrawPipeline = pipelineBuilder.Build(device, vs_m, ps_m);
         vkDestroyShaderModule(device, vs_m, nullptr);
@@ -370,6 +422,7 @@ void Renderer::DestroyResources()
     vkDestroySampler(device, m_linearSampler, NULL);
     vkDestroySampler(device, m_pointSampler, NULL);
     m_debugDrawPipeline.Destroy();
+    m_simplePipelineVertexColors.Destroy();
     m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
     { // Destroy rendertargetse
@@ -426,7 +479,6 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 
         cmdEncoder.SetViewport(outputWidth, outputHeight);
         cmdEncoder.SetScissor(outputWidth, outputHeight);
-        cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
 
         // Bindless set
 
@@ -441,39 +493,51 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             nullptr
         );
 
-        DefaultPushConstants pushConstants;
         Matrix4f viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * renderingInfo.pCamera->GetViewMatrix();
-        pushConstants.viewProjection = viewProjection;
 
-        for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
         {
-            // if (pSubMesh->renderableFlags == RenderableFlags::None)
-            // {
+            DefaultPushConstants pushConstants;
+            pushConstants.viewProjection = viewProjection;
+
+            for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
+            {
                 cmdEncoder.BindVertexBufferSimple(pSubMesh->vertexBuffer);
                 cmdEncoder.BindIndexBufferSimple(pSubMesh->indexBuffer);
                 {
-                    pushConstants.model = pSubMesh->m_localMatrix * Matrix4f::MakeScale(100.0f);
-                    pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;
+                    pushConstants.model = pSubMesh->m_worldMatrix;// * Matrix4f::MakeScale(100.0f);
+                    if (pSubMesh->hasTexture)
+                    {
+                        cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
+                        pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;
+                    }
+                    else
+                    {
+                        cmdEncoder.BindGraphicsPipeline(m_simplePipelineVertexColors);
+                        // pushConstants.diffuseTextureBindlessTextureArraySlot = 0; // TODO: actually have default texture
+                    }
+                    
                     vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
                 }
                 cmdEncoder.DrawIndexedSimple(pSubMesh->indexCount, 0);
-            // }
+            }
         }
 
-        // TODO: Render all debug objects, this is just a dumb second loop for now
-        // cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
-        // for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
-        // {
-        //     if (pSubMesh->renderableFlags == RenderableFlags::DrawDebug) {
-        //         cmdEncoder.BindVertexBufferSimple(pSubMesh->vertexBuffer);
-        //         cmdEncoder.BindIndexBufferSimple(pSubMesh->indexBuffer);
-        //         {
-        //             pushConstants.model = pSubMesh->m_localMatrix;
-        //             vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
-        //         }
-        //         cmdEncoder.DrawIndexedSimple(pSubMesh->indexCount, 0);
-        //     }
-        // }
+        if (m_renderBoundingBoxes)
+        {
+            // Render all bounding boxes
+            BoundingBoxPushConstants boundingBoxPushConstants;
+            boundingBoxPushConstants.viewProjection = viewProjection;
+            cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
+            for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
+            {
+                AABB3f worldSpaceAABB;
+                worldSpaceAABB.Transform(pSubMesh->aabb, pSubMesh->m_worldMatrix);
+                boundingBoxPushConstants.min = worldSpaceAABB.GetMin();
+                boundingBoxPushConstants.max = worldSpaceAABB.GetMax();
+                vkCmdPushConstants(cmdEncoder.Handle(), m_debugDrawPipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(boundingBoxPushConstants), &boundingBoxPushConstants);
+                cmdEncoder.Draw(24, 1, 0, 0);
+            }
+        }
 
         cmdEncoder.EndRendering();
     }
@@ -518,6 +582,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         ImGui::Text("Pending Model Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingModelUploadCount);
         ImGui::Text("Pending Buffer Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingBufferUploadCount);
         ImGui::Text("Pending Image Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingImageUploadCount);
+        ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
         ImGui::End();
 
         ImGui::SetNextWindowPos(ImVec2(0, displaySize.y / 2)); // Top left

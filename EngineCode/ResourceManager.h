@@ -118,9 +118,15 @@ public:
                 SubMesh* pSubMesh = m_pMemoryManager->AllocateSubMesh();
                 pMeshEntity->AddSubMesh(pSubMesh);
                 pSubMesh->indexCount = static_cast<uint32_t>(meshData.m_indices.size());
-                pSubMesh->m_localMatrix = testModel->m_transforms[meshCounter];
                 Matrix4f matrix;
-                pSubMesh->m_worldMatrix = matrix;
+                pSubMesh->m_localMatrix = matrix;
+                pSubMesh->m_worldMatrix = testModel->m_transforms[meshCounter];
+
+                // calculate aabb, TODO: this can be spun off into a separate job, or better yet done in the cooker
+                for (const auto& vertex : meshData.m_vertices)
+                {
+                    pSubMesh->aabb.Update(vertex.position);
+                }
 
                 BufferUploadJob vertexBufferJob = {
                     .numBytes = sizeof(SimpleVertex) * meshData.m_vertices.size()
@@ -138,7 +144,8 @@ public:
                 m_pendingBufferUploads.push(vertexBufferJob);
                 m_pendingBufferUploads.push(indexBufferJob);
 
-                if (meshData.materialData.diffuseData.data.size() != 0) // TODO:
+                const bool hasDiffuseTexture = pSubMesh->hasTexture = meshData.materialData.diffuseData.data.size() != 0;
+                if (hasDiffuseTexture) // TODO:
                 {
                     VkExtent3D imageExtent
                     {
@@ -149,6 +156,12 @@ public:
                     const VkImageCreateInfo imci = DefaultImageCreateInfo(g_defaultTextureFormat, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
                     m_pendingImageUploads.emplace(imageExtent, imci, /*format,*/ meshData.materialData.diffuseData.data.data(), meshData.materialData.diffuseData.numChannels, pSubMesh);
                 }
+                else
+                {
+                    // TODO: this sucks
+                    pSubMesh->texturesReady = true; 
+                }
+                meshCounter++;
             }
             it = m_pendingModelUploads.erase(it);
         }

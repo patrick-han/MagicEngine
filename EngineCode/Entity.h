@@ -27,7 +27,7 @@ public:
     void AddChild(IEntity* pEntity)
     {
         pEntity->m_parent = this;
-        pEntity->m_worldMatrix = this->m_worldMatrix * pEntity->m_localMatrix;
+        pEntity->m_worldMatrix = this->m_worldMatrix * pEntity->m_worldMatrix;
         m_children.push_back(pEntity);
     }
     void RemoveChild(IEntity* pEntity)

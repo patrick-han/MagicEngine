@@ -75,6 +75,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/MeshEntity.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
+        EngineCode/Common/AABB.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)
