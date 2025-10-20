@@ -1,4 +1,5 @@
 #include "MemoryManager.h"
+#include "Limits.h"
 namespace Magic
 {
 MemoryManager::MemoryManager()

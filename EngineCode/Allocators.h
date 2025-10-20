@@ -1,6 +1,7 @@
 #pragma once
 #include <unordered_map>
 #include <unordered_set>
+#include <cstdlib>
 namespace Magic
 {
 
@@ -72,7 +73,7 @@ class FixedPODTypePoolAllocator
     std::unordered_set<size_t> m_freeSlots;
     std::unordered_map<T*, size_t> m_pTypeToSlot;
 public:
-    static constexpr T DefaultConstructedObject;
+    inline static const T DefaultConstructedObject{};
     explicit FixedPODTypePoolAllocator(size_t numObjects)
     {
         const size_t typeSize = sizeof(T);
@@ -98,7 +99,11 @@ public:
         size_t freeSlot = *it;
         m_freeSlots.erase(it);
         std::memcpy(m_data + freeSlot, &DefaultConstructedObject, sizeof(T)); // Clear the leftover data from a possible previous allocation using this slot
-        return m_data + freeSlot;
+
+        // Keep track of which slot this pointer goes in, so we can free it properly later
+        T* p = m_data + freeSlot;
+        m_pTypeToSlot[p] = freeSlot;
+        return p;
     }
 
     void Free(T* pType)
