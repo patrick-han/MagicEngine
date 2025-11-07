@@ -74,7 +74,7 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
     cgltf_node_transform_world(node, worldTransformCGLTF);
     Matrix4f worldTransform = ConvertCGLTFMatrix(worldTransformCGLTF);
 
-    modelData.m_transforms.push_back(worldTransform);
+
 
     if (node->camera)
     {
@@ -86,6 +86,10 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
         if (mesh->primitives_count > 1) { Logger::Warn("Encountered mesh with more than 1 primitive!"); }
         for (cgltf_size primitive_i = 0; primitive_i < mesh->primitives_count; ++primitive_i) // gltf primitive ~= a mesh in my mind
         {
+            // All meshes and primitives of a node share the same transform? Since transforms are defined at the node level
+            modelData.m_transforms.push_back(worldTransform);
+            //
+
             MeshData meshData;
             // Typically a mesh will have a single primitive, but in some cases primitives are used for:
             // - Multiple materials per "object", allowing vertex data re-use

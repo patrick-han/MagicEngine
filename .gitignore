@@ -10,6 +10,8 @@ DataLibCode/orientation
 # DataLibCode/ue5level
 DataLibCode/super-sponza
 # DataLibCode/debug
+DataLibCode/toy-car
+DataLibCode/flight-helmet
 DataLibCode/ada
 DataLibCode/orientation-test
 DataLibCode/*.bin
