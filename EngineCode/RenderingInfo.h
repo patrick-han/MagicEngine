@@ -9,6 +9,7 @@ struct GameStats
     int entityCount = 0;
     int ramResidentModelCount = 0;
     int meshCount = 0;
+    int subMeshCount = 0;
     int textureCount = 0;
     int pendingModelUploadCount = 0;
     int pendingBufferUploadCount = 0;

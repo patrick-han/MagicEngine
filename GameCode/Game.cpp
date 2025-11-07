@@ -186,9 +186,10 @@ bool a = true;
 
     GameStats stats = 
     {
-        .entityCount = m_ecs->GetNumberOfEntities()
+        .entityCount = m_pWorld->GetEntityCount()
         , .ramResidentModelCount = m_resourceManager->GetRAMResidentModelCount()
-        , .meshCount = m_resourceManager->GetMeshCount()
+        , .meshCount = static_cast<int>(m_pWorld->GetMeshEntities().size())
+        , .subMeshCount = m_pWorld->GetSubMeshCount()
         , .textureCount = m_resourceManager->GetTextureCount()
         , .pendingModelUploadCount = m_resourceManager->GetPendingModelUploadJobCount()
         , .pendingBufferUploadCount = m_resourceManager->GetPendingBufferUploadJobCount()

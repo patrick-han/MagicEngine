@@ -19,10 +19,14 @@ void World::Destroy()
     DestroyAllMeshEntities();
 }
 
+#define ENTITY_PLUS() m_entityCount++
+#define ENTITY_MINUS() m_entityCount--
+
 MeshEntity *World::CreateMeshEntity()
 {
     MeshEntity* newMeshEntity = new MeshEntity;
     m_meshEntities.push_back(newMeshEntity);
+    ENTITY_PLUS();
     return newMeshEntity;
 }
 
@@ -44,7 +48,7 @@ void World::RemoveMeshEntity(MeshEntity* pMeshEntity)
         m_meshEntities.pop_back();
         delete pMeshEntity;
     }
-    
+    ENTITY_MINUS();
 }
 
 std::span<MeshEntity *const> World::GetMeshEntities() const
