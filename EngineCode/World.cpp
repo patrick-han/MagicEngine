@@ -5,8 +5,8 @@
 
 namespace Magic
 {
-World::World(MemoryManager* pMemoryManager, Renderer* pRenderer)
-    : m_pMemoryManager(pMemoryManager), m_pRenderer(pRenderer)
+World::World(MemoryManager* pMemoryManager)
+    : m_pMemoryManager(pMemoryManager)
 {
 }
 
