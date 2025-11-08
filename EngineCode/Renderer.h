@@ -214,9 +214,6 @@ private:
     GraphicsPipeline m_debugDrawPipeline; // bounding box
     bool m_renderBoundingBoxes = false;
 
-
-public:
-    std::vector<int> m_errorModelMeshIndices;
 private:
 
     /// TODO:

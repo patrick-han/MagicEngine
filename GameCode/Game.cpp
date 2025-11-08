@@ -8,8 +8,6 @@
 
 #include "../EngineCode/ResourceManager.h"
 #include "../EngineCode/MemoryManager.h"
-#include "../EngineCode/ECS.h"
-#include "PlayerMovementSystem.h"
 #include "../EngineCode/JobSystem.h"
 #include <vector>
 #include <cassert>
@@ -24,13 +22,10 @@ static std::uint64_t errorModelHandle;
 
 void Game::Initialize(Renderer* pRenderer)
 {
-    
-    m_ecs = std::make_unique<ECS::Registry>();
     m_memoryManager = std::make_unique<MemoryManager>();
     m_pWorld = new World(m_memoryManager.get(), pRenderer);
     m_memoryManager->Initialize();
     m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_pWorld, m_memoryManager.get());
-    m_ecs->AddSystem<ECS::PlayerMovementSystem>();
 }
 
 void Game::Shutdown()
@@ -60,9 +55,9 @@ void Game::LoadContent()
     JobSystem::Execute([&]()
     {
         // m_resourceManager->LoadModelFromDisk("../DataLibCode/super-sponza.bin", "player");
-        m_resourceManager->LoadModelFromDisk("../DataLibCode/beautiful-game.bin", "player");
+        m_resourceManager->LoadModelFromDisk("../DataLibCode/beautiful-game-cgltf.bin", "player");
         // m_resourceManager->LoadModelFromDisk("../DataLibCode/orientation-test/OrientationTestOut.bin", "player");
-        // m_resourceManager->LoadModelFromDisk("../DataLibCode/sponza.bin", "player");
+        // m_resourceManager->LoadModelFromDisk("../DataLibCode/sponza-cgltf.bin", "player");
     });
 
     m_resourceManager->EnqueueUploadModel("player");
@@ -92,7 +87,6 @@ bool a = true;
 
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
-    m_ecs->Update();
 
     m_resourceManager->ProcessModelUploadJobs();
     m_resourceManager->ProcessBufferUploadJobs();
@@ -183,9 +177,6 @@ bool a = true;
         }
         
     }
-
-
-    m_ecs->GetSystem<ECS::PlayerMovementSystem>().Update(playerMovementVector, deltaTime);
 
     GameStats stats = 
     {

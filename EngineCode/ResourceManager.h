@@ -325,8 +325,6 @@ public:
     
 public:
     int GetRAMResidentModelCount() { std::scoped_lock lock(m_loadedModelDataMutex); return m_loadedModels.size(); }
-    // int GetMeshCount() { return m_renderableMeshes.size(); }
-    int GetMeshCount() { return -1; } // TODO
     int GetTextureCount() { return m_renderableImages.size(); }
     int GetPendingModelUploadJobCount() { return m_pendingModelUploads.size(); }
     int GetPendingBufferUploadJobCount() { return m_pendingBufferUploads.size(); }
