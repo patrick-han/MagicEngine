@@ -40,8 +40,7 @@ public:
 protected:
     IEntity* m_parent;
     std::list<IEntity*> m_children;
-    Matrix4f m_worldMatrix; // m_parent->m_worldMatrix * localMatrix;
-    Matrix4f m_localMatrix;
+    Matrix4f m_worldMatrix;
 };
 
 }

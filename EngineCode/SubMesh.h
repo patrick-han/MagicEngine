@@ -11,8 +11,7 @@ struct SubMesh
 {
     bool ReadyToRender() { return vertexBufferReady && indexBufferReady && texturesReady; }
     MeshEntity* m_parentMesh = nullptr;
-    Matrix4f m_worldMatrix; // m_parentMesh.m_worldMatrix * localMatrix;
-    Matrix4f m_localMatrix;
+    Matrix4f m_worldMatrix;
     AllocatedBuffer vertexBuffer;
     AllocatedBuffer indexBuffer;
     uint32_t indexCount = 0;
