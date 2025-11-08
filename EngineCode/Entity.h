@@ -27,7 +27,7 @@ public:
     void AddChild(IEntity* pEntity)
     {
         pEntity->m_parent = this;
-        pEntity->m_worldMatrix = this->m_worldMatrix * pEntity->m_worldMatrix;
+        // pEntity->m_worldMatrix = this->m_worldMatrix * pEntity->m_worldMatrix;
         m_children.push_back(pEntity);
     }
     void RemoveChild(IEntity* pEntity)
@@ -40,7 +40,7 @@ public:
 protected:
     IEntity* m_parent;
     std::list<IEntity*> m_children;
-    Matrix4f m_worldMatrix;
+    // Matrix4f m_worldMatrix;
 };
 
 }

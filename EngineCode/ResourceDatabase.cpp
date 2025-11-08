@@ -33,14 +33,44 @@ const char * ResourceDatabase::ResourceTypeToStr(ResourceType resType)
     }
 }
 
+void ResourceDatabase::UnregisterResource(UUID uuid)
+{
+    m_uuids.erase(uuid);
+    m_uuid_to_name.erase(uuid);
+    m_uuid_to_type.erase(uuid);
+    m_uuid_to_node.erase(uuid);
+    assert(m_uuids.size() == m_uuid_to_name.size() == m_uuid_to_type.size() == m_uuid_to_node.size());
+}
+
+void ResourceDatabase::RegisterResource(UUID uuid,
+                                        const std::string &name,
+                                        const ResourceType resType,
+                                        pugi::xml_node node)
+{
+    m_uuids.insert(uuid);
+    m_uuid_to_name.insert({uuid, name});
+    m_uuid_to_type.insert({uuid, resType});
+    m_uuid_to_node.insert({uuid, node});
+
+    const std::size_t s = m_uuids.size();
+    assert(s == m_uuid_to_name.size()
+        && s == m_uuid_to_type.size()
+        && s == m_uuid_to_node.size()
+        );
+}
+
 void ResourceDatabase::Reload()
 {
+    m_uuids.clear();
     m_uuid_to_name.clear();
     m_uuid_to_type.clear();
     m_uuid_to_node.clear();
 
     for (pugi::xml_node resource : m_db.children("resource"))
     {
+        assert(resource.attribute("name"));
+        assert(resource.attribute("uuid"));
+        assert(resource.attribute("type"));
         ResourceType resType = StrToResourceType(resource.attribute("type").as_string());
         if (resType == ResourceType::Unknown)
         {
@@ -49,9 +79,7 @@ void ResourceDatabase::Reload()
         UUID uuid;
         const char* name = resource.attribute("name").as_string();
         UUID::TryParse(resource.attribute("uuid").as_string(), uuid);
-        m_uuid_to_name[uuid] = name;
-        m_uuid_to_type[uuid] = resType;
-        m_uuid_to_node[uuid] = resource;
+        RegisterResource(uuid, name, resType, resource);
     }
 }
 
@@ -82,12 +110,21 @@ void ResourceDatabase::Save()
 
 bool ResourceDatabase::CheckIfResourceExists(const char *resourceName)
 {
-    for (auto resource : m_db.children())
+    for (pugi::xml_node resource : m_db.children())
     {
         if (strcmp(resource.attribute("name").as_string(), resourceName) == 0)
         {
             return true;
         }
+    }
+    return false;
+}
+
+bool ResourceDatabase::CheckIfResourceExists(UUID uuid)
+{
+    if (m_uuids.find(uuid) != m_uuids.end())
+    {
+        return true;
     }
     return false;
 }
@@ -104,6 +141,39 @@ void ResourceDatabase::AddStaticMeshResource(const char *resourceName, const cha
     assert(m_uuid_to_name.size() == m_uuid_to_type.size());
 }
 
+void ResourceDatabase::RemoveResource(const char* resourceName)
+{
+    pugi::xml_node resource = m_db.find_child_by_attribute("resource", "name", resourceName);
+
+    if (!resource)
+    {
+        Logger::Err(std::format("Tried to remove resource \"{}\" that doesn't exist", resourceName));
+    }
+
+    const char* uuidStr = resource.attribute("uuid").as_string();
+    assert((uuidStr != nullptr) && (uuidStr[0] != '\0')); // uuid not nullptr (exists) and not empty
+    UUID uuid;
+    assert(UUID::TryParse(uuidStr, uuid));
+
+
+    resource.parent().remove_child(resource); // this must happen only here lest uuidStr become invalid!!!
+    UnregisterResource(uuid);
+}
+
+void ResourceDatabase::RemoveResource(UUID uuid)
+{
+    if (!CheckIfResourceExists(uuid))
+    {
+        Logger::Err(std::format("Tried to remove resource \"{}\" that doesn't exist", uuid.ToString()));
+        return;
+    }
+    {
+        pugi::xml_node resource = m_uuid_to_node.find(uuid)->second;
+        resource.parent().remove_child(resource);
+    }
+    UnregisterResource(uuid);
+}
+
 pugi::xml_node ResourceDatabase::AddResource(const char *resourceName, ResourceType resourceType)
 {
     if (CheckIfResourceExists(resourceName))
@@ -115,14 +185,25 @@ pugi::xml_node ResourceDatabase::AddResource(const char *resourceName, ResourceT
     resource.append_attribute("name").set_value(resourceName);
     UUID uuid;
     resource.append_attribute("uuid").set_value(uuid.ToString().c_str());
-    m_uuid_to_name[uuid] = resourceName;
-    m_uuid_to_type[uuid] = resourceType;
-    m_uuid_to_node[uuid] = resource;
+    RegisterResource(uuid, resourceName, resourceType, resource);
     return resource;
 }
 
-const char * ResourceDatabase::GetResPath(UUID uuid)
+const std::unordered_set<UUID> &ResourceDatabase::GetAllUUIDs() const
 {
-    return m_uuid_to_node[uuid].child("path").text().as_string();
+    return m_uuids;
+}
+
+const char * ResourceDatabase::GetResPath(UUID uuid) const
+{
+    return m_uuid_to_node.at(uuid).child("path").text().as_string();
+}
+ResourceType ResourceDatabase::GetResType(UUID uuid) const
+{
+    return m_uuid_to_type.at(uuid);
+}
+const char *ResourceDatabase::GetResName(UUID uuid) const
+{
+    return m_uuid_to_name.at(uuid).c_str();
 }
 }

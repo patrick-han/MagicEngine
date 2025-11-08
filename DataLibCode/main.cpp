@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 #endif
     Data::SerializeModelData(modelData, outputPath);
 
-    ModelData modelData2 = Data::DeserializeModelData(outputPath);
+    // ModelData modelData2 = Data::DeserializeModelData(outputPath);
 
 
     Logger::Info(std::format("Processed model: {}", filepathStr));

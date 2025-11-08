@@ -352,8 +352,8 @@ void Renderer::BuildResources() {
         auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
         pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
         pipelineBuilder.SetExtent(outputWidth, outputHeight);
-        // pipelineBuilder.SetDepthTestEnable(true);
-        // pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
+        pipelineBuilder.SetDepthTestEnable(true);
+        pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
         // pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
         // pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE); // Seemingly irrelevant for line topologies
         pipelineBuilder.SetInputAssemblyPrimitiveTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
@@ -589,17 +589,21 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         ImGui::SetNextWindowPos(ImVec2(0, displaySize.y / 2));
         ImGui::SetNextWindowSize(ImVec2(500, displaySize.y / 2));
         ImGui::Begin("Scene Outline", nullptr, flags);
-        for (const auto& pair : renderingInfo.pResourceDB->m_uuid_to_name)
+
+        // TODO:
+        // This should be more data driven, I guess, where we only ever send the exact data we want to be rendered
+        // So the Game update loop might go ahead and fill a per frame arena with the info and just send a pointer over
+        const auto pdb = renderingInfo.pResourceDB;
+        for (const auto& uuid : pdb->GetAllUUIDs())
         {
-            const UUID& uuid = pair.first;
-            const std::string& name = pair.second;
-            const ResourceType resType = renderingInfo.pResourceDB->m_uuid_to_type[uuid];
+            const std::string& name = pdb->GetResName(uuid);
+            const ResourceType resType = pdb->GetResType(uuid);
             ImGui::TextColored(ImVec4(0,1,0,1), name.c_str());
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.2, 0.8, 0.8, 1), "%s", ResourceDatabase::ResourceTypeToStr(resType));
             ImGui::SameLine();
             // ImGui::Text(uuid.ToString().c_str());
-            ImGui::Text(renderingInfo.pResourceDB->GetResPath(uuid));
+            ImGui::Text(pdb->GetResPath(uuid));
         }
         ImGui::End();
 

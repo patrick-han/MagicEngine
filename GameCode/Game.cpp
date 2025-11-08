@@ -25,7 +25,8 @@ void Game::Initialize(Renderer* pRenderer)
     m_resourceDB = std::make_unique<ResourceDatabase>();
     m_resourceDB->Init("GameCode/magic.db");
 
-    m_resourceDB->AddStaticMeshResource("Player", "E:\\MagicEngine\\");
+    m_resourceDB->AddStaticMeshResource("Scene", "DataLibCode/scene.bin");
+    m_resourceDB->Save();
 
     m_memoryManager = std::make_unique<MemoryManager>();
     m_pWorld = new World(m_memoryManager.get(), pRenderer);
@@ -37,6 +38,7 @@ void Game::Initialize(Renderer* pRenderer)
 
 void Game::Shutdown()
 {
+    m_resourceDB->RemoveResource("Scene");// test
     m_resourceDB->Save();
     m_pWorld->Destroy();
     delete m_pWorld;
@@ -62,7 +64,7 @@ void Game::LoadContent()
 
     JobSystem::Execute([&]()
     {
-        // m_resourceManager->LoadModelFromDisk("DataLibCode/super-sponza.bin", "player");
+        // m_resourceManager->LoadModelFromDisk("DataLibCode/super-sponza-cgltf.bin", "player");
         m_resourceManager->LoadModelFromDisk("DataLibCode/beautiful-game-cgltf.bin", "player");
         // m_resourceManager->LoadModelFromDisk("DataLibCode/orientation-test/OrientationTestOut.bin", "player");
         // m_resourceManager->LoadModelFromDisk("DataLibCode/sponza-cgltf.bin", "player");
