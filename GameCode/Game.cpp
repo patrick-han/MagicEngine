@@ -25,9 +25,6 @@ void Game::Initialize(Renderer* pRenderer)
     m_resourceDB = std::make_unique<ResourceDatabase>();
     m_resourceDB->Init("GameCode/magic.db");
 
-    m_resourceDB->AddStaticMeshResource("Scene", "DataLibCode/scene.bin");
-    m_resourceDB->Save();
-
     m_memoryManager = std::make_unique<MemoryManager>();
     m_pWorld = new World(m_memoryManager.get(), pRenderer);
     m_memoryManager->Initialize();
@@ -39,7 +36,6 @@ void Game::Initialize(Renderer* pRenderer)
 
 void Game::Shutdown()
 {
-    m_resourceDB->RemoveResource("Scene");// test
     m_resourceDB->Save();
     m_pWorld->Destroy();
     delete m_pWorld;
@@ -53,27 +49,38 @@ void Game::LoadContent()
     // Make a free camera pointing down +Z with +X left and +Y up
     m_camera = std::make_unique<Camera>(Vector3f(0.0f, 10.0f, -100.0f), Vector3f(0.0f, 0.0f, 1.0f));
 
-    JobSystem::Execute([&]()
+    const std::unordered_set<UUID>& uuids = m_resourceDB->GetAllUUIDs();
+
+    for (const UUID& uuid : uuids)
     {
-        m_resourceManager->LoadModelFromDisk("DataLibCode/scene.bin", "scene");
-    });
+        JobSystem::Execute([&]()
+        {
+            m_resourceManager->LoadModelFromDisk(m_resourceDB->GetResPath(uuid), m_resourceDB->GetResName(uuid));
+        });
+        m_resourceManager->EnqueueUploadModel(m_resourceDB->GetResName(uuid));
+    }
+
     // JobSystem::Execute([&]()
     // {
-    //     m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
+    //     m_resourceManager->LoadModelFromDisk("DataLibCode/scene.bin", "scene");
     // });
-    JobSystem::Wait(); // Artificially test super-sponza load
+    // // JobSystem::Execute([&]()
+    // // {
+    // //     m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
+    // // });
+    // JobSystem::Wait(); // Artificially test super-sponza load
 
-    JobSystem::Execute([&]()
-    {
-        // m_resourceManager->LoadModelFromDisk("DataLibCode/super-sponza-cgltf.bin", "player");
-        m_resourceManager->LoadModelFromDisk("DataLibCode/beautiful-game-cgltf.bin", "player");
-        // m_resourceManager->LoadModelFromDisk("DataLibCode/orientation-test/OrientationTestOut.bin", "player");
-        // m_resourceManager->LoadModelFromDisk("DataLibCode/sponza-cgltf.bin", "player");
-    });
+    // JobSystem::Execute([&]()
+    // {
+    //     // m_resourceManager->LoadModelFromDisk("DataLibCode/super-sponza-cgltf.bin", "player");
+    //     m_resourceManager->LoadModelFromDisk("DataLibCode/beautiful-game-cgltf.bin", "player");
+    //     // m_resourceManager->LoadModelFromDisk("DataLibCode/orientation-test/OrientationTestOut.bin", "player");
+    //     // m_resourceManager->LoadModelFromDisk("DataLibCode/sponza-cgltf.bin", "player");
+    // });
 
-    m_resourceManager->EnqueueUploadModel("player");
-    m_resourceManager->EnqueueUploadModel("scene");
-    // m_resourceManager->EnqueueUploadModel("debugSphere");
+    // m_resourceManager->EnqueueUploadModel("player");
+    // m_resourceManager->EnqueueUploadModel("scene");
+    // // m_resourceManager->EnqueueUploadModel("debugSphere");
 
 }
 

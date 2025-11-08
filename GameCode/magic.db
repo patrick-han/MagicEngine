@@ -2,3 +2,6 @@
 <resource name="Player" uuid="e94929b2-a81a-4385-ae7f-72c02ac74232" type="staticmesh">
 	<path>DataLibCode/beautiful-game-cgltf.bin</path>
 </resource>
+<resource name="Scene" uuid="2a3e0ad9-f50b-4b0f-83d5-79288256b0f2" type="staticmesh">
+	<path>DataLibCode/scene.bin</path>
+</resource>
