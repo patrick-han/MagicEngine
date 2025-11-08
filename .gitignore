@@ -21,3 +21,5 @@ xcode-build
 .cursorignore
 
 EngineCode/imgui.ini
+imgui.ini
+root.magic

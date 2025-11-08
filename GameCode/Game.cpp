@@ -12,6 +12,8 @@
 #include <vector>
 #include <cassert>
 
+#include <filesystem>
+
 namespace Magic
 {
 
@@ -26,6 +28,8 @@ void Game::Initialize(Renderer* pRenderer)
     m_pWorld = new World(m_memoryManager.get(), pRenderer);
     m_memoryManager->Initialize();
     m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_pWorld, m_memoryManager.get());
+
+    Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
 }
 
 void Game::Shutdown()
@@ -44,7 +48,7 @@ void Game::LoadContent()
 
     JobSystem::Execute([&]()
     {
-        m_resourceManager->LoadModelFromDisk("../DataLibCode/scene.bin", "scene");
+        m_resourceManager->LoadModelFromDisk("DataLibCode/scene.bin", "scene");
     });
     // JobSystem::Execute([&]()
     // {
@@ -54,10 +58,10 @@ void Game::LoadContent()
 
     JobSystem::Execute([&]()
     {
-        // m_resourceManager->LoadModelFromDisk("../DataLibCode/super-sponza.bin", "player");
-        m_resourceManager->LoadModelFromDisk("../DataLibCode/beautiful-game-cgltf.bin", "player");
-        // m_resourceManager->LoadModelFromDisk("../DataLibCode/orientation-test/OrientationTestOut.bin", "player");
-        // m_resourceManager->LoadModelFromDisk("../DataLibCode/sponza-cgltf.bin", "player");
+        // m_resourceManager->LoadModelFromDisk("DataLibCode/super-sponza.bin", "player");
+        m_resourceManager->LoadModelFromDisk("DataLibCode/beautiful-game-cgltf.bin", "player");
+        // m_resourceManager->LoadModelFromDisk("DataLibCode/orientation-test/OrientationTestOut.bin", "player");
+        // m_resourceManager->LoadModelFromDisk("DataLibCode/sponza-cgltf.bin", "player");
     });
 
     m_resourceManager->EnqueueUploadModel("player");

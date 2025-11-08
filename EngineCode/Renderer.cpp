@@ -258,8 +258,8 @@ void Renderer::BuildResources() {
     }
 
     {
-        std::vector<char> vspv = readFileBytes("../Shaders/triangleVertex.vertex.spv");
-        std::vector<char> pspv = readFileBytes("../Shaders/trianglePixel.pixel.spv");
+        std::vector<char> vspv = readFileBytes("Shaders/triangleVertex.vertex.spv");
+        std::vector<char> pspv = readFileBytes("Shaders/trianglePixel.pixel.spv");
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
         VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
 
@@ -299,8 +299,8 @@ void Renderer::BuildResources() {
     }
 
     {
-        std::vector<char> vspv = readFileBytes("../Shaders/triangleVertex.vertex.spv");
-        std::vector<char> pspv = readFileBytes("../Shaders/trianglePixelVertexColorsOnly.pixel.spv");
+        std::vector<char> vspv = readFileBytes("Shaders/triangleVertex.vertex.spv");
+        std::vector<char> pspv = readFileBytes("Shaders/trianglePixelVertexColorsOnly.pixel.spv");
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
         VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
         VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
@@ -337,8 +337,8 @@ void Renderer::BuildResources() {
 
     // Bounding box 
     {
-        std::vector<char> vspv = readFileBytes("../Shaders/aabbVertex.vertex.spv");
-        std::vector<char> pspv = readFileBytes("../Shaders/aabbPixel.pixel.spv");
+        std::vector<char> vspv = readFileBytes("Shaders/aabbVertex.vertex.spv");
+        std::vector<char> pspv = readFileBytes("Shaders/aabbPixel.pixel.spv");
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
         VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
 
