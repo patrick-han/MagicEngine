@@ -10,6 +10,7 @@ class Registry;
 }
 
 class Camera;
+class ResourceDatabase;
 class ResourceManager;
 class MemoryManager;
 struct InputState;
@@ -33,6 +34,7 @@ protected:
     [[nodiscard]] RenderingInfo Update(const InputState& inputState, float deltaTime);
 private:
     std::unique_ptr<Camera> m_camera;
+    std::unique_ptr<ResourceDatabase> m_resourceDB;
     std::unique_ptr<ResourceManager> m_resourceManager;
     std::unique_ptr<MemoryManager> m_memoryManager;
     World* m_pWorld;

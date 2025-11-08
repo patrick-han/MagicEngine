@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<resource name="Player" uuid="e94929b2-a81a-4385-ae7f-72c02ac74232" type="staticmesh">
+	<path>DataLibCode/beautiful-game-cgltf.bin</path>
+</resource>

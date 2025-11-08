@@ -71,6 +71,10 @@ add_executable(MagicEngine main.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
         EngineCode/Common/AABB.h
+        EngineCode/pugixml.h
+        EngineCode/ResourceDatabase.cpp
+        EngineCode/ResourceDatabase.h
+        EngineCode/UUID.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

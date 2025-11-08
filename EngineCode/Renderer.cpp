@@ -11,7 +11,7 @@
 
 #include "CommandEncoder.h"
 #include "Timing.h"
-
+#include "ResourceDatabase.h"
 #include "../DataLibCode/DataSerialization.h" // TODO: find better organization for this maebbe
 #include "ThirdParty/imgui/imgui.h"
 #define IMGUI_IMPL_VULKAN_USE_VOLK
@@ -586,9 +586,21 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
         ImGui::End();
 
-        ImGui::SetNextWindowPos(ImVec2(0, displaySize.y / 2)); // Top left
-        ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
+        ImGui::SetNextWindowPos(ImVec2(0, displaySize.y / 2));
+        ImGui::SetNextWindowSize(ImVec2(500, displaySize.y / 2));
         ImGui::Begin("Scene Outline", nullptr, flags);
+        for (const auto& pair : renderingInfo.pResourceDB->m_uuid_to_name)
+        {
+            const UUID& uuid = pair.first;
+            const std::string& name = pair.second;
+            const ResourceType resType = renderingInfo.pResourceDB->m_uuid_to_type[uuid];
+            ImGui::TextColored(ImVec4(0,1,0,1), name.c_str());
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.2, 0.8, 0.8, 1), "%s", ResourceDatabase::ResourceTypeToStr(resType));
+            ImGui::SameLine();
+            // ImGui::Text(uuid.ToString().c_str());
+            ImGui::Text(renderingInfo.pResourceDB->GetResPath(uuid));
+        }
         ImGui::End();
 
 

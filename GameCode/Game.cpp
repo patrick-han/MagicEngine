@@ -5,7 +5,7 @@
 #include "../EngineCode/World.h"
 
 #include <SDL3/SDL_scancode.h> // Only for SCANCODES, TODO: Make a translation layer thingy
-
+#include "../EngineCode/ResourceDatabase.h"
 #include "../EngineCode/ResourceManager.h"
 #include "../EngineCode/MemoryManager.h"
 #include "../EngineCode/JobSystem.h"
@@ -20,10 +20,13 @@ namespace Magic
 Game::Game() { }
 Game::~Game() { }
 
-static std::uint64_t errorModelHandle;
-
 void Game::Initialize(Renderer* pRenderer)
 {
+    m_resourceDB = std::make_unique<ResourceDatabase>();
+    m_resourceDB->Init("GameCode/magic.db");
+
+    m_resourceDB->AddStaticMeshResource("Player", "E:\\MagicEngine\\");
+
     m_memoryManager = std::make_unique<MemoryManager>();
     m_pWorld = new World(m_memoryManager.get(), pRenderer);
     m_memoryManager->Initialize();
@@ -34,6 +37,7 @@ void Game::Initialize(Renderer* pRenderer)
 
 void Game::Shutdown()
 {
+    m_resourceDB->Save();
     m_pWorld->Destroy();
     delete m_pWorld;
     m_memoryManager->Shutdown();
@@ -198,6 +202,7 @@ bool a = true;
         .pCamera = m_camera.get()
       , .meshesToRender = meshesToRender
       , .gameStats = stats
+      , .pResourceDB = m_resourceDB.get()
     };
     return renderingInfo;
 }

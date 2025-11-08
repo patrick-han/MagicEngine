@@ -10,3 +10,6 @@
 [submodule "DataLibCode/ThirdParty/assimp"]
 	path = DataLibCode/ThirdParty/assimp
 	url = git@github.com:assimp/assimp.git
+[submodule "EngineCode/ThirdParty/pugixml"]
+	path = EngineCode/ThirdParty/pugixml
+	url = git@github.com:zeux/pugixml.git

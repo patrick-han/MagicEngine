@@ -19,19 +19,19 @@ std::string CurrentDateTimeString() {
 void Logger::Info(const std::string& message) {
     std::string logMessage = std::format("\033[1;32m INFO: [{}] - {}\033[0m", CurrentDateTimeString(), message);
     std::cout  << logMessage << "\n";
-    m_messages.emplace_back(LogType::INFO, logMessage);
+    m_messages.emplace_back(LogType::Info, logMessage);
 }
 
 void Logger::Warn(const std::string &message) {
     std::string logMessage = std::format("\033[1;33m WARN: [{}] - {}\033[0m", CurrentDateTimeString(), message);
     std::cout  << logMessage << "\n";
-    m_messages.emplace_back(LogType::WARN, logMessage);
+    m_messages.emplace_back(LogType::Warn, logMessage);
 }
 
 
 void Logger::Err(const std::string &message) {
     std::string logMessage = std::format("\033[1;31m ERROR: [{}] - {}\033[0m", CurrentDateTimeString(), message);
     std::cout  << logMessage << "\n";
-    m_messages.emplace_back(LogType::ERROR, logMessage);
+    m_messages.emplace_back(LogType::Error, logMessage);
 }
 }

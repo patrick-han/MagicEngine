@@ -2,12 +2,13 @@
 #include <string>
 #include <vector>
 #include <format>
+
 namespace Magic
 {
 enum class LogType {
-    INFO,
-    WARN,
-    ERROR
+    Info,
+    Warn,
+    Error
 };
 
 struct LogEntry {
