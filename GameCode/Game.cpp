@@ -33,6 +33,7 @@ void Game::Initialize(Renderer* pRenderer)
     m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_pWorld, m_memoryManager.get());
 
     Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
+    m_resourceManager->UploadDefaultTexture();
 }
 
 void Game::Shutdown()

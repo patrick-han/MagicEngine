@@ -14,12 +14,14 @@
 #include "MemoryManager.h"
 #include "World.h"
 #include "Entity.h"
+#include "DefaultTexture.h"
 namespace Magic
 {
 
 class ResourceManager
 // class Renderer;
 {
+    AllocatedImage defaultTextureImage;
 public:
     ResourceManager(Renderer* pRenderer, World* pWorld, MemoryManager* pMemoryManager)
     {
@@ -32,6 +34,18 @@ public:
     ~ResourceManager()
     {
         Logger::Info("Destroying ResourceManager");
+    }
+
+    void UploadDefaultTexture()
+    {
+        constexpr VkExtent3D extent { .width = 128 , .height = 128 , .depth = 1 };
+        const VkImageCreateInfo imci = DefaultImageCreateInfo(g_defaultTextureFormat, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
+        constexpr size_t bytesPerChannel = 1;
+        constexpr size_t numChannels = 4;
+        constexpr size_t dataSize = extent.width * extent.height * numChannels * bytesPerChannel;
+        AllocatedBuffer stagingBuffer = m_rctx->UploadBuffer(dataSize, g_DefaultTexture.data(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+        defaultTextureImage = m_rctx->UploadImage(g_DefaultTexture.data(), 4, imci);
+        m_rctx->DestroyBuffer(stagingBuffer);
     }
 
 
@@ -267,6 +281,7 @@ public:
         }
         DestroyAllLoadedModels();
         m_rctx->WaitIdle();
+        m_rctx->DestroyImage(defaultTextureImage);
         DestroyAllGPUResidentMeshes();
         DestroyAllGPUResidentTextures();
         JobSystem::Wait();
