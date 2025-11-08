@@ -76,21 +76,39 @@ inline void LoadTextureData(const std::filesystem::path& texturePath, TextureDat
     textureData.data = std::move(pixels);
 }
 
-inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *scene, const Matrix4f& transformMatrix, const std::filesystem::path& modelpath)
+inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *scene, const std::filesystem::path& modelpath)
 {
+    // Vertex colors temp workaround, only allows vertex colors per mesh and not vertex
+    aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+    aiColor4D aiColor;
+    bool hasVertexColors = true;
+    if (material->Get(AI_MATKEY_BASE_COLOR, aiColor) == AI_SUCCESS)
+    {
+        hasVertexColors = true;
+    }
+
+
     // Vertices
     for (std::size_t i = 0; i < mesh->mNumVertices; i++)
     {
         SimpleVertex vertex;
-        Vector4f transformedVertex = transformMatrix * Vector4f(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 1.0f);
-        vertex.position = Vector3f(transformedVertex.x, transformedVertex.y, transformedVertex.z);
+        // Vector4f transformedVertex = transformMatrix * Vector4f(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 1.0f);
+        // vertex.position = Vector3f(transformedVertex.x, transformedVertex.y, transformedVertex.z);
 
-        if (mesh->HasVertexColors(0))
+        vertex.position = Vector3f(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
+        
+        // if (mesh->HasVertexColors(0))
+        // {
+        //     vertex.color.x = mesh->mColors[0][i].r;
+        //     vertex.color.y = mesh->mColors[0][i].g;
+        //     vertex.color.z = mesh->mColors[0][i].b;
+        // }
+        if (hasVertexColors)
         {
-            vertex.color.x = mesh->mColors[0][i].r;
-            vertex.color.y = mesh->mColors[0][i].g;
-            vertex.color.z = mesh->mColors[0][i].b;
+            vertex.color = Vector3f(aiColor.r, aiColor.g, aiColor.b);
         }
+
+
 
         if (mesh->HasTextureCoords(0))
         {
@@ -138,28 +156,26 @@ inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *s
     }
 }
 
-inline void ProcessAssimpNode(ModelData& modelData, aiNode *node, const aiScene *scene, const Matrix4f& accumulateMatrix, const std::filesystem::path& modelpath)
+inline void ProcessAssimpNode(ModelData& modelData, aiNode *node, const aiScene *scene, const Matrix4f& parentTransform, const std::filesystem::path& modelpath)
 {
-    Matrix4f relativeToParentTransform = ConvertFromAssimpMatrix(node->mTransformation);
-    Matrix4f relativeToRootTransform = relativeToParentTransform * accumulateMatrix;
-    // TODO: Actually apply transforms?
+    Matrix4f localTransform = ConvertFromAssimpMatrix(node->mTransformation);
+    Matrix4f worldTransform = parentTransform * localTransform;
 
     // Some models like Sponza are flattened under a single node, whereas A Beautiful Game have an actual node hiearchy
-    // Either way, we want all meshes across all nodes to be separate, maintaining no hiearchy whatsoever.
 
     // Process all of this node's meshes
     for (unsigned int i = 0; i < node->mNumMeshes; i++)
     {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
         MeshData meshData;
-        ProcessAssimpMesh(meshData, mesh, scene, relativeToRootTransform, modelpath);
+        ProcessAssimpMesh(meshData, mesh, scene, modelpath);
         modelData.m_meshes.push_back(std::move(meshData));
-        modelData.m_transforms.push_back(relativeToRootTransform); // ??
+        modelData.m_transforms.push_back(worldTransform);
     }
     // Recursively process this node's child nodes
     for (unsigned int i = 0; i < node->mNumChildren; i++)
     {
-        ProcessAssimpNode(modelData, node->mChildren[i], scene, relativeToRootTransform, modelpath);
+        ProcessAssimpNode(modelData, node->mChildren[i], scene, worldTransform, modelpath);
     }
 }
 

@@ -20,6 +20,7 @@ public:
     GraphicsPipelineBuilder& SetDepthTestEnable(bool enable);
     GraphicsPipelineBuilder& SetDepthCompareOp(VkCompareOp compareOp);
     GraphicsPipelineBuilder& SetRasterizerPolygonMode(VkPolygonMode polygonMode);
+    GraphicsPipelineBuilder& SetInputAssemblyPrimitiveTopology(VkPrimitiveTopology primitiveTopology);
 
     [[nodiscard]] GraphicsPipeline Build(VkDevice device, VkShaderModule vs, VkShaderModule ps);
 private:
@@ -37,6 +38,7 @@ private:
     bool m_depthTestEnable = false;
     VkCompareOp m_depthCompareOp = VK_COMPARE_OP_ALWAYS;
     VkPolygonMode m_polygonMode = VK_POLYGON_MODE_FILL;
+    VkPrimitiveTopology m_primitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 };
 
 class GraphicsPipeline {

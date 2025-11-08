@@ -1,13 +1,29 @@
 #pragma once
 #include <vector>
-#include "Components/RenderableMeshComponent.h"
-
+#include "SubMesh.h"
 namespace Magic
 {
+
+struct GameStats
+{
+    int entityCount = 0;
+    int ramResidentModelCount = 0;
+    int meshCount = 0;
+    int subMeshCount = 0;
+    int textureCount = 0;
+    int pendingModelUploadCount = 0;
+    int pendingBufferUploadCount = 0;
+    int pendingImageUploadCount = 0;
+};
+
+
 class Camera;
+class ResourceDatabase;
 struct RenderingInfo
 {
     const Camera* const pCamera;
-    std::vector<RenderableMeshComponent> meshesToRender;
+    std::vector<SubMesh*> meshesToRender;
+    GameStats gameStats;
+    ResourceDatabase* pResourceDB;
 };
 }

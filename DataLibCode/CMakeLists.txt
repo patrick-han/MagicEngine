@@ -14,6 +14,7 @@ add_executable(DataCooker main.cpp
         ../EngineCode/Model.h
         stb_image.h
         ../EngineCode/Common/Math/Vector2f.h
+        ImportGLTF.cpp
 )
 
 target_link_libraries(DataCooker PRIVATE DataLibThirdPartyLibraries)

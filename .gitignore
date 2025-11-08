@@ -5,12 +5,21 @@ DataLibCode/damaged-helmet
 DataLibCode/sponza
 DataLibCode/multiple-scenes
 DataLibCode/beautiful-game
+DataLibCode/ABeautifulGame
 DataLibCode/orientation
 # DataLibCode/ue5level
 DataLibCode/super-sponza
 # DataLibCode/debug
+DataLibCode/toy-car
+DataLibCode/flight-helmet
 DataLibCode/ada
 DataLibCode/orientation-test
 DataLibCode/*.bin
 xcode-build
 .idea/editor.xml
+.idea/misc.xml
+.cursorignore
+
+EngineCode/imgui.ini
+imgui.ini
+root.magic

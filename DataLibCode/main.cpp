@@ -1,5 +1,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "Import.h"
+#include "ImportGLTF.h"
 #include "DataSerialization.h"
 #include "../EngineCode/Common/Log.h"
 #include "../EngineCode/Common/Math/Matrix4f.h"
@@ -9,7 +10,7 @@
 #include <assimp/postprocess.h>
 #include <filesystem>
 
-
+#define GLTF_TEST
 
 namespace Magic::Data
 {
@@ -46,16 +47,21 @@ int main(int argc, char *argv[])
     {
         Logger::Err(std::format("Unknown argument: {}", typeArg));
     }
-
-
+    ModelData modelData;
     if (assetType == Data::AssetType::StaticMesh)
     {
+#ifdef GLTF_TEST
+        
+        ImportGLTF(filepathStr, modelData);
+    }
+#else
         Assimp::Importer importer;
         unsigned int flags = aiProcess_Triangulate
                                 | aiProcess_FlipUVs
                                 // | aiProcess_CalcTangentSpace
                                 // | aiProcess_PreTransformVertices // Flattens all nodes and their relative transforms into a single node with "frozen: transforms
-                                | aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes
+                                // | aiProcess_OptimizeGraph
+                                | aiProcess_OptimizeMeshes
                 // TODO: don't really understand how this is working tbh
                                 ;
         const aiScene* scene = importer.ReadFile(filepathStr, flags);
@@ -69,19 +75,16 @@ int main(int argc, char *argv[])
             Logger::Info(std::format("Loaded model: {}", filepathStr));
         }
 
-        ModelData modelData;
-
-        Matrix4f dummyTransform;
         std::filesystem::path filepath = filepathStr;
         filepath = filepath.parent_path();
         Logger::Info(std::format("Loaded model: {}", filepath.string()));
-        Data::ProcessAssimpNode(modelData, scene->mRootNode, scene, dummyTransform, filepath);
-
-        Data::SerializeModelData(modelData, outputPath);
-
-        ModelData modelData2 = Data::DeserializeModelData(outputPath);
-
-
-        Logger::Info(std::format("Processed model: {}", filepathStr));
+        Data::ProcessAssimpNode(modelData, scene->mRootNode, scene, Data::ConvertFromAssimpMatrix(scene->mRootNode->mTransformation), filepath);
     }
+#endif
+    Data::SerializeModelData(modelData, outputPath);
+
+    // ModelData modelData2 = Data::DeserializeModelData(outputPath);
+
+
+    Logger::Info(std::format("Processed model: {}", filepathStr));
 }

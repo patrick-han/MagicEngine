@@ -22,7 +22,7 @@ inline VkPhysicalDeviceBufferDeviceAddressFeatures GetBufferDeviceAddressFeature
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR,
         .bufferDeviceAddress = VK_TRUE,
     #ifdef NDEBUG
-        .bufferDeviceAddressCaptureReplay = VK_TRUE,
+        // .bufferDeviceAddressCaptureReplay = VK_TRUE,
     #endif
     };
     return buffer_device_address_features;

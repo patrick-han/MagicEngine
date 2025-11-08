@@ -55,9 +55,15 @@ GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetDepthCompareOp(VkCompareOp 
     return *this;
 }
 
-GraphicsPipelineBuilder &GraphicsPipelineBuilder::SetRasterizerPolygonMode(VkPolygonMode polygonMode)
+GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetRasterizerPolygonMode(VkPolygonMode polygonMode)
 {
     m_polygonMode = polygonMode;
+    return *this;
+}
+
+GraphicsPipelineBuilder& GraphicsPipelineBuilder::SetInputAssemblyPrimitiveTopology(VkPrimitiveTopology primitiveTopology)
+{
+    m_primitiveTopology = primitiveTopology;
     return *this;
 }
 
@@ -90,7 +96,7 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         .flags = VkPipelineInputAssemblyStateCreateFlags(),
-        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .topology = m_primitiveTopology,
         .primitiveRestartEnable = VK_FALSE
     };
 

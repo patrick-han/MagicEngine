@@ -42,6 +42,8 @@ public:
     // Mainly this can be used to compute the View matrix (world-to-camera) from the camera's world matrix (camera-to-world)
     Matrix4f InvertedRigid();
 
+    Vector3f GetTranslate() const;
+
     float Trace();
 };
 

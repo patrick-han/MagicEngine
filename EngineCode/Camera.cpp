@@ -7,6 +7,7 @@ namespace Magic {
 Camera::Camera(Vector3f _position, Vector3f _forward)
     : m_position(_position), m_forward(_forward.AsNormalized())
     , m_pitch(0.0f), m_yaw(0.0f)
+    , m_frozen(false)
 {
     m_worldUp = Vector3f(0.0f, 1.0f, 0.0f); // Default +Y up
     m_left = Cross(m_worldUp, m_forward).AsNormalized();
@@ -33,6 +34,10 @@ void Camera::SetPosition(Vector3f position)
 
 void Camera::Move(CameraMovementDirection movementDirection, float cameraSpeed)
 {
+    if(m_frozen)
+    {
+        return;
+    }
     Vector3f positionDelta = Vector3f(0.0f, 0.0f, 0.0f);
     if (movementDirection == CameraMovementDirection::FORWARD)
     {
@@ -63,6 +68,10 @@ void Camera::Move(CameraMovementDirection movementDirection, float cameraSpeed)
 
 void Camera::Rotate(float xoffset, float yoffset, bool constrainPitch)
 {
+    if(m_frozen)
+    {
+        return;
+    }
     // Moving the mouse left results in a negative offset. We want a left mouse movement to be a CCW rotation when viewed from above according to RHR.
     // Subtracting a negative results in a positive increase (positive angle is CCW)
     m_yaw -= xoffset;

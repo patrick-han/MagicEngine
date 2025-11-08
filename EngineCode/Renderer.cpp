@@ -11,9 +11,11 @@
 
 #include "CommandEncoder.h"
 #include "Timing.h"
-
+#include "ResourceDatabase.h"
 #include "../DataLibCode/DataSerialization.h" // TODO: find better organization for this maebbe
-
+#include "ThirdParty/imgui/imgui.h"
+#define IMGUI_IMPL_VULKAN_USE_VOLK
+#include "ThirdParty/imgui/imgui_impl_vulkan.h"
 namespace Magic
 {
 
@@ -42,7 +44,7 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
 
     void* data;
     vmaMapMemory(allocator, allocatedBuffer.allocation, &data);
-    memcpy(data, bufferData, bufferSize);
+    std::memcpy(data, bufferData, bufferSize);
     vmaUnmapMemory(allocator, allocatedBuffer.allocation);
     return allocatedBuffer;
 }
@@ -53,7 +55,8 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 }
 
 
-[[nodiscard]] static AllocatedImage CreateGPUOnlyImage(VkImageCreateInfo imageCreateInfo, VmaAllocator allocator) {
+[[nodiscard]] AllocatedImage Renderer::CreateGPUOnlyImage(VkImageCreateInfo imageCreateInfo) {
+    VmaAllocator allocator = m_gpuctx->GetVmaAllocator();
     VmaAllocationCreateInfo vmaAllocInfo = {};
     vmaAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     vmaAllocInfo.requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
@@ -64,46 +67,11 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 }
 
 
-static VkImageSubresourceRange DefaultImageSubresourceRange(VkImageAspectFlags aspectMask) // Transition all mipmap levels and layers by default
-{
-    VkImageSubresourceRange subImage {};
-    subImage.aspectMask = aspectMask;
-    subImage.baseMipLevel = 0;
-    subImage.levelCount = VK_REMAINING_MIP_LEVELS;
-    subImage.baseArrayLayer = 0;
-    subImage.layerCount = VK_REMAINING_ARRAY_LAYERS;
 
-    return subImage;
-}
-
-static void TransitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
-{
-    VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-
-    VkImageMemoryBarrier imageBarrier {
-        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
-        .dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT,
-        .oldLayout = currentLayout,
-        .newLayout = newLayout,
-        .image = image,
-        .subresourceRange = DefaultImageSubresourceRange(aspectMask)
-    };
-
-    vkCmdPipelineBarrier(
-        cmd,
-        VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-        VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-        {},
-        0, nullptr,
-        0, nullptr,
-        1, &imageBarrier
-    );
-}
 
 AllocatedImage Renderer::UploadImage(const void *imageData, int numChannels, VkImageCreateInfo imageCreateInfo)
 {
-    AllocatedImage allocatedImage = CreateGPUOnlyImage(imageCreateInfo, m_gpuctx->GetVmaAllocator());
+    AllocatedImage allocatedImage = CreateGPUOnlyImage(imageCreateInfo);
     size_t bytesPerChannel = 1;
     size_t dataSize = imageCreateInfo.extent.width * imageCreateInfo.extent.height * numChannels * bytesPerChannel;
     AllocatedBuffer imageStagingBuffer = UploadBuffer(dataSize, imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
@@ -185,7 +153,6 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
             , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
         };
         vkCreateCommandPool(m_gpuctx->GetDevice(), &commandPoolCreateInfo, nullptr, &m_immediateCommandPool);
-        // Immediate command buffer
         VkCommandBufferAllocateInfo immCmdBufferAllocInfo {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
             , .commandPool = m_immediateCommandPool
@@ -196,11 +163,47 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
         VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
         vkCreateFence(m_gpuctx->GetDevice(), &fenceCreateInfo, nullptr, &m_immediateFence);
     }
+
+    // Streaming resources
+    for (StreamingCommandBuffer& sbuf : m_streamingCommandBuffers)
+    {
+        VkCommandPoolCreateInfo commandPoolCreateInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
+            , .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+            , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
+        };
+        VK_CHECK(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &sbuf.pool));
+        VkCommandBufferAllocateInfo cmdBufferAllocInfo {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
+            , .commandPool = sbuf.pool
+            , .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
+            , .commandBufferCount = 1
+        };
+        VK_CHECK(vkAllocateCommandBuffers(m_gpuctx->GetDevice(), &cmdBufferAllocInfo, &sbuf.cmd));
+    }
+
+    // Imgui resources
+    {
+        VkDescriptorPoolSize pool_sizes[] =
+        {
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE },
+        };
+        VkDescriptorPoolCreateInfo pool_info = {};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        pool_info.maxSets = 0;
+        for (VkDescriptorPoolSize& pool_size : pool_sizes)
+            pool_info.maxSets += pool_size.descriptorCount;
+        pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+        pool_info.pPoolSizes = pool_sizes;
+        VK_CHECK(vkCreateDescriptorPool(m_gpuctx->GetDevice(), &pool_info, VK_NULL_HANDLE, &m_imguiDescriptorPool));
+    }
 }
 
 static std::vector<char> readFileBytes(const std::string& filename) {
+    // Logger::Info(std::format("cwd = {}", std::filesystem::current_path().string()));
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
-    if (!file.is_open()) { throw std::runtime_error("Failed to open file!"); }
+     if (!file.is_open()) { throw std::runtime_error("Failed to open file!"); }
     const std::size_t fileSize = (std::size_t) file.tellg();
     std::vector<char> buffer(fileSize);
     file.seekg(0);
@@ -214,6 +217,14 @@ struct DefaultPushConstants {
     Matrix4f model;
     Matrix4f viewProjection;
     uint32_t diffuseTextureBindlessTextureArraySlot = 0;
+};
+// 4 bytes * 4 components * 8 corners = 128 bytes
+struct BoundingBoxPushConstants {
+    Vector3f min;
+    float pad0;
+    Vector3f max;
+    float pad1;
+    Matrix4f viewProjection;
 };
 //
 
@@ -247,8 +258,8 @@ void Renderer::BuildResources() {
     }
 
     {
-        std::vector<char> vspv = readFileBytes("../Shaders/triangleVertex.vertex.spv");
-        std::vector<char> pspv = readFileBytes("../Shaders/trianglePixel.pixel.spv");
+        std::vector<char> vspv = readFileBytes("Shaders/triangleVertex.vertex.spv");
+        std::vector<char> pspv = readFileBytes("Shaders/trianglePixel.pixel.spv");
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
         VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
 
@@ -287,10 +298,47 @@ void Renderer::BuildResources() {
         vkDestroyShaderModule(device, ps_m, nullptr);
     }
 
-    // Debug draw pipeline
     {
-        std::vector<char> vspv = readFileBytes("../Shaders/triangleVertex.vertex.spv");
-        std::vector<char> pspv = readFileBytes("../Shaders/triangleDebug.pixel.spv");
+        std::vector<char> vspv = readFileBytes("Shaders/triangleVertex.vertex.spv");
+        std::vector<char> pspv = readFileBytes("Shaders/trianglePixelVertexColorsOnly.pixel.spv");
+        VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
+        VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
+        VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
+        VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
+            , .colorAttachmentCount = 1
+            , .pColorAttachmentFormats = outRTFormats // match swapchain format for now
+            , .depthAttachmentFormat = m_depthFormat
+        };
+
+        auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
+        pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
+        pipelineBuilder.SetExtent(outputWidth, outputHeight);
+        auto vd = SimpleVertexDescription();
+        pipelineBuilder.SetVertexDescription(vd);
+
+        pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
+        pipelineBuilder.SetDescriptorSetLayouts(m_bindlessManager.m_descriptorSetLayout);
+        pipelineBuilder.SetDepthTestEnable(true);
+        pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
+
+        {
+            VkPushConstantRange defaultPushConstantRange = {
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                .offset = 0,
+                .size = sizeof(DefaultPushConstants)
+            };
+            pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
+        }
+        m_simplePipelineVertexColors = pipelineBuilder.Build(device, vs_m, ps_m);
+        vkDestroyShaderModule(device, vs_m, nullptr);
+        vkDestroyShaderModule(device, ps_m, nullptr);
+    }
+
+    // Bounding box 
+    {
+        std::vector<char> vspv = readFileBytes("Shaders/aabbVertex.vertex.spv");
+        std::vector<char> pspv = readFileBytes("Shaders/aabbPixel.pixel.spv");
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
         VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
 
@@ -304,20 +352,19 @@ void Renderer::BuildResources() {
         auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
         pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
         pipelineBuilder.SetExtent(outputWidth, outputHeight);
-        auto vd = SimpleVertexDescription();
-        pipelineBuilder.SetVertexDescription(vd);
-        pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
-        pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE);
-        // pipelineBuilder.SetDepthTestEnable(true);
-        // pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
+        pipelineBuilder.SetDepthTestEnable(true);
+        pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
+        // pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
+        // pipelineBuilder.SetRasterizerPolygonMode(VK_POLYGON_MODE_LINE); // Seemingly irrelevant for line topologies
+        pipelineBuilder.SetInputAssemblyPrimitiveTopology(VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
         {
-            VkPushConstantRange defaultPushConstantRange = {
+            VkPushConstantRange boundingBoxPushConstantRange = {
                 .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 .offset = 0,
-                .size = sizeof(DefaultPushConstants)
+                .size = sizeof(BoundingBoxPushConstants)
             };
-            m_pushConstantRanges.push_back(defaultPushConstantRange);
-            pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
+            m_boundingBoxPushConstantRanges.push_back(boundingBoxPushConstantRange);
+            pipelineBuilder.SetPushConstantRanges(m_boundingBoxPushConstantRanges);
         }
         m_debugDrawPipeline = pipelineBuilder.Build(device, vs_m, ps_m);
         vkDestroyShaderModule(device, vs_m, nullptr);
@@ -357,6 +404,15 @@ void Renderer::BuildResources() {
         VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &m_timelineSemaphore));
     }
 
+    // Timeline semaphore for resource streaming system image uploads
+    {
+        VkSemaphoreCreateInfo        createInfo = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+        VkSemaphoreTypeCreateInfoKHR type_create_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR, .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE, .initialValue = 0 };
+        createInfo.pNext              = &type_create_info;
+
+        VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &m_streamingTimelineSemaphore));
+    }
+
 }
 
 void Renderer::DestroyResources()
@@ -366,6 +422,7 @@ void Renderer::DestroyResources()
     vkDestroySampler(device, m_linearSampler, NULL);
     vkDestroySampler(device, m_pointSampler, NULL);
     m_debugDrawPipeline.Destroy();
+    m_simplePipelineVertexColors.Destroy();
     m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
     { // Destroy rendertargetse
@@ -412,17 +469,16 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
     , VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
     , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
     {
-        {
-            VkClearValue clearValue = {{{0.5f, 0.5f, 0.7f, 1.0f}}};
-            auto rai_color = TEMP_rendering_attachment_info(m_rtColorImage.view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &clearValue);
-            VkClearValue depthClearValue = {.depthStencil = 1.0f};
-            auto rai_depth = TEMP_rendering_attachment_info(m_rtDepthImage.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue);
-            auto ri = TEMP_rendering_info_fullscreen(1, &rai_color, &rai_depth, outputWidth, outputHeight);
-            cmdEncoder.BeginRendering(ri);
-        }
+
+        VkClearValue clearValue = {{{0.5f, 0.5f, 0.7f, 1.0f}}};
+        auto rai_color = TEMP_rendering_attachment_info(m_rtColorImage.view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &clearValue);
+        VkClearValue depthClearValue = {.depthStencil = 1.0f};
+        auto rai_depth = TEMP_rendering_attachment_info(m_rtDepthImage.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue);
+        auto ri = TEMP_rendering_info_fullscreen(1, &rai_color, &rai_depth, outputWidth, outputHeight);
+        cmdEncoder.BeginRendering(ri);
+
         cmdEncoder.SetViewport(outputWidth, outputHeight);
         cmdEncoder.SetScissor(outputWidth, outputHeight);
-        cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
 
         // Bindless set
 
@@ -437,38 +493,49 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             nullptr
         );
 
-        DefaultPushConstants pushConstants;
         Matrix4f viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * renderingInfo.pCamera->GetViewMatrix();
-        pushConstants.viewProjection = viewProjection;
 
-        // TODO: render all renderables
-        for (RenderableMeshComponent& renderable : renderingInfo.meshesToRender)
         {
-            if (renderable.renderableFlags == RenderableFlags::None)
+            DefaultPushConstants pushConstants;
+            pushConstants.viewProjection = viewProjection;
+
+            for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
             {
-                cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
-                cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
+                cmdEncoder.BindVertexBufferSimple(pSubMesh->vertexBuffer);
+                cmdEncoder.BindIndexBufferSimple(pSubMesh->indexBuffer);
                 {
-                    pushConstants.model = renderable.transform * Matrix4f::MakeScale(100.0f);
-                    pushConstants.diffuseTextureBindlessTextureArraySlot = renderable.diffuseTextureBindlessArraySlot;
+                    pushConstants.model = pSubMesh->m_worldMatrix;// * Matrix4f::MakeScale(100.0f);
+                    if (pSubMesh->hasTexture)
+                    {
+                        cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
+                        pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;
+                    }
+                    else
+                    {
+                        cmdEncoder.BindGraphicsPipeline(m_simplePipelineVertexColors);
+                        // pushConstants.diffuseTextureBindlessTextureArraySlot = 0; // TODO: actually have default texture
+                    }
+                    
                     vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
                 }
-                cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
+                cmdEncoder.DrawIndexedSimple(pSubMesh->indexCount, 0);
             }
         }
 
-        // TODO: Render all debug objects, this is just a dump second loop for now
-        cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
-        for (RenderableMeshComponent& renderable : renderingInfo.meshesToRender)
+        if (m_renderBoundingBoxes)
         {
-            if (renderable.renderableFlags == RenderableFlags::DrawDebug) {
-                cmdEncoder.BindVertexBufferSimple(renderable.vertexBuffer);
-                cmdEncoder.BindIndexBufferSimple(renderable.indexBuffer);
-                {
-                    pushConstants.model = renderable.transform;
-                    vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
-                }
-                cmdEncoder.DrawIndexedSimple(renderable.indexCount, 0);
+            // Render all bounding boxes
+            BoundingBoxPushConstants boundingBoxPushConstants;
+            boundingBoxPushConstants.viewProjection = viewProjection;
+            cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
+            for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
+            {
+                AABB3f worldSpaceAABB;
+                worldSpaceAABB.Transform(pSubMesh->aabb, pSubMesh->m_worldMatrix);
+                boundingBoxPushConstants.min = worldSpaceAABB.GetMin();
+                boundingBoxPushConstants.max = worldSpaceAABB.GetMax();
+                vkCmdPushConstants(cmdEncoder.Handle(), m_debugDrawPipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(boundingBoxPushConstants), &boundingBoxPushConstants);
+                cmdEncoder.Draw(24, 1, 0, 0);
             }
         }
 
@@ -489,10 +556,86 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         , outputWidth, outputHeight);
 
-    cmdEncoder.ImageBarrier(swapchainImageData.image
-        , VK_ACCESS_TRANSFER_WRITE_BIT, {}
-        , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-        , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    // cmdEncoder.ImageBarrier(swapchainImageData.image
+    //     , VK_ACCESS_TRANSFER_WRITE_BIT, {}
+    //     , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+    //     , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+
+    {
+        cmdEncoder.ImageBarrier(swapchainImageData.image
+            , VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+            , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+            , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+        ImGui::NewFrame();
+        ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+        ImGui::SetNextWindowPos(ImVec2(0, 0)); // Top left
+        ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
+
+        ImGui::Begin("Engine Info", nullptr, flags);
+        ImGui::Text("Entity Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.entityCount);
+        ImGui::Text("RAM Resident Model Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.ramResidentModelCount);
+        ImGui::Text("Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.meshCount);
+        ImGui::Text("SubMesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.subMeshCount);
+        ImGui::Text("Texture Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.textureCount);
+        ImGui::Text("Pending Model Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingModelUploadCount);
+        ImGui::Text("Pending Buffer Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingBufferUploadCount);
+        ImGui::Text("Pending Image Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingImageUploadCount);
+        ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
+        ImGui::End();
+
+        ImGui::SetNextWindowPos(ImVec2(0, displaySize.y / 2));
+        ImGui::SetNextWindowSize(ImVec2(500, displaySize.y / 2));
+        ImGui::Begin("Scene Outline", nullptr, flags);
+
+        // TODO:
+        // This should be more data driven, I guess, where we only ever send the exact data we want to be rendered
+        // So the Game update loop might go ahead and fill a per frame arena with the info and just send a pointer over
+        const auto pdb = renderingInfo.pResourceDB;
+        for (const auto& uuid : pdb->GetAllUUIDs())
+        {
+            const std::string& name = pdb->GetResName(uuid);
+            const ResourceType resType = pdb->GetResType(uuid);
+            ImGui::TextColored(ImVec4(0,1,0,1), name.c_str());
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.2, 0.8, 0.8, 1), "%s", ResourceDatabase::ResourceTypeToStr(resType));
+            ImGui::SameLine();
+            // ImGui::Text(uuid.ToString().c_str());
+            ImGui::Text(pdb->GetResPath(uuid));
+        }
+        ImGui::End();
+
+
+        ImGui::Render();
+
+        VkRenderingAttachmentInfo uiColor{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView = swapchainImageData.image.view,
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_LOAD,              // keep the copied scene
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE
+        };
+        VkRenderingInfoKHR uiRI = {};
+        uiRI.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+        VkRect2D renderArea = {};
+        renderArea.extent.width = outputWidth;
+        renderArea.extent.height = outputHeight;
+        uiRI.renderArea = renderArea;
+        uiRI.layerCount = 1;
+        uiRI.colorAttachmentCount = 1;
+        uiRI.pColorAttachments = &uiColor;
+        cmdEncoder.BeginRendering(uiRI);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdEncoder.Handle());
+        cmdEncoder.EndRendering();
+
+        cmdEncoder.ImageBarrier(swapchainImageData.image
+            , VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT, {}
+            , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+            , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    }
+
 
     cmdEncoder.End();
 
@@ -505,7 +648,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         // Submit the command buffer with a timeline semaphore
         VkTimelineSemaphoreSubmitInfo timelineInfo{
             .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-            .waitSemaphoreValueCount = 0,         // No waits
+            .waitSemaphoreValueCount = 0,
             .pWaitSemaphoreValues = nullptr,
             .signalSemaphoreValueCount = 2,
             .pSignalSemaphoreValues = values
@@ -549,6 +692,13 @@ void Renderer::WaitIdle()
 void Renderer::Shutdown()
 {
     VkDevice device = m_gpuctx->GetDevice();
+    vkDestroyDescriptorPool(device, m_imguiDescriptorPool, nullptr);
+
+    vkDestroySemaphore(device, m_streamingTimelineSemaphore, nullptr);
+    for (StreamingCommandBuffer& s : m_streamingCommandBuffers)
+    {
+        vkDestroyCommandPool(device, s.pool, nullptr);
+    }
 
     vkDestroyCommandPool(m_gpuctx->GetDevice(), m_immediateCommandPool, nullptr);
     vkDestroyFence(m_gpuctx->GetDevice(), m_immediateFence, nullptr);
@@ -578,7 +728,6 @@ void Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)> &&functi
 
     vkEndCommandBuffer(m_immediateCommandBuffer);
 
-    // Submit immediate workload
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .waitSemaphoreCount = 0,

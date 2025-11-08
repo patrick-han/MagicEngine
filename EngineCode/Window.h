@@ -3,7 +3,7 @@
 #include <string>
 
 #include "Vulkan/Include.h"
-class SDL_Window;
+struct SDL_Window;
 
 namespace Magic
 {

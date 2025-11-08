@@ -53,20 +53,28 @@ add_executable(MagicEngine main.cpp
         EngineCode/Common/Math/Math.h
         EngineCode/Input.h
         EngineCode/RenderingInfo.h
-        EngineCode/Components/RenderableMeshComponent.h
-        EngineCode/ECS.h
-        EngineCode/ECS.cpp
-        EngineCode/Components/TransformComponent.h
-        GameCode/PlayerMovementSystem.h
-        GameCode/RenderSystem.h
         EngineCode/ResourceManager.h
-        GameCode/PlayerComponent.h
         EngineCode/Common/Math/Vector2f.h
         EngineCode/BindlessManager.cpp
         EngineCode/BindlessManager.h
         EngineCode/Timing.h
         EngineCode/JobSystem.h
         EngineCode/JobSystem.cpp
+        EngineCode/Allocators.h
+        EngineCode/Limits.h
+        EngineCode/World.h
+        EngineCode/World.cpp
+        EngineCode/Entity.h
+        EngineCode/SubMesh.h
+        EngineCode/MeshEntity.h
+        EngineCode/MeshEntity.cpp
+        EngineCode/MemoryManager.h
+        EngineCode/MemoryManager.cpp
+        EngineCode/Common/AABB.h
+        EngineCode/pugixml.h
+        EngineCode/ResourceDatabase.cpp
+        EngineCode/ResourceDatabase.h
+        EngineCode/UUID.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)
@@ -74,3 +82,10 @@ target_link_libraries(MagicEngine PRIVATE ThirdPartyLibraries)
 
 # DataLib and DataCooker
 add_subdirectory(DataLibCode)
+
+# Get an absolute path to the root directory
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/root.magic.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/root.magic
+    @ONLY
+)

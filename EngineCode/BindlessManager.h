@@ -1,6 +1,5 @@
 #pragma once
 #include "Vulkan/Include.h"
-
 #include "GPUContext.h"
 #include <vector>
 
@@ -21,8 +20,6 @@ public:
     void UpdateBindlessSamplers(VkSampler linearSampler, VkSampler pointSampler) const;
 
 private:
-    static constexpr uint32_t maxBindlessResourceCount = 16536; // Requires MVK_CONFIG_USE_METAL_ARGUMENT_BUFFERS
-    static constexpr uint32_t maxSamplerCount = 2;
     void UpdateBindlessTextureArrayAtIndex(const AllocatedImage &texture, uint32_t index);
     friend class Renderer;
     GPUContext* m_gpuctx = nullptr;
