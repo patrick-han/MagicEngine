@@ -127,6 +127,9 @@ bool a = true;
     if (inputState.keyState[SDL_SCANCODE_LSHIFT]) {
         cameraSpeed = 60.0f;
     }
+    if (inputState.keyState[SDL_SCANCODE_LALT]) {
+        cameraSpeed = 5.0f;
+    }
     if (inputState.keyState[SDL_SCANCODE_W]) {
         m_camera->Move(Camera::CameraMovementDirection::FORWARD, cameraSpeed * deltaTime);
     }

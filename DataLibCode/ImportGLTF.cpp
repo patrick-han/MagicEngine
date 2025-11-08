@@ -189,12 +189,15 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
 
             // Load materials
             cgltf_material* material = primitive->material;
+            Vector3f baseColorFactor; // "Vertex colors" not quite, since there is an attribute for that, but for now
             if (material)
             {
                 if (material->has_pbr_metallic_roughness)
                 {
                     const cgltf_texture_view baseColor = material->pbr_metallic_roughness.base_color_texture;
-
+                    baseColorFactor.x = material->pbr_metallic_roughness.base_color_factor[0];
+                    baseColorFactor.y = material->pbr_metallic_roughness.base_color_factor[1];
+                    baseColorFactor.z = material->pbr_metallic_roughness.base_color_factor[2];
                     if (!baseColor.texture)
                     {
                         Logger::Warn("This primitive has no base color texture!");
@@ -217,6 +220,10 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
                         }
                     }
                 }
+            }
+            for (auto& vertex : meshData.m_vertices) // fixup vertex colors after material parsing
+            {
+                vertex.color = baseColorFactor;
             }
             modelData.m_meshes.push_back(std::move(meshData));
         }
