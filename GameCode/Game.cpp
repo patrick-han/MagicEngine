@@ -26,7 +26,7 @@ void Game::Initialize(Renderer* pRenderer)
     m_resourceDB->Init("GameCode/magic.db");
 
     m_memoryManager = std::make_unique<MemoryManager>();
-    m_pWorld = new World(m_memoryManager.get(), pRenderer);
+    m_pWorld = new World(m_memoryManager.get());
     m_memoryManager->Initialize();
     m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_pWorld, m_memoryManager.get());
 
