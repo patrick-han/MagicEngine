@@ -58,8 +58,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/BindlessManager.cpp
         EngineCode/BindlessManager.h
         EngineCode/Timing.h
-        EngineCode/JobSystem.h
-        EngineCode/JobSystem.cpp
         EngineCode/Allocators.h
         EngineCode/Limits.h
         EngineCode/World.h
@@ -75,6 +73,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/ResourceDatabase.cpp
         EngineCode/ResourceDatabase.h
         EngineCode/UUID.h
+        EngineCode/Threading.cpp
+        EngineCode/Threading.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

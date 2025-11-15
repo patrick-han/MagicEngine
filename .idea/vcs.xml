@@ -5,6 +5,7 @@
     <mapping directory="$PROJECT_DIR$/DataLibCode/ThirdParty/assimp" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/EngineCode/ThirdParty/SDL" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/EngineCode/ThirdParty/VulkanMemoryAllocator" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/EngineCode/ThirdParty/pugixml" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/EngineCode/ThirdParty/volk" vcs="Git" />
   </component>
 </project>

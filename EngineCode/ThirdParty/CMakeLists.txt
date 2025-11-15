@@ -49,3 +49,10 @@ target_sources(PUGIXML PRIVATE
         pugixml/src/pugiconfig.hpp
 )
 target_link_libraries(ThirdPartyLibraries INTERFACE PUGIXML)
+
+#bs-thread-pool
+add_library(BSTHREADPOOL INTERFACE)
+target_include_directories(BSTHREADPOOL INTERFACE
+        thread-pool/include/
+)
+target_link_libraries(ThirdPartyLibraries INTERFACE BSTHREADPOOL)

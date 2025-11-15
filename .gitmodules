@@ -13,3 +13,6 @@
 [submodule "EngineCode/ThirdParty/pugixml"]
 	path = EngineCode/ThirdParty/pugixml
 	url = git@github.com:zeux/pugixml.git
+[submodule "EngineCode/ThirdParty/thread-pool"]
+	path = EngineCode/ThirdParty/thread-pool
+	url = https://github.com/bshoshany/thread-pool.git

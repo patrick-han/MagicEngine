@@ -8,12 +8,11 @@
 #include "../EngineCode/ResourceDatabase.h"
 #include "../EngineCode/ResourceManager.h"
 #include "../EngineCode/MemoryManager.h"
-#include "../EngineCode/JobSystem.h"
 #include <vector>
 #include <cassert>
+#include "../EngineCode/Threading.h"
 
 #include <filesystem>
-
 namespace Magic
 {
 
@@ -53,35 +52,11 @@ void Game::LoadContent()
 
     for (const UUID& uuid : uuids)
     {
-        JobSystem::Execute([&]()
-        {
+        Job::Pool.detach_task([&]() {
             m_resourceManager->LoadModelFromDisk(m_resourceDB->GetResPath(uuid), m_resourceDB->GetResName(uuid));
         });
         m_resourceManager->EnqueueUploadModel(m_resourceDB->GetResName(uuid));
     }
-
-    // JobSystem::Execute([&]()
-    // {
-    //     m_resourceManager->LoadModelFromDisk("DataLibCode/scene.bin", "scene");
-    // });
-    // // JobSystem::Execute([&]()
-    // // {
-    // //     m_resourceManager->LoadModelFromDisk("../DataLibCode/debug/debugSphereOut.bin", "debugSphere");
-    // // });
-    // JobSystem::Wait(); // Artificially test super-sponza load
-
-    // JobSystem::Execute([&]()
-    // {
-    //     // m_resourceManager->LoadModelFromDisk("DataLibCode/super-sponza-cgltf.bin", "player");
-    //     m_resourceManager->LoadModelFromDisk("DataLibCode/beautiful-game-cgltf.bin", "player");
-    //     // m_resourceManager->LoadModelFromDisk("DataLibCode/orientation-test/OrientationTestOut.bin", "player");
-    //     // m_resourceManager->LoadModelFromDisk("DataLibCode/sponza-cgltf.bin", "player");
-    // });
-
-    // m_resourceManager->EnqueueUploadModel("player");
-    // m_resourceManager->EnqueueUploadModel("scene");
-    // // m_resourceManager->EnqueueUploadModel("debugSphere");
-
 }
 
 void Game::UnloadContent()
@@ -184,9 +159,6 @@ bool a = true;
     }
 
     if (inputState.keyState[SDL_SCANCODE_U]) {
-        // JobSystem::Execute([this](){
-        //     m_resourceManager->DestroyAllLoadedModels();
-        // });
         if (a)
         {
             auto m = m_pWorld->GetMeshEntities();

@@ -11,7 +11,6 @@
 #include "Input.h"
 #include "../GameCode/Game.h"
 #include "Platform.h"
-#include "JobSystem.h"
 
 
 // IMGUI
@@ -44,7 +43,6 @@ Application::~Application() { }
 
 void Application::Startup()
 {
-    JobSystem::Initialize();
     Logger::Info("Initializing Application");
     SDL_Init(SDL_INIT_VIDEO);
 

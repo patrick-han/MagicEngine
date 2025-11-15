@@ -9,12 +9,10 @@
 #include "Renderer.h" // TODO: move to .cpp file
 #include "Common/Log.h"
 #include "Timing.h"
-#include "JobSystem.h"
-
 #include "MemoryManager.h"
 #include "World.h"
-#include "Entity.h"
 #include "DefaultTexture.h"
+#include "Threading.h"
 namespace Magic
 {
 
@@ -192,7 +190,7 @@ public:
         {
             auto job = m_pendingBufferUploads.front();
             m_pendingBufferUploads.pop();
-            JobSystem::Execute([job, this](){
+            Job::Pool.detach_task([job, this](){
                 AllocatedBuffer buffer = m_rctx->UploadBuffer(job.numBytes, job.data, job.usage);
                 SubMesh* pSubMesh = job.pAssociatedSubMesh;
                 if (job.usage == VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
@@ -284,7 +282,7 @@ public:
         m_rctx->DestroyImage(defaultTextureImage);
         DestroyAllGPUResidentMeshes();
         DestroyAllGPUResidentTextures();
-        JobSystem::Wait();
+        Job::Pool.wait();
     }
 // private:
     void DestroyAllLoadedModels()
@@ -308,7 +306,7 @@ public:
     void DestroyAllGPUResidentMeshes()
     {
         
-        JobSystem::Execute([this](){            
+        Job::Pool.detach_task([this](){            
             for (MeshEntity* pMeshEntity : m_pWorld->GetMeshEntities())
             {
                 for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
@@ -322,7 +320,7 @@ public:
     }
     void DestroyAllGPUResidentTextures()
     {
-        JobSystem::Execute([this](){
+        Job::Pool.detach_task([this](){
             for (const AllocatedImage& image : m_renderableImages)
             {
                 m_rctx->DestroyImage(image);
