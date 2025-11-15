@@ -23,11 +23,10 @@ void Game::Initialize(Renderer* pRenderer)
 {
     m_resourceDB = std::make_unique<ResourceDatabase>();
     m_resourceDB->Init("GameCode/magic.db");
-
-    m_memoryManager = std::make_unique<MemoryManager>();
-    m_pWorld = new World(m_memoryManager.get());
-    m_memoryManager->Initialize();
-    m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_pWorld, m_memoryManager.get());
+    GMemoryManager = new MemoryManager();
+    m_pWorld = new World();
+    GMemoryManager->Initialize();
+    m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_pWorld);
 
     Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
     m_resourceManager->UploadDefaultTexture();
@@ -38,7 +37,8 @@ void Game::Shutdown()
     m_resourceDB->Save();
     m_pWorld->Destroy();
     delete m_pWorld;
-    m_memoryManager->Shutdown();
+    GMemoryManager->Shutdown();
+    delete GMemoryManager;
     
 }
 

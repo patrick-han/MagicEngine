@@ -2,6 +2,9 @@
 #include "Limits.h"
 namespace Magic
 {
+
+MemoryManager* GMemoryManager = nullptr;
+
 MemoryManager::MemoryManager()
 {
 }

@@ -21,12 +21,11 @@ class ResourceManager
 {
     AllocatedImage defaultTextureImage;
 public:
-    ResourceManager(Renderer* pRenderer, World* pWorld, MemoryManager* pMemoryManager)
+    ResourceManager(Renderer* pRenderer, World* pWorld)
     {
         Logger::Info("Initializing ResourceManager");
         m_rctx = pRenderer;
         m_pWorld = pWorld;
-        m_pMemoryManager = pMemoryManager;
     }
 
     ~ResourceManager()
@@ -53,7 +52,8 @@ public:
     void LoadModelFromDisk(const std::string& filePath, const std::string& name)
     {
         auto start = std::chrono::steady_clock::now();
-        ModelData* pModelData = new ModelData(Data::DeserializeModelData(filePath));
+        // ModelData* pModelData = new ModelData(Data::DeserializeModelData(filePath));
+        ModelData* pModelData = GMemoryManager->New<ModelData>(Data::DeserializeModelData(filePath));
         Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, since(start).count()));
         {
             std::scoped_lock lock(m_loadedModelDataMutex);
@@ -127,7 +127,7 @@ public:
             {
                 // We can go ahead and fill out some of the data now and wait for buffers later
                 // SubMesh* pSubMesh = pMeshEntity->AddSubMesh();
-                SubMesh* pSubMesh = m_pMemoryManager->AllocateSubMesh();
+                SubMesh* pSubMesh = GMemoryManager->AllocateSubMesh();
                 pMeshEntity->AddSubMesh(pSubMesh);
                 pSubMesh->indexCount = static_cast<uint32_t>(meshData.m_indices.size());
                 Matrix4f matrix;
@@ -287,19 +287,12 @@ public:
 // private:
     void DestroyAllLoadedModels()
     {
-        // std::scoped_lock lock(m_loadedModelDataMutex);
-        // for (const auto& [name, ptr] : m_loadedModels)
-        // {
-        //     delete ptr;
-        // }
-        // m_loadedModels.clear();
-
         std::map<std::string, ModelData*> to_free;
         {
             std::scoped_lock lock(m_loadedModelDataMutex);
             to_free.swap(m_loadedModels);
         }
-        for (auto& [_, p] : to_free) delete p; // safe; no one else can see them now
+        for (auto& [_, p] : to_free) GMemoryManager->Delete<ModelData>(p);
         Logger::Info("ResourceManager: Destroyed all RAM loaded models");
         
     }
@@ -330,7 +323,6 @@ public:
     }
     Renderer* m_rctx = nullptr;
     World* m_pWorld = nullptr;
-    MemoryManager* m_pMemoryManager = nullptr;
 
     // These data structures should only be accessed by a single render thread
     std::vector<AllocatedImage> m_renderableImages;

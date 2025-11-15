@@ -11,7 +11,7 @@ class Renderer;
 class World
 {
 public:
-    World(MemoryManager* pMemoryManager);
+    World();
     ~World();
 
     void Destroy();
@@ -30,7 +30,6 @@ public:
     }
     [[nodiscard]] int GetEntityCount() const { return m_entityCount; }
 private:
-    MemoryManager* m_pMemoryManager;
     void DestroyAllMeshEntities();
     std::vector<MeshEntity*> m_meshEntities;
     std::string m_mapName;

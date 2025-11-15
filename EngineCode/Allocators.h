@@ -1,7 +1,6 @@
 #pragma once
 #include <unordered_map>
 #include <unordered_set>
-#include <cstdlib>
 namespace Magic
 {
 
@@ -23,13 +22,13 @@ public:
     explicit FixedPODTypeLinearAllocator(size_t numObjects)
     {
         const size_t typeSize = sizeof(T);
-        m_data = static_cast<T*>(std::malloc(numObjects * typeSize));
+        m_data = new T[numObjects];
         m_maxObjects = numObjects;
         m_allocPointer = m_data;
     }
     ~FixedPODTypeLinearAllocator()
     {
-        std::free(m_data);
+        delete[] m_data;
     }
     T* Allocate()
     {
@@ -77,7 +76,7 @@ public:
     explicit FixedPODTypePoolAllocator(size_t numObjects)
     {
         const size_t typeSize = sizeof(T);
-        m_data = static_cast<T*>(std::malloc(numObjects * typeSize));
+        m_data = new T[numObjects];
         m_maxObjects = numObjects;
         for (size_t i = 0; i < m_maxObjects; i++)
         {
@@ -86,7 +85,7 @@ public:
     }
     ~FixedPODTypePoolAllocator()
     {
-        std::free(m_data);
+        delete[] m_data;
     }
     T* AllocateDefault()
     {
