@@ -340,4 +340,7 @@ public:
     int GetPendingBufferUploadJobCount() { return m_pendingBufferUploads.size(); }
     int GetPendingImageUploadJobCount() { return m_pendingImageUploads.size(); }
 };
+
+extern ResourceManager* GResourceManager;
+
 }

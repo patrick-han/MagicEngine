@@ -26,10 +26,10 @@ void Game::Initialize(Renderer* pRenderer)
     GMemoryManager = new MemoryManager();
     m_pWorld = new World();
     GMemoryManager->Initialize();
-    m_resourceManager = std::make_unique<ResourceManager>(pRenderer, m_pWorld);
+    GResourceManager = new ResourceManager(pRenderer, m_pWorld);
 
     Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
-    m_resourceManager->UploadDefaultTexture();
+    GResourceManager->UploadDefaultTexture();
 }
 
 void Game::Shutdown()
@@ -40,7 +40,7 @@ void Game::Shutdown()
     delete m_pWorld;
     GMemoryManager->Shutdown();
     delete GMemoryManager;
-    
+    delete GResourceManager;
 }
 
 void Game::LoadContent()
@@ -55,16 +55,16 @@ void Game::LoadContent()
     for (const UUID& uuid : uuids)
     {
         Job::Pool.detach_task([&]() {
-            m_resourceManager->LoadModelFromDisk(GResourceDB->GetResPath(uuid), GResourceDB->GetResName(uuid));
+            GResourceManager->LoadModelFromDisk(GResourceDB->GetResPath(uuid), GResourceDB->GetResName(uuid));
         });
-        m_resourceManager->EnqueueUploadModel(GResourceDB->GetResName(uuid));
+        GResourceManager->EnqueueUploadModel(GResourceDB->GetResName(uuid));
     }
 }
 
 void Game::UnloadContent()
 {
     Logger::Info("Unload MyGame content");
-    m_resourceManager->DestroyAllAssets();
+    GResourceManager->DestroyAllAssets();
 }
 
 
@@ -83,10 +83,10 @@ bool a = true;
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
 
-    m_resourceManager->ProcessModelUploadJobs();
-    m_resourceManager->ProcessBufferUploadJobs();
-    m_resourceManager->ProcessImageUploadJobs();
-    m_resourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
+    GResourceManager->ProcessModelUploadJobs();
+    GResourceManager->ProcessBufferUploadJobs();
+    GResourceManager->ProcessImageUploadJobs();
+    GResourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
 
     std::vector<SubMesh*> meshesToRender;
     {
@@ -173,13 +173,13 @@ bool a = true;
     GameStats stats = 
     {
         .entityCount = m_pWorld->GetEntityCount()
-        , .ramResidentModelCount = m_resourceManager->GetRAMResidentModelCount()
+        , .ramResidentModelCount = GResourceManager->GetRAMResidentModelCount()
         , .meshCount = static_cast<int>(m_pWorld->GetMeshEntities().size())
         , .subMeshCount = m_pWorld->GetSubMeshCount()
-        , .textureCount = m_resourceManager->GetTextureCount()
-        , .pendingModelUploadCount = m_resourceManager->GetPendingModelUploadJobCount()
-        , .pendingBufferUploadCount = m_resourceManager->GetPendingBufferUploadJobCount()
-        , .pendingImageUploadCount = m_resourceManager->GetPendingImageUploadJobCount()
+        , .textureCount = GResourceManager->GetTextureCount()
+        , .pendingModelUploadCount = GResourceManager->GetPendingModelUploadJobCount()
+        , .pendingBufferUploadCount = GResourceManager->GetPendingBufferUploadJobCount()
+        , .pendingImageUploadCount = GResourceManager->GetPendingImageUploadJobCount()
     };
 
     RenderingInfo renderingInfo = {

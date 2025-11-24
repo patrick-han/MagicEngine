@@ -75,6 +75,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/UUID.h
         EngineCode/Threading.cpp
         EngineCode/Threading.h
+        EngineCode/ResourceManager.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)
