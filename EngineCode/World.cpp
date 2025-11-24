@@ -9,6 +9,20 @@
 namespace Magic
 {
 
+const std::unordered_set<UUID> &World::GetAllUUIDs() const
+{
+    return m_uuids;
+}
+
+EntityType World::GetEntityType(UUID uuid) const
+{
+    return m_uuid_to_type.at(uuid);
+}
+const char *World::GetEntityName(UUID uuid) const
+{
+    return m_uuid_to_name.at(uuid).c_str();
+}
+
 EntityType World::StrToEntityType(const char* name)
 {
     static const std::unordered_map<std::string_view, EntityType> table = 
@@ -54,6 +68,13 @@ void World::Reload()
         {
             continue;
         }
+        else if (entityType == EntityType::StaticMesh)
+        {
+            auto resource_staticmesh = entity.child("resource_staticmesh");
+            assert(resource_staticmesh);
+            assert(resource_staticmesh.attribute("name"));
+            assert(resource_staticmesh.attribute("uuid"));
+        }
         UUID uuid;
         const char* name = entity.attribute("name").as_string();
         assert(UUID::TryParse(entity.attribute("uuid").as_string(), uuid));
@@ -86,7 +107,48 @@ void World::Save()
     }
 }
 
-bool World::CheckIfEntityExists(const char *entityName)
+// const char* World::GetEntityStaticMeshResourceName(UUID uuid) const
+// {
+//     if (!CheckIfEntityExists(uuid))
+//     {
+//         Logger::Err("GetEntityStaticMeshResourceName(): Entity doesn't exist");
+//         return nullptr;
+//     }
+//     EntityType type = m_uuid_to_type.at(uuid);
+//     if (type != EntityType::StaticMesh)
+//     {
+//         Logger::Err("GetEntityStaticMeshResourceName(): Not a StaticMesh Entity");
+//         return nullptr;
+//     }
+//     pugi::xml_node entity = m_uuid_to_node.at(uuid);
+//     return entity.child("resource_staticmesh").attribute("name").as_string();
+// }
+
+std::optional<UUID> World::GetStaticMeshEntityResourceUUID(UUID uuid) const
+{
+    if (!CheckIfEntityExists(uuid))
+    {
+        Logger::Err("GetEntityStaticMeshResourceName(): Entity doesn't exist");
+        return std::nullopt;
+    }
+    EntityType type = m_uuid_to_type.at(uuid);
+    if (type != EntityType::StaticMesh)
+    {
+        Logger::Err("GetEntityStaticMeshResourceName(): Not a StaticMesh Entity");
+        return std::nullopt;
+    }
+    pugi::xml_node entity = m_uuid_to_node.at(uuid);
+    const char* uuid_str = entity.child("resource_staticmesh").attribute("uuid").as_string();
+    UUID resource_uuid;
+    if (!UUID::TryParse(uuid_str, resource_uuid))
+    {
+        Logger::Err("GetEntityStaticMeshResourceName(): Could not parse UUID string");
+        return std::nullopt;
+    }
+    return resource_uuid;
+}
+
+bool World::CheckIfEntityExists(const char *entityName) const
 {
     for (pugi::xml_node entity : m_db.children())
     {
@@ -98,7 +160,7 @@ bool World::CheckIfEntityExists(const char *entityName)
     return false;
 }
 
-bool World::CheckIfEntityExists(UUID uuid)
+bool World::CheckIfEntityExists(UUID uuid) const
 {
     if (m_uuids.find(uuid) != m_uuids.end())
     {
@@ -149,11 +211,11 @@ static void AddEntityTransform(pugi::xml_node node)
     xform.append_child("row3").text().set("0,0,0,1");
 }
 
-MeshEntity* World::AddStaticMeshEntity(const char* entityName)
+void World::AddStaticMeshEntity(const char* entityName)
 {
     pugi::xml_node node = AddEntity(entityName, EntityType::StaticMesh);
     node.append_attribute("type").set_value("staticmesh");
-    node.append_attribute("genesis").set_value(true);
+    // node.append_attribute("genesis").set_value(true);
     AddEntityTransform(node);
     pugi::xml_node resource_staticmesh = node.append_child("resource_staticmesh");
     resource_staticmesh.append_attribute("name").set_value(entityName);
@@ -250,5 +312,6 @@ void World::DestroyAllMeshEntities()
         delete pMeshEntity;
     }
     m_meshEntities.clear();
+    m_entityCount = 0;
 }
 }

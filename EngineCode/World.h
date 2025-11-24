@@ -20,12 +20,17 @@ public:
     static const char* EntityTypeToStr(EntityType entityType);
     void Init(const char* dbPath);
     void Save();
-    bool CheckIfEntityExists(const char* entityName);
-    bool CheckIfEntityExists(UUID uuid);
+    [[nodiscard]] const char* GetEntityStaticMeshResourceName(UUID uuid) const;
+    [[nodiscard]] std::optional<UUID> GetStaticMeshEntityResourceUUID(UUID uuid) const;
+    [[nodiscard]] const char* GetEntityName(UUID uuid) const;
+    [[nodiscard]] EntityType GetEntityType(UUID uuid) const;
+    [[nodiscard]] const std::unordered_set<UUID>& GetAllUUIDs() const;
+    bool CheckIfEntityExists(const char* entityName) const;
+    bool CheckIfEntityExists(UUID uuid) const;
     void RemoveEntity(const char* entityName);
     void RemoveEntity(UUID uuid);
 
-    [[nodiscard]] MeshEntity* AddStaticMeshEntity(const char* entityName);
+    void AddStaticMeshEntity(const char* entityName);
 
 
     void Destroy();

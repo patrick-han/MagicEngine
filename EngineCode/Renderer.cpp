@@ -11,11 +11,11 @@
 
 #include "CommandEncoder.h"
 #include "Timing.h"
-#include "ResourceDatabase.h"
 #include "../DataLibCode/DataSerialization.h" // TODO: find better organization for this maebbe
 #include "ThirdParty/imgui/imgui.h"
 #define IMGUI_IMPL_VULKAN_USE_VOLK
 #include "ThirdParty/imgui/imgui_impl_vulkan.h"
+#include "World.h"
 namespace Magic
 {
 
@@ -595,17 +595,17 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         // TODO:
         // This should be more data driven, I guess, where we only ever send the exact data we want to be rendered
         // So the Game update loop might go ahead and fill a per frame arena with the info and just send a pointer over
-        const auto pdb = renderingInfo.pResourceDB;
-        for (const auto& uuid : pdb->GetAllUUIDs())
+        const auto world = renderingInfo.pWorld;
+        for (const auto& uuid : world->GetAllUUIDs())
         {
-            const std::string& name = pdb->GetResName(uuid);
-            const ResourceType resType = pdb->GetResType(uuid);
+            const std::string& name = world->GetEntityName(uuid);
+            const EntityType entityType = world->GetEntityType(uuid);
             ImGui::TextColored(ImVec4(0,1,0,1), "%s", name.c_str());
             ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.2, 0.8, 0.8, 1), "%s", ResourceDatabase::ResourceTypeToStr(resType));
-            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.2, 0.8, 0.8, 1), "%s", World::EntityTypeToStr(entityType));
+            // ImGui::SameLine();
             // ImGui::Text("%s", uuid.ToString().c_str());
-            ImGui::Text("%s", pdb->GetResPath(uuid));
+            // ImGui::Text("%s", world->GetResPath(uuid));
         }
         ImGui::End();
 

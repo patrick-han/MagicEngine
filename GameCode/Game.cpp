@@ -26,13 +26,6 @@ void Game::Initialize(Renderer* pRenderer)
     GMemoryManager = new MemoryManager();
     m_pWorld = new World();
     m_pWorld->Init("GameCode/magic.world");
-
-    // test
-    m_pWorld->AddStaticMeshEntity("Player");
-    m_pWorld->AddStaticMeshEntity("Scene");
-    
-
-
     GMemoryManager->Initialize();
     GResourceManager = new ResourceManager(m_pWorld);
 
@@ -56,17 +49,22 @@ void Game::LoadContent()
 {
     Logger::Info("Load MyGame content");
     // Make a free camera pointing down +Z with +X left and +Y up
-    m_camera = std::make_unique<Camera>(Vector3f(0.0f, 10.0f, -100.0f), Vector3f(0.0f, 0.0f, 1.0f));
+    m_camera = std::make_unique<Camera>(Vector3f(0.0f, 1.0f, -5.0f), Vector3f(0.0f, 0.0f, 1.0f));
 
 
-    const std::unordered_set<UUID>& uuids = GResourceDB->GetAllUUIDs();
-
+    const std::unordered_set<UUID>& uuids = m_pWorld->GetAllUUIDs();
     for (const UUID& uuid : uuids)
     {
-        Job::Pool.detach_task([&]() {
-            GResourceManager->LoadModelFromDisk(GResourceDB->GetResPath(uuid), GResourceDB->GetResName(uuid));
-        });
-        GResourceManager->EnqueueUploadModel(GResourceDB->GetResName(uuid));
+        std::optional<UUID> res_uuid = m_pWorld->GetStaticMeshEntityResourceUUID(uuid);
+        if (res_uuid)
+        {
+            std::string resPath = GResourceDB->GetResPath(*res_uuid);
+            std::string resName = GResourceDB->GetResName(*res_uuid);
+            Job::Pool.detach_task([=]() {
+                GResourceManager->LoadModelFromDisk(resPath, resName);
+            });
+            GResourceManager->EnqueueUploadModel(resName);
+        }
     }
 }
 
@@ -195,7 +193,7 @@ bool a = true;
         .pCamera = m_camera.get()
       , .meshesToRender = meshesToRender
       , .gameStats = stats
-      , .pResourceDB = GResourceDB
+      , .pWorld = m_pWorld
     };
     return renderingInfo;
 }

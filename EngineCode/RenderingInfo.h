@@ -18,12 +18,12 @@ struct GameStats
 
 
 class Camera;
-class ResourceDatabase;
+class World;
 struct RenderingInfo
 {
     const Camera* const pCamera;
     std::vector<SubMesh*> meshesToRender;
     GameStats gameStats;
-    ResourceDatabase* pResourceDB;
+    World* pWorld;
 };
 }

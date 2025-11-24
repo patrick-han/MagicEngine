@@ -52,12 +52,14 @@ public:
     {
         auto start = std::chrono::steady_clock::now();
         std::optional<ModelData> modelOpt = Data::DeserializeModelData(filePath);
-        if (!modelOpt) {
+        if (!modelOpt) 
+        {
             Logger::Err(std::format("LoadModelFromDisk({}): FAILED (could not load '{}')", name, filePath));
             return;
         }
 
         ModelData* pModelData = GMemoryManager->New<ModelData>(std::move(*modelOpt));
+        // ModelData* pModelData = GMemoryManager->New<ModelData>(Data::DeserializeModelData(filePath));
         Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, since(start).count()));
         {
             std::scoped_lock lock(m_loadedModelDataMutex);
