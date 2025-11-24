@@ -598,12 +598,12 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         {
             const std::string& name = pdb->GetResName(uuid);
             const ResourceType resType = pdb->GetResType(uuid);
-            ImGui::TextColored(ImVec4(0,1,0,1), name.c_str());
+            ImGui::TextColored(ImVec4(0,1,0,1), "%s", name.c_str());
             ImGui::SameLine();
             ImGui::TextColored(ImVec4(0.2, 0.8, 0.8, 1), "%s", ResourceDatabase::ResourceTypeToStr(resType));
             ImGui::SameLine();
-            // ImGui::Text(uuid.ToString().c_str());
-            ImGui::Text(pdb->GetResPath(uuid));
+            // ImGui::Text("%s", uuid.ToString().c_str());
+            ImGui::Text("%s", pdb->GetResPath(uuid));
         }
         ImGui::End();
 

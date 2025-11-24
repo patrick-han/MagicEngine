@@ -78,7 +78,7 @@ void ResourceDatabase::Reload()
         }
         UUID uuid;
         const char* name = resource.attribute("name").as_string();
-        UUID::TryParse(resource.attribute("uuid").as_string(), uuid);
+        assert(UUID::TryParse(resource.attribute("uuid").as_string(), uuid));
         RegisterResource(uuid, name, resType, resource);
     }
 }
