@@ -8,7 +8,8 @@ namespace Magic
 
 enum class EntityType
 {
-    Mesh
+    StaticMesh
+    , Unknown
 };
 
 class IEntity

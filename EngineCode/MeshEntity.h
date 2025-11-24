@@ -10,7 +10,7 @@ class MeshEntity final : public IEntity
 public:
     MeshEntity();
     ~MeshEntity();
-    virtual EntityType GetEntityType() override { return EntityType::Mesh; }
+    virtual EntityType GetEntityType() override { return EntityType::StaticMesh; }
     void AddSubMesh(SubMesh* pSubMesh);
     [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;
 private:

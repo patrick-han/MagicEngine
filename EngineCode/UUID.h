@@ -32,7 +32,7 @@ public:
     // ---- parsing (no-throw) ----
     static bool TryParse(const std::string& s, UUID& out) noexcept
     {
-        const std::string& canon = s;
+        std::string canon = NormalizeUUIDString(s);
     #if PLATFORM_WINDOWS
         RPC_STATUS status = UuidFromStringA(
             reinterpret_cast<RPC_CSTR>(const_cast<char*>(canon.c_str())),
@@ -96,6 +96,29 @@ public:
         auto a = ToBytes();
         auto b = other.ToBytes();
         return std::memcmp(a.data(), b.data(), 16) < 0;
+    }
+
+    static std::string NormalizeUUIDString(const std::string& s) noexcept
+    {
+        auto is_hex = [](char c){
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            return (c>='0'&&c<='9')||(c>='a'&&c<='f');
+        };
+        if (s.size() == 32) {
+            for (char c : s) if (!is_hex(c)) return s;
+            std::string t; t.reserve(36);
+            for (size_t i = 0; i < 32; ++i) {
+                if (i==8 || i==12 || i==16 || i==20) t.push_back('-');
+                t.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(s[i]))));
+            }
+            return t;
+        }
+        if (s.size() == 36) {
+            std::string t = s;
+            for (char& c : t) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            return t;
+        }
+        return s;
     }
 
 private:

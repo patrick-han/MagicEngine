@@ -25,6 +25,14 @@ void Game::Initialize(Renderer* pRenderer)
     GResourceDB->Init("GameCode/magic.db");
     GMemoryManager = new MemoryManager();
     m_pWorld = new World();
+    m_pWorld->Init("GameCode/magic.world");
+
+    // test
+    m_pWorld->AddStaticMeshEntity("Player");
+    m_pWorld->AddStaticMeshEntity("Scene");
+    
+
+
     GMemoryManager->Initialize();
     GResourceManager = new ResourceManager(m_pWorld);
 
@@ -34,6 +42,7 @@ void Game::Initialize(Renderer* pRenderer)
 
 void Game::Shutdown()
 {
+    m_pWorld->Save();
     GResourceDB->Save();
     delete GResourceDB;
     m_pWorld->Destroy();
