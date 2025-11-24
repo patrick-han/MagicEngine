@@ -21,8 +21,8 @@ Game::~Game() { }
 
 void Game::Initialize(Renderer* pRenderer)
 {
-    m_resourceDB = std::make_unique<ResourceDatabase>();
-    m_resourceDB->Init("GameCode/magic.db");
+    GResourceDB = new ResourceDatabase();
+    GResourceDB->Init("GameCode/magic.db");
     GMemoryManager = new MemoryManager();
     m_pWorld = new World();
     GMemoryManager->Initialize();
@@ -34,7 +34,8 @@ void Game::Initialize(Renderer* pRenderer)
 
 void Game::Shutdown()
 {
-    m_resourceDB->Save();
+    GResourceDB->Save();
+    delete GResourceDB;
     m_pWorld->Destroy();
     delete m_pWorld;
     GMemoryManager->Shutdown();
@@ -48,14 +49,15 @@ void Game::LoadContent()
     // Make a free camera pointing down +Z with +X left and +Y up
     m_camera = std::make_unique<Camera>(Vector3f(0.0f, 10.0f, -100.0f), Vector3f(0.0f, 0.0f, 1.0f));
 
-    const std::unordered_set<UUID>& uuids = m_resourceDB->GetAllUUIDs();
+
+    const std::unordered_set<UUID>& uuids = GResourceDB->GetAllUUIDs();
 
     for (const UUID& uuid : uuids)
     {
         Job::Pool.detach_task([&]() {
-            m_resourceManager->LoadModelFromDisk(m_resourceDB->GetResPath(uuid), m_resourceDB->GetResName(uuid));
+            m_resourceManager->LoadModelFromDisk(GResourceDB->GetResPath(uuid), GResourceDB->GetResName(uuid));
         });
-        m_resourceManager->EnqueueUploadModel(m_resourceDB->GetResName(uuid));
+        m_resourceManager->EnqueueUploadModel(GResourceDB->GetResName(uuid));
     }
 }
 
@@ -184,7 +186,7 @@ bool a = true;
         .pCamera = m_camera.get()
       , .meshesToRender = meshesToRender
       , .gameStats = stats
-      , .pResourceDB = m_resourceDB.get()
+      , .pResourceDB = GResourceDB
     };
     return renderingInfo;
 }

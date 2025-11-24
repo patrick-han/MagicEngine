@@ -51,4 +51,6 @@ private:
     std::unordered_map<UUID, pugi::xml_node> m_uuid_to_node;
 };
 
+extern ResourceDatabase* GResourceDB;
+
 }

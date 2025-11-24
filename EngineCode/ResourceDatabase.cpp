@@ -5,6 +5,8 @@
 namespace Magic
 {
 
+ResourceDatabase* GResourceDB = nullptr;
+
 ResourceType ResourceDatabase::StrToResourceType(const char* name)
 {
     static const std::unordered_map<std::string_view, ResourceType> table = 

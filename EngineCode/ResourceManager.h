@@ -47,13 +47,18 @@ public:
 
 
     /*
-     * Loads the model from disk and returns a pointer to the data
+     * Loads the model from disk and assigns it the given name
      */
     void LoadModelFromDisk(const std::string& filePath, const std::string& name)
     {
         auto start = std::chrono::steady_clock::now();
-        // ModelData* pModelData = new ModelData(Data::DeserializeModelData(filePath));
-        ModelData* pModelData = GMemoryManager->New<ModelData>(Data::DeserializeModelData(filePath));
+        std::optional<ModelData> modelOpt = Data::DeserializeModelData(filePath);
+        if (!modelOpt) {
+            Logger::Err(std::format("LoadModelFromDisk({}): FAILED (could not load '{}')", name, filePath));
+            return;
+        }
+
+        ModelData* pModelData = GMemoryManager->New<ModelData>(std::move(*modelOpt));
         Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, since(start).count()));
         {
             std::scoped_lock lock(m_loadedModelDataMutex);

@@ -33,7 +33,6 @@ protected:
     [[nodiscard]] RenderingInfo Update(const InputState& inputState, float deltaTime);
 private:
     std::unique_ptr<Camera> m_camera;
-    std::unique_ptr<ResourceDatabase> m_resourceDB;
     std::unique_ptr<ResourceManager> m_resourceManager;
     World* m_pWorld;
 };
