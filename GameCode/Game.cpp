@@ -58,8 +58,8 @@ void Game::LoadContent()
         std::optional<UUID> res_uuid = m_pWorld->GetStaticMeshEntityResourceUUID(uuid);
         if (res_uuid)
         {
-            std::string resPath = GResourceDB->GetResPath(*res_uuid);
-            std::string resName = GResourceDB->GetResName(*res_uuid);
+            const char* resPath = GResourceDB->GetResPath(*res_uuid);
+            const char* resName = GResourceDB->GetResName(*res_uuid);
             Job::Pool.detach_task([=]() {
                 GResourceManager->LoadModelFromDisk(resPath, resName);
             });

@@ -48,7 +48,8 @@ public:
     /*
      * Loads the model from disk and assigns it the given name
      */
-    void LoadModelFromDisk(const std::string& filePath, const std::string& name)
+    // void LoadModelFromDisk(const std::string& filePath, const std::string& name)
+    void LoadModelFromDisk(const char* filePath, const char* name)
     {
         auto start = std::chrono::steady_clock::now();
         std::optional<ModelData> modelOpt = Data::DeserializeModelData(filePath);
