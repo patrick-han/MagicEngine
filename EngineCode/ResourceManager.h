@@ -21,10 +21,9 @@ class ResourceManager
 {
     AllocatedImage defaultTextureImage;
 public:
-    ResourceManager(Renderer* pRenderer, World* pWorld)
+    ResourceManager(World* pWorld)
     {
         Logger::Info("Initializing ResourceManager");
-        m_rctx = pRenderer;
         m_pWorld = pWorld;
     }
 
@@ -40,9 +39,9 @@ public:
         constexpr size_t bytesPerChannel = 1;
         constexpr size_t numChannels = 4;
         constexpr size_t dataSize = extent.width * extent.height * numChannels * bytesPerChannel;
-        AllocatedBuffer stagingBuffer = m_rctx->UploadBuffer(dataSize, g_DefaultTexture.data(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-        defaultTextureImage = m_rctx->UploadImage(g_DefaultTexture.data(), 4, imci);
-        m_rctx->DestroyBuffer(stagingBuffer);
+        AllocatedBuffer stagingBuffer = GRenderer->UploadBuffer(dataSize, g_DefaultTexture.data(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+        defaultTextureImage = GRenderer->UploadImage(g_DefaultTexture.data(), 4, imci);
+        GRenderer->DestroyBuffer(stagingBuffer);
     }
 
 
@@ -196,7 +195,7 @@ public:
             auto job = m_pendingBufferUploads.front();
             m_pendingBufferUploads.pop();
             Job::Pool.detach_task([job, this](){
-                AllocatedBuffer buffer = m_rctx->UploadBuffer(job.numBytes, job.data, job.usage);
+                AllocatedBuffer buffer = GRenderer->UploadBuffer(job.numBytes, job.data, job.usage);
                 SubMesh* pSubMesh = job.pAssociatedSubMesh;
                 if (job.usage == VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
                 {
@@ -220,7 +219,7 @@ public:
         {
             return;
         }
-        Renderer::StreamingCommandBuffer* sbuf = m_rctx->ResetAndBeginStreamingCommandBuffer();
+        Renderer::StreamingCommandBuffer* sbuf = GRenderer->ResetAndBeginStreamingCommandBuffer();
         if (!sbuf)
         {
             return; // No available command buffers
@@ -233,23 +232,23 @@ public:
             auto job = m_pendingImageUploads.front();
             m_pendingImageUploads.pop();
             SubMesh* pSubMesh = job.pAssociatedSubMesh;
-            pSubMesh->diffuseImage = m_rctx->CreateGPUOnlyImage(job.imageCreateInfo);
+            pSubMesh->diffuseImage = GRenderer->CreateGPUOnlyImage(job.imageCreateInfo);
             const auto extent = job.extent;
             constexpr size_t bytesPerChannel = 1;
             const size_t dataSize = extent.width * extent.height * job.numChannels * bytesPerChannel;
-            AllocatedBuffer stagingBuffer = m_rctx->UploadBuffer(dataSize, job.imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-            pSubMesh->diffuseTextureStreamingTimelineReadyValue = m_rctx->EnqueueImageUploadJob(sbuf, pSubMesh->diffuseImage, stagingBuffer, extent);
-            // m_rctx->DestroyBuffer(stagingBuffer); // TODO: Round robin staging buffers
+            AllocatedBuffer stagingBuffer = GRenderer->UploadBuffer(dataSize, job.imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+            pSubMesh->diffuseTextureStreamingTimelineReadyValue = GRenderer->EnqueueImageUploadJob(sbuf, pSubMesh->diffuseImage, stagingBuffer, extent);
+            // GRenderer->DestroyBuffer(stagingBuffer); // TODO: Round robin staging buffers
             toDestroy.push_back(stagingBuffer);
             batchDone++;
         }
 
-        m_rctx->EndAndSubmitStreamingCommandBuffer(sbuf);
+        GRenderer->EndAndSubmitStreamingCommandBuffer(sbuf);
     }
 
     void PollImageUploadJobsFinishedAndUpdateRenderables()
     {
-        uint64_t value = m_rctx->GetCurrentStreamingTimelineValue();
+        uint64_t value = GRenderer->GetCurrentStreamingTimelineValue();
         // TODO: we actually don't need to loop through ALL mesh entities, should maintain a list of ones with pending uploads
         for (MeshEntity* pMeshEntity : m_pWorld->GetMeshEntities())
         {
@@ -260,10 +259,10 @@ public:
                 if (imageFinishedUploading && (pSubMesh->texturesReady == false) && hasImage)
                 {
                     auto imageViewCreateInfo = DefaultImageViewCreateInfo(pSubMesh->diffuseImage.image, g_defaultTextureFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
-                    pSubMesh->diffuseImage.view = m_rctx->CreateViewForAllocatedImage(imageViewCreateInfo);
+                    pSubMesh->diffuseImage.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
 
                     m_renderableImages.push_back(pSubMesh->diffuseImage);
-                    pSubMesh->diffuseTextureBindlessArraySlot = m_rctx->m_bindlessManager.AddToBindlessTextureArray(pSubMesh->diffuseImage);
+                    pSubMesh->diffuseTextureBindlessArraySlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(pSubMesh->diffuseImage);
                     pSubMesh->texturesReady = true;
                 }
             }
@@ -280,11 +279,11 @@ public:
     {
         for (auto& b: toDestroy)
         {
-            m_rctx->DestroyBuffer(b);
+            GRenderer->DestroyBuffer(b);
         }
         DestroyAllLoadedModels();
-        m_rctx->WaitIdle();
-        m_rctx->DestroyImage(defaultTextureImage);
+        GRenderer->WaitIdle();
+        GRenderer->DestroyImage(defaultTextureImage);
         DestroyAllGPUResidentMeshes();
         DestroyAllGPUResidentTextures();
         Job::Pool.wait();
@@ -309,8 +308,8 @@ public:
             {
                 for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
                 {
-                    m_rctx->DestroyBuffer(pSubMesh->vertexBuffer);
-                    m_rctx->DestroyBuffer(pSubMesh->indexBuffer);
+                    GRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
+                    GRenderer->DestroyBuffer(pSubMesh->indexBuffer);
                 }
             }
             Logger::Info("ResourceManager: Destroyed all meshes");
@@ -321,12 +320,11 @@ public:
         Job::Pool.detach_task([this](){
             for (const AllocatedImage& image : m_renderableImages)
             {
-                m_rctx->DestroyImage(image);
+                GRenderer->DestroyImage(image);
             }
             Logger::Info("ResourceManager: Destroyed all textures");
         });
     }
-    Renderer* m_rctx = nullptr;
     World* m_pWorld = nullptr;
 
     // These data structures should only be accessed by a single render thread

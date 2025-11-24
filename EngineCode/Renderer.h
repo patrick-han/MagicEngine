@@ -232,4 +232,6 @@ public: // TODO: make an interface for this?
 
 };
 
+extern Renderer* GRenderer;
+
 }

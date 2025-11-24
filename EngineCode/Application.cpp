@@ -96,11 +96,11 @@ void Application::Startup()
         , defaultWindow->GetHeight()));
 
     // Renderer
-    m_rctx = new Renderer();
-    m_rctx->Startup(m_gpuctx, m_swapchains[Window::DEFAULT_WINDOW].get());
+    GRenderer = new Renderer();
+    GRenderer->Startup(m_gpuctx, m_swapchains[Window::DEFAULT_WINDOW].get());
     // TODO: move this somewhere else, probably a Camera class
-    m_rctx->outputWidth = defaultWindow->GetWidth();
-    m_rctx->outputHeight = defaultWindow->GetHeight();
+    GRenderer->outputWidth = defaultWindow->GetWidth();
+    GRenderer->outputHeight = defaultWindow->GetHeight();
 
     // IMGUI
     {
@@ -115,7 +115,7 @@ void Application::Startup()
         init_info.QueueFamily = m_gpuctx->GetGraphicsQueueFamilyIndex();
         init_info.Queue = m_gpuctx->GetGraphicsQueue();
         init_info.PipelineCache = VK_NULL_HANDLE;
-        init_info.DescriptorPool = m_rctx->m_imguiDescriptorPool;
+        init_info.DescriptorPool = GRenderer->m_imguiDescriptorPool;
         init_info.Subpass = 0;
         init_info.MinImageCount = g_kDesiredSwapchainImageCount;
         init_info.ImageCount = m_swapchains[Window::DEFAULT_WINDOW]->GetImageCount();
@@ -135,8 +135,8 @@ void Application::Startup()
 
 void Application::Run(Game& game)
 {
-    m_rctx->BuildResources();
-    game.Initialize(m_rctx);
+    GRenderer->BuildResources();
+    game.Initialize(GRenderer);
     game.LoadContent();
     while (true)
     {
@@ -159,12 +159,12 @@ void Application::Run(Game& game)
         }
 
         RenderingInfo renderingInfo = game.Update(inputState, deltaTime);
-        m_rctx->DoWork(m_frameNumber, renderingInfo);
+        GRenderer->DoWork(m_frameNumber, renderingInfo);
         m_frameNumber++;
     }
     game.UnloadContent();
     game.Shutdown();
-    m_rctx->DestroyResources();
+    GRenderer->DestroyResources();
 }
 
 
@@ -184,8 +184,8 @@ void Application::Shutdown()
     {
         window.reset();
     }
-    m_rctx->Shutdown();
-    delete m_rctx;
+    GRenderer->Shutdown();
+    delete GRenderer;
     m_gpuctx->Shutdown();
     delete m_gpuctx;
 }

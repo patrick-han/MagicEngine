@@ -19,6 +19,8 @@
 namespace Magic
 {
 
+Renderer* GRenderer = nullptr;
+
 Renderer::Renderer() { }
 
 Renderer::~Renderer() { }

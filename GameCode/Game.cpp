@@ -26,7 +26,7 @@ void Game::Initialize(Renderer* pRenderer)
     GMemoryManager = new MemoryManager();
     m_pWorld = new World();
     GMemoryManager->Initialize();
-    GResourceManager = new ResourceManager(pRenderer, m_pWorld);
+    GResourceManager = new ResourceManager(m_pWorld);
 
     Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
     GResourceManager->UploadDefaultTexture();
