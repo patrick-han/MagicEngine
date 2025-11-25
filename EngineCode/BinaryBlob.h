@@ -117,6 +117,16 @@ public:
         return out;
     }
 
+    void AddU32Array(std::uint32_t* in, std::size_t count)
+    {
+        AddData(in, sizeof(uint32_t) * count);
+    }
+
+    void GetU32Array(std::uint32_t* out, std::size_t count)
+    {
+        GetData(out, sizeof(std::uint32_t) * count);
+    }
+
     void AddI32(std::int32_t in)
     {
         AddData(&in, sizeof(int32_t));
@@ -175,6 +185,16 @@ public:
         SimpleVertex out;
         GetData(&out, sizeof(SimpleVertex));
         return out;
+    }
+
+    void AddSimpleVertexArr(SimpleVertex* in, std::size_t count)
+    {
+        AddData(in, sizeof(SimpleVertex) * count);
+    }
+
+    void GetSimpleVertexArr(SimpleVertex* out, std::size_t count)
+    {
+        GetData(out, sizeof(SimpleVertex) * count);
     }
 
 
