@@ -1,6 +1,5 @@
 add_subdirectory(ThirdParty)
 add_executable(DataCooker main.cpp
-        Import.h
         ../EngineCode/Common/Math/Vector3f.h
         ../EngineCode/Common/Math/Vector3f.cpp
         ../EngineCode/Common/Log.h

@@ -3,6 +3,7 @@
 #include "ThirdParty/cgltf.h"
 #include "../EngineCode/Common/Log.h"
 #include "../EngineCode/Model.h"
+#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 static int i_node_count = 0;
