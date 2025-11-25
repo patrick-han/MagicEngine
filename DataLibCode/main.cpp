@@ -81,10 +81,7 @@ int main(int argc, char *argv[])
         Data::ProcessAssimpNode(modelData, scene->mRootNode, scene, Data::ConvertFromAssimpMatrix(scene->mRootNode->mTransformation), filepath);
     }
 #endif
-    Data::SerializeModelData(modelData, outputPath);
-
-    // ModelData modelData2 = Data::DeserializeModelData(outputPath);
-
+    Data::SerializeModelDataBlob(modelData, outputPath);
 
     Logger::Info(std::format("Processed model: {}", filepathStr));
 }

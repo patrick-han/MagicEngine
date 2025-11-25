@@ -2,7 +2,9 @@
 #include <cstddef>
 // #include "MemoryManager.h"
 #include <cstdlib>
+#include <cassert>
 #include <cstring>
+#include "Common/Log.h"
 
 namespace Magic
 {
@@ -105,9 +107,43 @@ public:
         return out;
     }
 
+    void AddUCharArr(const unsigned char* in, std::size_t count)
+    {
+        AddData(in, sizeof(unsigned char) * count);
+    }
+
+    void GetUCharArr(unsigned char* out, std::size_t count)
+    {
+        GetData(out, sizeof(unsigned char) * count);
+    }
+
     void AddU32(std::uint32_t in)
     {
         AddData(&in, sizeof(uint32_t));
+    }
+
+    std::uint64_t GetU64()
+    {
+        std::uint64_t out;
+        GetData(&out, sizeof(std::uint64_t));
+        return out;
+    }
+
+    void AddU64(std::uint64_t in)
+    {
+        AddData(&in, sizeof(uint64_t));
+    }
+
+    std::size_t GetSizeT()
+    {
+        std::size_t out;
+        GetData(&out, sizeof(std::size_t));
+        return out;
+    }
+
+    void AddSizeT(std::size_t in)
+    {
+        AddData(&in, sizeof(size_t));
     }
 
     std::uint32_t GetU32()
@@ -117,7 +153,7 @@ public:
         return out;
     }
 
-    void AddU32Array(std::uint32_t* in, std::size_t count)
+    void AddU32Array(const std::uint32_t* in, std::size_t count)
     {
         AddData(in, sizeof(uint32_t) * count);
     }
@@ -163,6 +199,16 @@ public:
         return out;
     }
 
+    void AddMatrix4fArr(const Matrix4f* in, std::size_t count)
+    {
+        AddData(in, sizeof(Matrix4f) * count);
+    }
+
+    void GetMatrix4fArr(Matrix4f* out, std::size_t count)
+    {
+        GetData(out, sizeof(Matrix4f) * count);
+    }
+
     void AddMatrix4f(Matrix4f in)
     {
         AddData(&in, sizeof(Matrix4f));
@@ -187,7 +233,7 @@ public:
         return out;
     }
 
-    void AddSimpleVertexArr(SimpleVertex* in, std::size_t count)
+    void AddSimpleVertexArr(const SimpleVertex* in, std::size_t count)
     {
         AddData(in, sizeof(SimpleVertex) * count);
     }
@@ -217,6 +263,7 @@ private:
     {
         if (m_rwPtr + dataSize > m_blobSize)
         {
+            Logger::Err("Tried to read more than this blob contains!");
             return; // IDK what to do here yet
         }
         std::memcpy(data, m_pBlob + m_rwPtr, dataSize);

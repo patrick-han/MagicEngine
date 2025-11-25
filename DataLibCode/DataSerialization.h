@@ -2,81 +2,56 @@
 #include <fstream>
 #include "../EngineCode/Vertex.h"
 #include "../EngineCode/Model.h"
+#include "../EngineCode/BinaryBlob.h"
 
 
 namespace Magic::Data
 {
 
-inline void SerializeModelData(const ModelData& model, const std::string& filename) {
-    std::ofstream out(filename, std::ios::binary);
-    if (!out) throw std::runtime_error("Failed to open file for writing");
-
-    uint64_t subMeshCount = model.m_subMeshes.size();
-    out.write(reinterpret_cast<const char*>(&subMeshCount), sizeof(subMeshCount));
-
+inline void SerializeModelDataBlob(const ModelData& model, const std::string& filename) 
+{
+    BinaryBlob blob;
+    blob.AddU64(model.m_subMeshes.size());
     for (const SubMeshData& mesh : model.m_subMeshes) {
-        uint64_t vertexCount = mesh.m_vertices.size();
-        out.write(reinterpret_cast<const char*>(&vertexCount), sizeof(vertexCount));
-        out.write(reinterpret_cast<const char*>(mesh.m_vertices.data()), vertexCount * sizeof(SimpleVertex));
-
-        uint64_t indexCount = mesh.m_indices.size();
-        out.write(reinterpret_cast<const char*>(&indexCount), sizeof(indexCount));
-        out.write(reinterpret_cast<const char*>(mesh.m_indices.data()), indexCount * sizeof(uint32_t));
-
-        size_t diffuseTextureByteCount = mesh.materialData.diffuseData.data.size();
-        out.write(reinterpret_cast<const char*>(&diffuseTextureByteCount), sizeof(size_t));
-        out.write(reinterpret_cast<const char*>(mesh.materialData.diffuseData.data.data()), diffuseTextureByteCount * sizeof(unsigned char));
-        out.write(reinterpret_cast<const char*>(&mesh.materialData.diffuseData.width), sizeof(int));
-        out.write(reinterpret_cast<const char*>(&mesh.materialData.diffuseData.height), sizeof(int));
-        out.write(reinterpret_cast<const char*>(&mesh.materialData.diffuseData.numChannels), sizeof(int));
+        blob.AddU64(mesh.m_vertices.size());
+        blob.AddSimpleVertexArr(mesh.m_vertices.data(), mesh.m_vertices.size());
+        blob.AddU64(mesh.m_indices.size());
+        blob.AddU32Array(mesh.m_indices.data(), mesh.m_indices.size());
+        blob.AddSizeT(mesh.materialData.diffuseData.data.size());
+        blob.AddUCharArr(mesh.materialData.diffuseData.data.data(), mesh.materialData.diffuseData.data.size());
+        blob.AddI32(mesh.materialData.diffuseData.width);
+        blob.AddI32(mesh.materialData.diffuseData.height);
+        blob.AddI32(mesh.materialData.diffuseData.numChannels);
     }
-
-    for (auto& transform : model.m_transforms)
-    {
-        out.write(reinterpret_cast<const char*>(&transform), sizeof(Matrix4f));
-    }
-
+    blob.AddMatrix4fArr(model.m_transforms.data(), model.m_transforms.size());
+    blob.SaveToFile(filename);
 }
 
-inline std::optional<ModelData> DeserializeModelData(const std::string& filename)
+inline std::optional<ModelData> DeserializeModelDataBlob(const std::string& filename)
 {
-    std::ifstream in(filename, std::ios::binary);
-    if (!in)
-    {
-        return std::nullopt;
-    }
-
+    BinaryBlob blob;
+    blob.LoadFromFile(filename);
     ModelData model;
-    uint64_t subMeshCount;
-    in.read(reinterpret_cast<char*>(&subMeshCount), sizeof(subMeshCount));
+    uint64_t subMeshCount = blob.GetU64();
     model.m_subMeshes.resize(subMeshCount);
 
     for (SubMeshData& mesh : model.m_subMeshes) {
-        uint64_t vertexCount;
-        in.read(reinterpret_cast<char*>(&vertexCount), sizeof(vertexCount));
+        uint64_t vertexCount = blob.GetU64();
         mesh.m_vertices.resize(vertexCount);
-        in.read(reinterpret_cast<char*>(mesh.m_vertices.data()), vertexCount * sizeof(SimpleVertex));
-
-        uint64_t indexCount;
-        in.read(reinterpret_cast<char*>(&indexCount), sizeof(indexCount));
+        blob.GetSimpleVertexArr(mesh.m_vertices.data(), vertexCount);
+        uint64_t indexCount = blob.GetU64();
         mesh.m_indices.resize(indexCount);
-        in.read(reinterpret_cast<char*>(mesh.m_indices.data()), indexCount * sizeof(uint32_t));
-
-        size_t diffuseTextureByteCount;
-        in.read(reinterpret_cast<char*>(&diffuseTextureByteCount), sizeof(size_t));
+        blob.GetU32Array(mesh.m_indices.data(), indexCount);
+        std::size_t diffuseTextureByteCount = blob.GetSizeT();
         mesh.materialData.diffuseData.data.resize(diffuseTextureByteCount);
-        in.read(reinterpret_cast<char*>(mesh.materialData.diffuseData.data.data()), diffuseTextureByteCount * sizeof(unsigned char));
-        in.read(reinterpret_cast<char*>(&mesh.materialData.diffuseData.width), sizeof(int));
-        in.read(reinterpret_cast<char*>(&mesh.materialData.diffuseData.height), sizeof(int));
-        in.read(reinterpret_cast<char*>(&mesh.materialData.diffuseData.numChannels), sizeof(int));
+        blob.GetUCharArr(mesh.materialData.diffuseData.data.data(), diffuseTextureByteCount);
+        mesh.materialData.diffuseData.width = blob.GetI32();
+        mesh.materialData.diffuseData.height = blob.GetI32();
+        mesh.materialData.diffuseData.numChannels = blob.GetI32();
     }
-
     model.m_transforms.resize(model.m_subMeshes.size());
-    for (size_t i = 0; i < model.m_transforms.size(); i++)
-    {
-        in.read(reinterpret_cast<char*>(&model.m_transforms[i]), sizeof(Matrix4f));
-    }
-
-    return model; // TODO: RVO?
+    blob.GetMatrix4fArr(model.m_transforms.data(), model.m_transforms.size());
+    return model;
 }
+
 }
