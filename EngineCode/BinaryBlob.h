@@ -247,16 +247,23 @@ public:
 private:
     void AddData(const void* data, std::size_t dataSize)
     {
-        if (m_rwPtr + dataSize > m_reservedBlobSize)
+        std::size_t neededSize = m_rwPtr + dataSize;
+        if (neededSize > m_reservedBlobSize)
         {
-            std::size_t newReservedBlobSize = m_blobSize * 2 + dataSize;
-            m_pBlob = (std::byte*)std::realloc((void*)m_pBlob, newReservedBlobSize);
+            std::size_t newReservedBlobSize = m_reservedBlobSize * 2 + dataSize; // Better strategy?
+            std::byte* newPtr = (std::byte*)std::realloc((void*)m_pBlob, newReservedBlobSize);
+            if (!newPtr)
+            {
+                Logger::Err("Failed to realloc binary blob");
+                return;
+            }
+            m_pBlob = newPtr;
             m_reservedBlobSize = newReservedBlobSize;
         }
 
         std::memcpy(m_pBlob + m_rwPtr, data, dataSize);
         m_rwPtr += dataSize;
-        m_blobSize += dataSize;
+        m_blobSize = std::max(m_rwPtr, m_blobSize); // If we SetPos() to somewhere in the middle, the size should only grow if we're writing at the end
     }
 
     void GetData(void* data, std::size_t dataSize)
@@ -264,6 +271,7 @@ private:
         if (m_rwPtr + dataSize > m_blobSize)
         {
             Logger::Err("Tried to read more than this blob contains!");
+            assert(false);
             return; // IDK what to do here yet
         }
         std::memcpy(data, m_pBlob + m_rwPtr, dataSize);
