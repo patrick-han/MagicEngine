@@ -80,8 +80,14 @@ void ResourceDatabase::Reload()
         }
         UUID uuid;
         const char* name = resource.attribute("name").as_string();
-        assert(UUID::TryParse(resource.attribute("uuid").as_string(), uuid));
+        bool parseUUID = UUID::TryParse(resource.attribute("uuid").as_string(), uuid);
+        assert(parseUUID);
         RegisterResource(uuid, name, resType, resource);
+    }
+    Logger::Info(std::format("Resource Database Reload() finished with {} resources: ", m_uuids.size()));
+    for (auto it = m_uuid_to_name.begin(); it != m_uuid_to_name.end(); ++it)
+    {
+        Logger::Info(std::format("UUID: {}, {}", it->first.ToString(), it->second));
     }
 }
 
@@ -155,7 +161,8 @@ void ResourceDatabase::RemoveResource(const char* resourceName)
     const char* uuidStr = resource.attribute("uuid").as_string();
     assert((uuidStr != nullptr) && (uuidStr[0] != '\0')); // uuid not nullptr (exists) and not empty
     UUID uuid;
-    assert(UUID::TryParse(uuidStr, uuid));
+    bool parseUUID = UUID::TryParse(uuidStr, uuid);
+    assert(parseUUID);
 
 
     resource.parent().remove_child(resource); // this must happen only here lest uuidStr become invalid!!!

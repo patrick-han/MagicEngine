@@ -77,7 +77,8 @@ void World::Reload()
         }
         UUID uuid;
         const char* name = entity.attribute("name").as_string();
-        assert(UUID::TryParse(entity.attribute("uuid").as_string(), uuid));
+        bool uuidParse = UUID::TryParse(entity.attribute("uuid").as_string(), uuid);
+        assert(uuidParse);
         RegisterEntity(uuid, name, entityType, entity);
     }
 }
@@ -181,7 +182,8 @@ void World::RemoveEntity(const char *entityName)
     const char* uuidStr = entity.attribute("uuid").as_string();
     assert((uuidStr != nullptr) && (uuidStr[0] != '\0')); // uuid not nullptr (exists) and not empty
     UUID uuid;
-    assert(UUID::TryParse(uuidStr, uuid));
+    bool parseUUID = UUID::TryParse(uuidStr, uuid);
+    assert(parseUUID);
 
 
     entity.parent().remove_child(entity); // this must happen only here lest uuidStr become invalid!!!
