@@ -76,7 +76,7 @@ inline void LoadTextureData(const std::filesystem::path& texturePath, TextureDat
     textureData.data = std::move(pixels);
 }
 
-inline void ProcessAssimpMesh(MeshData& meshData, aiMesh *mesh, const aiScene *scene, const std::filesystem::path& modelpath)
+inline void ProcessAssimpMesh(SubMeshData& meshData, aiMesh *mesh, const aiScene *scene, const std::filesystem::path& modelpath)
 {
     // Vertex colors temp workaround, only allows vertex colors per mesh and not vertex
     aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
@@ -167,9 +167,9 @@ inline void ProcessAssimpNode(ModelData& modelData, aiNode *node, const aiScene 
     for (unsigned int i = 0; i < node->mNumMeshes; i++)
     {
         aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-        MeshData meshData;
+        SubMeshData meshData;
         ProcessAssimpMesh(meshData, mesh, scene, modelpath);
-        modelData.m_meshes.push_back(std::move(meshData));
+        modelData.m_subMeshes.push_back(std::move(meshData));
         modelData.m_transforms.push_back(worldTransform);
     }
     // Recursively process this node's child nodes

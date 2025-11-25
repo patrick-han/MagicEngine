@@ -22,7 +22,7 @@ struct MaterialData
     // TextureData emissiveData;
 };
 
-struct MeshData
+struct SubMeshData
 {
     MaterialData materialData;
     std::vector<SimpleVertex> m_vertices;
@@ -31,7 +31,7 @@ struct MeshData
 
 struct ModelData
 {
-    std::vector<MeshData> m_meshes;
+    std::vector<SubMeshData> m_subMeshes;
     std::vector<Matrix4f> m_transforms;
 };
 

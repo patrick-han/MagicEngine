@@ -130,7 +130,7 @@ public:
             MeshEntity* pMeshEntity = m_pWorld->CreateMeshEntity();
 
             size_t meshCounter = 0;
-            for (const MeshData& meshData : testModel->m_meshes)
+            for (const SubMeshData& meshData : testModel->m_subMeshes)
             {
                 // We can go ahead and fill out some of the data now and wait for buffers later
                 // SubMesh* pSubMesh = pMeshEntity->AddSubMesh();

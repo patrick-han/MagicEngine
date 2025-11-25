@@ -11,10 +11,10 @@ inline void SerializeModelData(const ModelData& model, const std::string& filena
     std::ofstream out(filename, std::ios::binary);
     if (!out) throw std::runtime_error("Failed to open file for writing");
 
-    uint64_t meshCount = model.m_meshes.size();
-    out.write(reinterpret_cast<const char*>(&meshCount), sizeof(meshCount));
+    uint64_t subMeshCount = model.m_subMeshes.size();
+    out.write(reinterpret_cast<const char*>(&subMeshCount), sizeof(subMeshCount));
 
-    for (const MeshData& mesh : model.m_meshes) {
+    for (const SubMeshData& mesh : model.m_subMeshes) {
         uint64_t vertexCount = mesh.m_vertices.size();
         out.write(reinterpret_cast<const char*>(&vertexCount), sizeof(vertexCount));
         out.write(reinterpret_cast<const char*>(mesh.m_vertices.data()), vertexCount * sizeof(SimpleVertex));
@@ -47,11 +47,11 @@ inline std::optional<ModelData> DeserializeModelData(const std::string& filename
     }
 
     ModelData model;
-    uint64_t meshCount;
-    in.read(reinterpret_cast<char*>(&meshCount), sizeof(meshCount));
-    model.m_meshes.resize(meshCount);
+    uint64_t subMeshCount;
+    in.read(reinterpret_cast<char*>(&subMeshCount), sizeof(subMeshCount));
+    model.m_subMeshes.resize(subMeshCount);
 
-    for (MeshData& mesh : model.m_meshes) {
+    for (SubMeshData& mesh : model.m_subMeshes) {
         uint64_t vertexCount;
         in.read(reinterpret_cast<char*>(&vertexCount), sizeof(vertexCount));
         mesh.m_vertices.resize(vertexCount);
@@ -71,7 +71,7 @@ inline std::optional<ModelData> DeserializeModelData(const std::string& filename
         in.read(reinterpret_cast<char*>(&mesh.materialData.diffuseData.numChannels), sizeof(int));
     }
 
-    model.m_transforms.resize(model.m_meshes.size());
+    model.m_transforms.resize(model.m_subMeshes.size());
     for (size_t i = 0; i < model.m_transforms.size(); i++)
     {
         in.read(reinterpret_cast<char*>(&model.m_transforms[i]), sizeof(Matrix4f));

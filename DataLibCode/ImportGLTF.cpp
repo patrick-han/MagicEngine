@@ -90,7 +90,7 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
             modelData.m_transforms.push_back(worldTransform);
             //
 
-            MeshData meshData;
+            SubMeshData meshData;
             // Typically a mesh will have a single primitive, but in some cases primitives are used for:
             // - Multiple materials per "object", allowing vertex data re-use
             // - Splitting big meshes if bitsize of indices is not enough
@@ -225,11 +225,11 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
             {
                 vertex.color = baseColorFactor;
             }
-            modelData.m_meshes.push_back(std::move(meshData));
+            modelData.m_subMeshes.push_back(std::move(meshData));
         }
     }
 
-    assert(modelData.m_meshes.size() == modelData.m_transforms.size());
+    assert(modelData.m_subMeshes.size() == modelData.m_transforms.size());
 
     i_node_count++;
     if (node->children_count > 0)
