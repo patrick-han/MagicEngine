@@ -76,6 +76,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/Threading.cpp
         EngineCode/Threading.h
         EngineCode/ResourceManager.cpp
+        EngineCode/BinaryBlob.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

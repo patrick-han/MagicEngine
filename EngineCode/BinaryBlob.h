@@ -1,0 +1,210 @@
+#pragma once
+#include <cstddef>
+// #include "MemoryManager.h"
+#include <cstdlib>
+#include <cstring>
+
+namespace Magic
+{
+class BinaryBlob // TODO: just gonna assume everything is Little Endian by default
+{
+public:
+    BinaryBlob() 
+    {
+        InitializeAndAlloc(); // Ensure that buffer is never invalid, slow but we'll worry about that if the time comes
+    }
+    ~BinaryBlob()
+    {
+        std::free(m_pBlob);
+    }
+    void InitializeAndAlloc()
+    {
+        m_rwPtr = 0;
+        m_blobSize = 0;
+        m_reservedBlobSize = 128;
+        m_pBlob = (std::byte*)std::malloc(m_reservedBlobSize);
+    }
+
+    bool LoadFromFile(const std::string& blobFilePath)
+    {
+        std::FILE* fileHandle = std::fopen(blobFilePath.c_str(), "rb");
+        assert(fileHandle);
+        // Get the size of the entire blob
+        std::fseek(fileHandle, 0, SEEK_END);
+        std::size_t blobSize = std::ftell(fileHandle);
+        std::rewind(fileHandle);
+
+        std::free(m_pBlob);
+        m_rwPtr = 0;
+        m_reservedBlobSize = blobSize;
+        m_blobSize = blobSize;
+        m_pBlob = (std::byte*)std::malloc(m_reservedBlobSize);
+
+        std::size_t outBytes = std::fread(m_pBlob, blobSize, 1, fileHandle);
+        std::fclose(fileHandle);
+        if (outBytes == 0)
+        {
+            Logger::Err(std::format("Couldn't load blob file: {}", blobFilePath.c_str()));
+            return false;
+        }
+        return true;
+    }
+
+    bool SaveToFile(const std::string& blobFilePath)
+    {
+        std::FILE* fileHandle = std::fopen(blobFilePath.c_str(), "wb");
+        assert(fileHandle);
+        std::fseek(fileHandle, 0, SEEK_SET);
+
+        std::size_t inBytes = std::fwrite(m_pBlob, m_blobSize, 1, fileHandle);
+        std::fclose(fileHandle);
+        if (inBytes == 0)
+        {
+            Logger::Err(std::format("Couldn't write blob file: {}", blobFilePath.c_str()));
+            return false;
+        }
+
+        return true;
+    }
+
+    void Clear()
+    {
+        std::free(m_pBlob);
+        InitializeAndAlloc(); // ditto
+    }
+
+    std::size_t GetPos() const { return m_rwPtr; }
+    bool SetPos(std::size_t inPos)
+    {
+        if (inPos > m_blobSize)
+        {
+            return false;
+        }
+        m_rwPtr = inPos;
+        return true;
+    }
+    bool AdvancePos(std::size_t inSize)
+    {
+        if (m_rwPtr + inSize >= m_blobSize)
+        {
+            return false;
+        }
+        m_rwPtr += inSize;
+        return true;
+    }
+
+    void AddChar(char in)
+    {
+        AddData(&in, sizeof(char));
+    }
+
+    char GetChar()
+    {
+        char out;
+        GetData(&out, sizeof(char));
+        return out;
+    }
+
+    void AddU32(std::uint32_t in)
+    {
+        AddData(&in, sizeof(uint32_t));
+    }
+
+    std::uint32_t GetU32()
+    {
+        std::uint32_t out;
+        GetData(&out, sizeof(std::uint32_t));
+        return out;
+    }
+
+    void AddI32(std::int32_t in)
+    {
+        AddData(&in, sizeof(int32_t));
+    }
+
+    std::int32_t GetI32()
+    {
+        std::int32_t out;
+        GetData(&out, sizeof(std::int32_t));
+        return out;
+    }
+
+    void AddF32(float in) // Bet on it :D
+    {
+        AddData(&in, sizeof(float));
+    }
+
+    float GetF32()
+    {
+        float out;
+        GetData(&out, sizeof(float));
+        return out;
+    }
+
+    void AddVector3f(Vector3f in)
+    {
+        AddData(&in, sizeof(Vector3f));
+    }
+
+    Vector3f GetVector3f()
+    {
+        Vector3f out;
+        GetData(&out, sizeof(Vector3f));
+        return out;
+    }
+
+    void AddMatrix4f(Matrix4f in)
+    {
+        AddData(&in, sizeof(Matrix4f));
+    }
+
+    Matrix4f GetMatrix4f()
+    {
+        Matrix4f out;
+        GetData(&out, sizeof(Matrix4f));
+        return out;
+    }
+
+    void AddSimpleVertex(SimpleVertex in)
+    {
+        AddData(&in, sizeof(SimpleVertex));
+    }
+
+    SimpleVertex GetSimpleVertex()
+    {
+        SimpleVertex out;
+        GetData(&out, sizeof(SimpleVertex));
+        return out;
+    }
+
+
+private:
+    void AddData(const void* data, std::size_t dataSize)
+    {
+        if (m_rwPtr + dataSize > m_reservedBlobSize)
+        {
+            std::size_t newReservedBlobSize = m_blobSize * 2 + dataSize;
+            m_pBlob = (std::byte*)std::realloc((void*)m_pBlob, newReservedBlobSize);
+            m_reservedBlobSize = newReservedBlobSize;
+        }
+
+        std::memcpy(m_pBlob + m_rwPtr, data, dataSize);
+        m_rwPtr += dataSize;
+        m_blobSize += dataSize;
+    }
+
+    void GetData(void* data, std::size_t dataSize)
+    {
+        if (m_rwPtr + dataSize > m_blobSize)
+        {
+            return; // IDK what to do here yet
+        }
+        std::memcpy(data, m_pBlob + m_rwPtr, dataSize);
+        m_rwPtr += dataSize;
+    }
+    std::byte* m_pBlob = nullptr;
+    std::size_t m_rwPtr = 0;
+    std::size_t m_blobSize = 0;
+    std::size_t m_reservedBlobSize = 0;
+};
+}
