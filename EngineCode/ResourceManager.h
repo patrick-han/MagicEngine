@@ -126,7 +126,10 @@ public:
                 }
             }
 
-            MeshEntity* pMeshEntity = m_pWorld->CreateMeshEntity();
+            MeshEntity* pMeshEntity = new MeshEntity;
+            assert(pMeshEntity);
+            m_meshEntities.push_back(pMeshEntity);
+            m_staticMeshResNameToArrayIndex[job.modelName] = m_meshEntities.size() - 1;
 
             size_t meshCounter = 0;
             for (const SubMeshData& meshData : testModel->m_subMeshes)
@@ -252,7 +255,7 @@ public:
     {
         uint64_t value = GRenderer->GetCurrentStreamingTimelineValue();
         // TODO: we actually don't need to loop through ALL mesh entities, should maintain a list of ones with pending uploads
-        for (MeshEntity* pMeshEntity : m_pWorld->GetMeshEntities())
+        for (MeshEntity* pMeshEntity : m_meshEntities)
         {
             for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
@@ -305,14 +308,24 @@ public:
     void DestroyAllGPUResidentMeshes()
     {
         
-        Job::Pool.detach_task([this](){            
-            for (MeshEntity* pMeshEntity : m_pWorld->GetMeshEntities())
+        Job::Pool.detach_task([this](){    
+            // First destroy all GPU resources associated with static meshes
+            // And then we can free our CPU side representations        
+            for (MeshEntity* pMeshEntity : m_meshEntities)
             {
                 for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
                 {
                     GRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
                     GRenderer->DestroyBuffer(pSubMesh->indexBuffer);
                 }
+            }
+            for (MeshEntity* pMeshEntity : m_meshEntities)
+            {
+                for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
+                {
+                    GMemoryManager->FreeSubMesh(pSubMesh);
+                }
+                delete pMeshEntity;
             }
             Logger::Info("ResourceManager: Destroyed all meshes");
         });
@@ -327,9 +340,12 @@ public:
             Logger::Info("ResourceManager: Destroyed all textures");
         });
     }
-    World* m_pWorld = nullptr;
 
     // These data structures should only be accessed by a single render thread
+public:
+    std::unordered_map<std::string, std::size_t> m_staticMeshResNameToArrayIndex; // string is slow key, but this lookup should only happen once or twice during the lifetime of an entity
+    std::vector<MeshEntity*> m_meshEntities;
+private:
     std::vector<AllocatedImage> m_renderableImages;
 
     

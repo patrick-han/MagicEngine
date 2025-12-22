@@ -57,6 +57,11 @@ void World::Reload()
     m_uuid_to_name.clear();
     m_uuid_to_type.clear();
     m_uuid_to_node.clear();
+    {
+        std::queue<ResourcePendingStaticMeshEntity> empty;
+        std::swap(empty, m_resourcePendingStaticMeshEntities);
+    }
+    m_uuid_to_pMeshEntity.clear();
 
     for (pugi::xml_node entity : m_db.children("entity"))
     {
@@ -64,6 +69,12 @@ void World::Reload()
         assert(entity.attribute("uuid"));
         assert(entity.attribute("type"));
         EntityType entityType = StrToEntityType(entity.attribute("type").as_string());
+
+        UUID uuid;
+        const char* name = entity.attribute("name").as_string();
+        bool uuidParse = UUID::TryParse(entity.attribute("uuid").as_string(), uuid);
+        assert(uuidParse);
+
         if (entityType == EntityType::Unknown)
         {
             continue;
@@ -74,11 +85,10 @@ void World::Reload()
             assert(resource_staticmesh);
             assert(resource_staticmesh.attribute("name"));
             assert(resource_staticmesh.attribute("uuid"));
+            // EntityUUID, resource name
+            m_resourcePendingStaticMeshEntities.emplace(uuid, resource_staticmesh.attribute("name").as_string());
         }
-        UUID uuid;
-        const char* name = entity.attribute("name").as_string();
-        bool uuidParse = UUID::TryParse(entity.attribute("uuid").as_string(), uuid);
-        assert(uuidParse);
+        
         RegisterEntity(uuid, name, entityType, entity);
     }
 }
@@ -108,34 +118,17 @@ void World::Save()
     }
 }
 
-// const char* World::GetEntityStaticMeshResourceName(UUID uuid) const
-// {
-//     if (!CheckIfEntityExists(uuid))
-//     {
-//         Logger::Err("GetEntityStaticMeshResourceName(): Entity doesn't exist");
-//         return nullptr;
-//     }
-//     EntityType type = m_uuid_to_type.at(uuid);
-//     if (type != EntityType::StaticMesh)
-//     {
-//         Logger::Err("GetEntityStaticMeshResourceName(): Not a StaticMesh Entity");
-//         return nullptr;
-//     }
-//     pugi::xml_node entity = m_uuid_to_node.at(uuid);
-//     return entity.child("resource_staticmesh").attribute("name").as_string();
-// }
-
 std::optional<UUID> World::GetStaticMeshEntityResourceUUID(UUID uuid) const
 {
     if (!CheckIfEntityExists(uuid))
     {
-        Logger::Err("GetEntityStaticMeshResourceName(): Entity doesn't exist");
+        Logger::Err("GetStaticMeshEntityResourceUUID(): Entity doesn't exist");
         return std::nullopt;
     }
     EntityType type = m_uuid_to_type.at(uuid);
     if (type != EntityType::StaticMesh)
     {
-        Logger::Err("GetEntityStaticMeshResourceName(): Not a StaticMesh Entity");
+        Logger::Err("GetStaticMeshEntityResourceUUID(): Not a StaticMesh Entity");
         return std::nullopt;
     }
     pugi::xml_node entity = m_uuid_to_node.at(uuid);
@@ -143,7 +136,7 @@ std::optional<UUID> World::GetStaticMeshEntityResourceUUID(UUID uuid) const
     UUID resource_uuid;
     if (!UUID::TryParse(uuid_str, resource_uuid))
     {
-        Logger::Err("GetEntityStaticMeshResourceName(): Could not parse UUID string");
+        Logger::Err("GetStaticMeshEntityResourceUUID(): Could not parse UUID string");
         return std::nullopt;
     }
     return resource_uuid;
@@ -215,12 +208,12 @@ static void AddEntityTransform(pugi::xml_node node)
 
 void World::AddStaticMeshEntity(const char* entityName)
 {
-    pugi::xml_node node = AddEntity(entityName, EntityType::StaticMesh);
+    pugi::xml_node node = AddEntityNode(entityName, EntityType::StaticMesh);
     node.append_attribute("type").set_value("staticmesh");
     // node.append_attribute("genesis").set_value(true);
     AddEntityTransform(node);
     pugi::xml_node resource_staticmesh = node.append_child("resource_staticmesh");
-    resource_staticmesh.append_attribute("name").set_value(entityName);
+    resource_staticmesh.append_attribute("name").set_value("BLANK");
 }
 
 void World::UnregisterEntity(UUID uuid)
@@ -234,6 +227,7 @@ void World::UnregisterEntity(UUID uuid)
 
 void World::RegisterEntity(UUID uuid, const std::string &name, const EntityType resType, pugi::xml_node node)
 {
+    m_entityCount++;
     m_uuids.insert(uuid);
     m_uuid_to_name.insert({uuid, name});
     m_uuid_to_type.insert({uuid, resType});
@@ -246,7 +240,7 @@ void World::RegisterEntity(UUID uuid, const std::string &name, const EntityType 
         );
 }
 
-pugi::xml_node World::AddEntity(const char *entityName, EntityType type)
+pugi::xml_node World::AddEntityNode(const char *entityName, EntityType type)
 {
     if (CheckIfEntityExists(entityName))
     {
@@ -263,57 +257,6 @@ pugi::xml_node World::AddEntity(const char *entityName, EntityType type)
 
 void World::Destroy()
 {
-    DestroyAllMeshEntities();
-}
-
-#define ENTITY_PLUS() m_entityCount++
-#define ENTITY_MINUS() m_entityCount--
-
-MeshEntity *World::CreateMeshEntity()
-{
-    MeshEntity* newMeshEntity = new MeshEntity;
-    m_meshEntities.push_back(newMeshEntity);
-    ENTITY_PLUS();
-    return newMeshEntity;
-}
-
-void World::RemoveMeshEntity(MeshEntity* pMeshEntity)
-{
-    auto it = std::find(m_meshEntities.begin(), m_meshEntities.end(), pMeshEntity);
-    if (it != m_meshEntities.end())
-    {
-        for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
-        {
-            GMemoryManager->FreeSubMesh(pSubMesh);
-            // This doesnt work because a frame in flight might be using one of these resources, need to queue them for desctruction after mesh entity
-            // gets removed from the world (and as a result can never get passed to the Renderer)
-            // m_pRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
-            // m_pRenderer->DestroyBuffer(pSubMesh->indexBuffer);
-            // m_pRenderer->DestroyImage(pSubMesh->diffuseImage);
-        }
-        *it = m_meshEntities.back();
-        m_meshEntities.pop_back();
-        delete pMeshEntity;
-    }
-    ENTITY_MINUS();
-}
-
-std::span<MeshEntity *const> World::GetMeshEntities() const
-{
-    return std::span<MeshEntity *const>(m_meshEntities);
-}
-
-void World::DestroyAllMeshEntities()
-{
-    for (MeshEntity* pMeshEntity : m_meshEntities)
-    {
-        for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
-        {
-            GMemoryManager->FreeSubMesh(pSubMesh);
-        }
-        delete pMeshEntity;
-    }
-    m_meshEntities.clear();
     m_entityCount = 0;
 }
 }

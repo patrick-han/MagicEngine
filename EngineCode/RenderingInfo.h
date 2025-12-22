@@ -14,6 +14,7 @@ struct GameStats
     int pendingModelUploadCount = 0;
     int pendingBufferUploadCount = 0;
     int pendingImageUploadCount = 0;
+    int pendingStaticMeshEntities = 0;
 };
 
 

@@ -585,6 +585,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         ImGui::Text("Pending Model Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingModelUploadCount);
         ImGui::Text("Pending Buffer Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingBufferUploadCount);
         ImGui::Text("Pending Image Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingImageUploadCount);
+        ImGui::Text("Pending StaticMesh Entities:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingStaticMeshEntities);
         ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
         ImGui::End();
 

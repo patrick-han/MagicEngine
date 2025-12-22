@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <unordered_set>
+#include <queue>
 #include "pugixml.h"
 #include "MeshEntity.h"
 #include "UUID.h"
@@ -11,6 +12,23 @@ namespace Magic
 {
 class MemoryManager;
 class Renderer;
+
+// The World is sort of a logical view of entities, and has mappings to the "real entities (like MeshEntity)" that are stored elsewhere
+// For example with static mesh entities, the World doesn't actually own the CPU or GPU static data, it can only
+// request that the owners (ResourceManager atm) destroy or create
+
+// Basically this class should only be used to store references like:
+// - Entity UUIDs
+// - Pointers
+// - Strings
+
+
+struct ResourcePendingStaticMeshEntity
+{
+    UUID entityUUID;
+    std::string resourceName;
+};
+
 class World
 {
 public:
@@ -20,8 +38,6 @@ public:
     static const char* EntityTypeToStr(EntityType entityType);
     void Init(const char* dbPath);
     void Save();
-    [[nodiscard]] const char* GetEntityStaticMeshResourceName(UUID uuid) const;
-    [[nodiscard]] std::optional<UUID> GetStaticMeshEntityResourceUUID(UUID uuid) const;
     [[nodiscard]] const char* GetEntityName(UUID uuid) const;
     [[nodiscard]] EntityType GetEntityType(UUID uuid) const;
     [[nodiscard]] const std::unordered_set<UUID>& GetAllUUIDs() const;
@@ -31,22 +47,11 @@ public:
     void RemoveEntity(UUID uuid);
 
     void AddStaticMeshEntity(const char* entityName);
+    [[nodiscard]] std::optional<UUID> GetStaticMeshEntityResourceUUID(UUID uuid) const;
 
 
     void Destroy();
-
-    [[nodiscard]] MeshEntity* CreateMeshEntity();
-    void RemoveMeshEntity(MeshEntity* pMeshEntity);
-    [[nodiscard]] std::span<MeshEntity* const> GetMeshEntities() const;
-    [[nodiscard]] int GetSubMeshCount() const
-    {
-        int count = 0;
-        for (const MeshEntity* const mesh : m_meshEntities)
-        {
-            count += mesh->GetSubMeshes().size();
-        }
-        return count;
-    }
+public:
     [[nodiscard]] int GetEntityCount() const { return m_entityCount; }
 private:
     pugi::xml_document m_db;
@@ -61,10 +66,19 @@ private:
     std::unordered_map<UUID, std::string> m_uuid_to_name;
     std::unordered_map<UUID, EntityType> m_uuid_to_type;
     std::unordered_map<UUID, pugi::xml_node> m_uuid_to_node;
-    [[nodiscard]] pugi::xml_node AddEntity(const char* entityName, EntityType type);
 
-    void DestroyAllMeshEntities();
-    std::vector<MeshEntity*> m_meshEntities;
+public:
+    ////// Static Meshes START //////
+    std::queue<ResourcePendingStaticMeshEntity> m_resourcePendingStaticMeshEntities;
+    // Entity UUID to meshEntity mapping as retrieved from ResourceManager
+    // Entities only appear here once they've found their resources
+    std::unordered_map<UUID, MeshEntity*> m_uuid_to_pMeshEntity;
+    ////// Static Meshes END //////
+
+
+private:
+
+    [[nodiscard]] pugi::xml_node AddEntityNode(const char* entityName, EntityType type);
     std::string m_mapName;
     int m_entityCount = 0;
 };

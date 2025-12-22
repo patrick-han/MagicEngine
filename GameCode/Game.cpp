@@ -11,6 +11,7 @@
 #include <vector>
 #include <cassert>
 #include "../EngineCode/Threading.h"
+#include "../EngineCode/BinaryBlob.h"
 
 #include <filesystem>
 namespace Magic
@@ -21,6 +22,68 @@ Game::~Game() { }
 
 void Game::Initialize(Renderer* pRenderer)
 {
+
+    /*
+    // TeST
+    Matrix4f m0;
+    m0.m22 = 1337;
+    Matrix4f m1;
+    m1.m00 = 9999;
+
+    SimpleVertex vtx;
+    vtx.position = Vector3f(1337, 0, 1337);
+    vtx.uv_x = 0.23;
+    vtx.color = Vector3f(255, 0, 255);
+    vtx.uv_y = 0.32;
+    vtx.normal = Vector3f(0.5,0.6,0.7);
+
+    std::vector<std::uint32_t> u32v {1,3,9998};
+
+    BinaryBlob blob;
+    blob.InitializeAndAlloc();
+
+    blob.AddChar('a');
+    blob.AddChar('B');
+    blob.AddChar('c');
+    blob.AddChar('D');
+    blob.AddU32Array(u32v.data(), u32v.size());
+    blob.AddVector3f(Vector3f(1.321, 2.123, 3.123));
+    blob.AddMatrix4f(m0);
+    blob.AddSimpleVertex(vtx);
+    blob.AddF32(3.14);
+    blob.AddMatrix4f(m1);
+    blob.SetPos(0);
+    char a = blob.GetChar();
+    char B = blob.GetChar();
+    char c = blob.GetChar();
+    char D = blob.GetChar();
+    Vector3f v = blob.GetVector3f();
+    Matrix4f M0 = blob.GetMatrix4f();
+    SimpleVertex vtx0 = blob.GetSimpleVertex();
+    float f = blob.GetF32();
+    Matrix4f M1 = blob.GetMatrix4f();
+
+    blob.SaveToFile("test.bin");
+    
+    BinaryBlob blob2;
+    blob2.LoadFromFile("test.bin");
+    blob.SetPos(0);
+    char a2 = blob.GetChar();
+    char B2 = blob.GetChar();
+    char c2 = blob.GetChar();
+    char D2 = blob.GetChar();
+    std::vector<std::uint32_t> u32v2;
+    u32v2.resize(3);
+    blob.GetU32Array(u32v2.data(), 3);
+    Vector3f v2 = blob.GetVector3f();
+    Matrix4f M02 = blob.GetMatrix4f();
+    SimpleVertex vtx02 = blob.GetSimpleVertex();
+    float f2 = blob.GetF32();
+    Matrix4f M12 = blob.GetMatrix4f();
+
+    blob.Clear();
+    */
+
     GResourceDB = new ResourceDatabase();
     GResourceDB->Init("GameCode/magic.db");
     GMemoryManager = new MemoryManager();
@@ -95,15 +158,31 @@ bool a = true;
     GResourceManager->ProcessImageUploadJobs();
     GResourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
 
+    // The World's static mesh entities are looking for certain named resources which the ResourceManager _should_ have
+    while(!m_pWorld->m_resourcePendingStaticMeshEntities.empty())
+    {
+        auto pendingStaticMeshEntity = m_pWorld->m_resourcePendingStaticMeshEntities.front();
+        auto it = GResourceManager->m_staticMeshResNameToArrayIndex.find(pendingStaticMeshEntity.resourceName);
+        if (it == GResourceManager->m_staticMeshResNameToArrayIndex.end())
+        {
+            break;
+        }
+        m_pWorld->m_resourcePendingStaticMeshEntities.pop();
+        std::size_t meshEntityArrayIndex = it->second;
+        MeshEntity* m = GResourceManager->m_meshEntities.at(meshEntityArrayIndex);
+        m_pWorld->m_uuid_to_pMeshEntity.insert({pendingStaticMeshEntity.entityUUID, m});
+    }
+
     std::vector<SubMesh*> meshesToRender;
     {
-        for (MeshEntity* pMeshEntity : m_pWorld->GetMeshEntities())
+        for (auto meshEntity : m_pWorld->m_uuid_to_pMeshEntity)
         {
+            MeshEntity* pMeshEntity = meshEntity.second;
             for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
                 if (!ShouldCull(pSubMesh))
                 {
-                    meshesToRender.push_back(pSubMesh);
+                    meshesToRender.push_back(pSubMesh); // We don't necessarily want to wait for the entire static mesh to be ready, submeshes are okay
                 }
             }
         }
@@ -168,21 +247,28 @@ bool a = true;
     }
 
 
+    // TEMP: count submeshes
+    int subMeshCount = 0;
+    for (MeshEntity* pMeshEntity : GResourceManager->m_meshEntities)
+    {
+        subMeshCount += pMeshEntity->GetSubMeshes().size();
+    }
     GameStats stats = 
     {
         .entityCount = m_pWorld->GetEntityCount()
         , .ramResidentModelCount = GResourceManager->GetRAMResidentModelCount()
-        , .meshCount = static_cast<int>(m_pWorld->GetMeshEntities().size())
-        , .subMeshCount = m_pWorld->GetSubMeshCount()
+        , .meshCount = static_cast<int>(GResourceManager->m_meshEntities.size())
+        , .subMeshCount = subMeshCount
         , .textureCount = GResourceManager->GetTextureCount()
         , .pendingModelUploadCount = GResourceManager->GetPendingModelUploadJobCount()
         , .pendingBufferUploadCount = GResourceManager->GetPendingBufferUploadJobCount()
         , .pendingImageUploadCount = GResourceManager->GetPendingImageUploadJobCount()
+        , .pendingStaticMeshEntities = static_cast<int>(m_pWorld->m_resourcePendingStaticMeshEntities.size())
     };
 
     RenderingInfo renderingInfo = {
         .pCamera = m_camera.get()
-      , .meshesToRender = meshesToRender
+      , .meshesToRender = std::move(meshesToRender)
       , .gameStats = stats
       , .pWorld = m_pWorld
     };
