@@ -21,10 +21,10 @@ class ResourceManager
 {
     AllocatedImage defaultTextureImage;
 public:
-    ResourceManager(World* pWorld)
+    ResourceManager()
     {
         Logger::Info("Initializing ResourceManager");
-        m_pWorld = pWorld;
+        // m_pWorld = pWorld;
     }
 
     ~ResourceManager()

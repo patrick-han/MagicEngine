@@ -27,7 +27,7 @@ void Game::Initialize(Renderer* pRenderer)
     m_pWorld = new World();
     m_pWorld->Init("GameCode/magic.world");
     GMemoryManager->Initialize();
-    GResourceManager = new ResourceManager(m_pWorld);
+    GResourceManager = new ResourceManager();
 
     Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
     GResourceManager->UploadDefaultTexture();
@@ -167,15 +167,6 @@ bool a = true;
         playerMovementVector.y = -1.0f;
     }
 
-    if (inputState.keyState[SDL_SCANCODE_U]) {
-        if (a)
-        {
-            auto m = m_pWorld->GetMeshEntities();
-            m_pWorld->RemoveMeshEntity(m[0]);
-            a = false;
-        }
-        
-    }
 
     GameStats stats = 
     {
