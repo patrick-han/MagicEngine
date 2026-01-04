@@ -5,7 +5,7 @@
 #include "Swapchain.h"
 #include "VertexDescriptors.h"
 #include "Camera.h"
-#include "Platform.h"
+#include "Platform/Platform.h"
 #include <fstream>
 #include <cassert>
 #include <thread>

@@ -10,7 +10,7 @@
 #include <iostream>
 #include "Input.h"
 #include "../GameCode/Game.h"
-#include "Platform.h"
+#include "Platform/Platform.h"
 #include "Editor/Editor.h"
 
 

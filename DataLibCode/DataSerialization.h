@@ -1,5 +1,6 @@
 #pragma once
 #include <fstream>
+#include <optional>
 #include "../EngineCode/Vertex.h"
 #include "../EngineCode/Model.h"
 #include "../EngineCode/BinaryBlob.h"

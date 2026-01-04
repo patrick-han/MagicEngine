@@ -1,5 +1,5 @@
 #pragma once
-#include "Platform.h"
+#include "Platform/Platform.h"
 #include <string>
 #include <array>
 #include <cstring>     // std::memcmp, std::memcpy
@@ -8,7 +8,7 @@
 #include <functional>  // for std::hash specialization
 
 #if PLATFORM_WINDOWS
-  #include <windows.h>
+  #include "Platform/WindowsHeader.h"
   #include <rpc.h>
   #pragma comment(lib, "rpcrt4.lib")
 #elif PLATFORM_MACOS
