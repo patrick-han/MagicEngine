@@ -20,11 +20,13 @@ struct GameStats
 
 class Camera;
 class World;
+class Game;
 struct RenderingInfo
 {
     const Camera* const pCamera;
     std::vector<SubMesh*> meshesToRender;
     GameStats gameStats;
     World* pWorld;
+    Game* pGame;
 };
 }

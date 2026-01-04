@@ -5,9 +5,27 @@
 #include "Swapchain.h"
 #include "VertexDescriptors.h"
 #include "Camera.h"
+#include "Platform.h"
 #include <fstream>
 #include <cassert>
 #include <thread>
+#include <random>
+
+
+#ifdef NDEBUG
+#define DEBUG_VMA 0
+#else
+#define DEBUG_VMA 1
+#endif
+
+#if DEBUG_VMA
+
+#if PLATFORM_MACOS
+#include <execinfo.h>
+#include <unistd.h>
+#endif
+
+#endif
 
 #include "CommandEncoder.h"
 #include "Timing.h"
@@ -16,8 +34,40 @@
 #define IMGUI_IMPL_VULKAN_USE_VOLK
 #include "ThirdParty/imgui/imgui_impl_vulkan.h"
 #include "World.h"
+#include "Editor/Editor.h"
+#include "../GameCode/Game.h"
 namespace Magic
 {
+
+#if DEBUG_VMA
+enum class VMAAllocType
+{
+    Buffer,
+    Image,
+    Unknown
+};
+
+#define DEBUG_STACKFRAME_SIZE 32
+
+struct AllocationStacktraceDebugInfo {
+    void* stack[DEBUG_STACKFRAME_SIZE];
+    int frameCount;
+};
+
+struct VMAAllocInfo
+{
+    VMAAllocType type = VMAAllocType::Unknown;
+    union
+    {
+        VkBuffer buffer;
+        VkImage image;
+    };
+    std::size_t size = 0;
+    AllocationStacktraceDebugInfo info {};
+};
+
+static std::unordered_map<VmaAllocation, VMAAllocInfo> g_vmaAllocInfo;
+#endif
 
 Renderer* GRenderer = nullptr;
 
@@ -43,6 +93,18 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
         &allocatedBuffer.allocation,
         nullptr
     ));
+#if DEBUG_VMA
+    VMAAllocInfo debuginfo;
+    debuginfo.type = VMAAllocType::Buffer;
+    debuginfo.buffer = allocatedBuffer.buffer;
+    debuginfo.size = bufferSize;
+    AllocationStacktraceDebugInfo allocStack;
+#if PLATFORM_MACOS
+    allocStack.frameCount = backtrace(allocStack.stack, DEBUG_STACKFRAME_SIZE);
+    debuginfo.info = allocStack;
+#endif
+    g_vmaAllocInfo.insert(std::make_pair(allocatedBuffer.allocation, debuginfo));
+#endif
 
     void* data;
     vmaMapMemory(allocator, allocatedBuffer.allocation, &data);
@@ -54,6 +116,9 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
 void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 {
     vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), allocatedBuffer.buffer, allocatedBuffer.allocation);
+#if DEBUG_VMA
+    g_vmaAllocInfo.erase(allocatedBuffer.allocation);
+#endif
 }
 
 
@@ -65,6 +130,18 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 
     AllocatedImage allocatedImage;
     VK_CHECK(vmaCreateImage(allocator, &imageCreateInfo, &vmaAllocInfo, &allocatedImage.image, &allocatedImage.allocation, nullptr));
+#if DEBUG_VMA
+    VMAAllocInfo debuginfo;
+    debuginfo.type = VMAAllocType::Image;
+    debuginfo.image = allocatedImage.image;
+    debuginfo.size = 1337;
+    AllocationStacktraceDebugInfo allocStack;
+#if PLATFORM_MACOS
+    allocStack.frameCount = backtrace(allocStack.stack, DEBUG_STACKFRAME_SIZE);
+    debuginfo.info = allocStack;
+#endif
+    g_vmaAllocInfo.insert(std::make_pair(allocatedImage.allocation, debuginfo));
+#endif
     return allocatedImage;
 }
 
@@ -105,6 +182,9 @@ AllocatedImage Renderer::UploadImage(const void *imageData, int numChannels, VkI
 void Renderer::DestroyImage(AllocatedImage allocatedImage)
 {
     vmaDestroyImage(m_gpuctx->GetVmaAllocator(), allocatedImage.image, allocatedImage.allocation);
+#if DEBUG_VMA
+    g_vmaAllocInfo.erase(allocatedImage.allocation);
+#endif
     vkDestroyImageView(m_gpuctx->GetDevice(), allocatedImage.view, nullptr);
 }
 
@@ -436,8 +516,90 @@ void Renderer::DestroyResources()
     m_bindlessManager.Shutdown();
 }
 
+void Renderer::DoUIWork(RenderingInfo& renderingInfo)
+{
+    const auto world = renderingInfo.pWorld;
+    const auto pGame = renderingInfo.pGame;
+
+    ImGui::NewFrame();
+    ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    ImGui::SetNextWindowPos(ImVec2(0, 0)); // Top left
+    ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
+
+    ImGui::Begin("Engine Info", nullptr, flags);
+    ImGui::Text("Entity Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.entityCount);
+    ImGui::Text("RAM Resident Model Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.ramResidentModelCount);
+    ImGui::Text("Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.meshCount);
+    ImGui::Text("SubMesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.subMeshCount);
+    ImGui::Text("Texture Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.textureCount);
+    ImGui::Text("Pending Model Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingModelUploadCount);
+    ImGui::Text("Pending Buffer Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingBufferUploadCount);
+    ImGui::Text("Pending Image Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingImageUploadCount);
+    ImGui::Text("Pending StaticMesh Entities:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingStaticMeshEntities);
+    ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
+    if (ImGui::Button("Add StaticMeshEntity", ImVec2(150, 30)))
+    {
+        std::random_device dev;
+        std::mt19937 rng(dev());
+        std::uniform_int_distribution<std::mt19937::result_type> dist(1,610293);
+        std::string s = std::string("RandomStaticMesh") + std::to_string(dist(rng));
+        world->AddStaticMeshEntity(s.c_str());
+    }
+    ImGui::Text("World:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%s", "TEST_NAME");
+    if (ImGui::Button("Unload World", ImVec2(150, 30)))
+    {
+        // if (!pGame->m_loadingOrUnloadingContent)
+        // {
+            world->Clear();
+            pGame->UnloadContent();
+            renderingInfo.meshesToRender.clear(); // Invalidate all queued up items
+        // }
+    }
+    ImGui::InputText("##MyInputText", GEditor->worldNameBuffer, IM_ARRAYSIZE(GEditor->worldNameBuffer));
+    if (ImGui::Button("Load World", ImVec2(150, 30)))
+    {
+        // if (!pGame->m_loadingOrUnloadingContent)
+        // {
+            world->Init(GEditor->worldNameBuffer);
+            pGame->LoadContent();
+        // }
+    }
+    if (ImGui::Button("Save World", ImVec2(150, 30)))
+    {
+        // if (!pGame->m_loadingOrUnloadingContent)
+        // {
+            world->Save(GEditor->worldNameBuffer);
+        // }
+    }
+    ImGui::End();
+
+    ImGui::SetNextWindowPos(ImVec2(0, displaySize.y / 2));
+    ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
+    ImGui::Begin("Scene Outline", nullptr, flags);
+
+    // TODO:
+    // This should be more data driven, I guess, where we only ever send the exact data we want to be rendered
+    // So the Game update loop might go ahead and fill a per frame arena with the info and just send a pointer over
+    
+    for (const auto& uuid : world->GetAllUUIDs())
+    {
+        const std::string& name = world->GetEntityName(uuid);
+        const EntityType entityType = world->GetEntityType(uuid);
+        ImGui::TextColored(ImVec4(0,1,0,1), "%s", name.c_str());
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.2, 0.8, 0.8, 1), "%s", World::EntityTypeToStr(entityType));
+        // ImGui::SameLine();
+        // ImGui::Text("%s", uuid.ToString().c_str());
+        // ImGui::Text("%s", world->GetResPath(uuid));
+    }
+    ImGui::End();
+}
+
+
 void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 {
+    DoUIWork(renderingInfo);
     PerFrameInFlightData frameData = GetFrameInFlightData(frameNumber);
     VkDevice device = m_gpuctx->GetDevice();
 
@@ -570,47 +732,6 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
             , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-        ImGui::NewFrame();
-        ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-        ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-        ImGui::SetNextWindowPos(ImVec2(0, 0)); // Top left
-        ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
-
-        ImGui::Begin("Engine Info", nullptr, flags);
-        ImGui::Text("Entity Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.entityCount);
-        ImGui::Text("RAM Resident Model Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.ramResidentModelCount);
-        ImGui::Text("Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.meshCount);
-        ImGui::Text("SubMesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.subMeshCount);
-        ImGui::Text("Texture Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.textureCount);
-        ImGui::Text("Pending Model Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingModelUploadCount);
-        ImGui::Text("Pending Buffer Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingBufferUploadCount);
-        ImGui::Text("Pending Image Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingImageUploadCount);
-        ImGui::Text("Pending StaticMesh Entities:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingStaticMeshEntities);
-        ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
-        ImGui::End();
-
-        ImGui::SetNextWindowPos(ImVec2(0, displaySize.y / 2));
-        ImGui::SetNextWindowSize(ImVec2(500, displaySize.y / 2));
-        ImGui::Begin("Scene Outline", nullptr, flags);
-
-        // TODO:
-        // This should be more data driven, I guess, where we only ever send the exact data we want to be rendered
-        // So the Game update loop might go ahead and fill a per frame arena with the info and just send a pointer over
-        const auto world = renderingInfo.pWorld;
-        for (const auto& uuid : world->GetAllUUIDs())
-        {
-            const std::string& name = world->GetEntityName(uuid);
-            const EntityType entityType = world->GetEntityType(uuid);
-            ImGui::TextColored(ImVec4(0,1,0,1), "%s", name.c_str());
-            ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.2, 0.8, 0.8, 1), "%s", World::EntityTypeToStr(entityType));
-            // ImGui::SameLine();
-            // ImGui::Text("%s", uuid.ToString().c_str());
-            // ImGui::Text("%s", world->GetResPath(uuid));
-        }
-        ImGui::End();
-
-
         ImGui::Render();
 
         VkRenderingAttachmentInfo uiColor{
@@ -694,6 +815,14 @@ void Renderer::WaitIdle()
 
 void Renderer::Shutdown()
 {
+#if DEBUG_VMA
+    for (auto& debug : g_vmaAllocInfo)
+    {
+#if PLATFORM_MACOS
+        backtrace_symbols_fd(debug.second.info.stack, debug.second.info.frameCount, STDERR_FILENO);
+#endif
+    }
+#endif
     VkDevice device = m_gpuctx->GetDevice();
     vkDestroyDescriptorPool(device, m_imguiDescriptorPool, nullptr);
 

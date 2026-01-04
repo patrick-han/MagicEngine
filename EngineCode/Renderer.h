@@ -71,6 +71,7 @@ public:
 
     void BuildResources();
     void DestroyResources();
+    void DoUIWork(RenderingInfo& renderingInfo);
     void DoWork(int frameNumber, RenderingInfo& renderingInfo);
     void WaitIdle();
 

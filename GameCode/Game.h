@@ -26,6 +26,7 @@ public:
 
 protected:
     friend class Application;
+    friend class Renderer;
     void Initialize(class Renderer* pRenderer);
     void Shutdown();
     void LoadContent();

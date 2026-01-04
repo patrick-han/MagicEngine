@@ -53,17 +53,9 @@ const char * World::EntityTypeToStr(EntityType resType)
 
 void World::Reload()
 {
-    m_uuids.clear();
-    m_uuid_to_name.clear();
-    m_uuid_to_type.clear();
-    m_uuid_to_node.clear();
-    {
-        std::queue<ResourcePendingStaticMeshEntity> empty;
-        std::swap(empty, m_resourcePendingStaticMeshEntities);
-    }
-    m_uuid_to_pMeshEntity.clear();
+    Clear();
 
-    for (pugi::xml_node entity : m_db.children("entity"))
+    for (pugi::xml_node entity : m_world.children("entity"))
     {
         assert(entity.attribute("name"));
         assert(entity.attribute("uuid"));
@@ -93,10 +85,10 @@ void World::Reload()
     }
 }
 
-void World::Init(const char* dbPath)
+void World::Init(const char* worldPath)
 {
-    m_filePath = dbPath;
-    auto result = m_db.load_file(dbPath);
+    m_world.reset();
+    auto result = m_world.load_file(worldPath);
     if (result.status != pugi::status_ok)
     {
         Logger::Err("Could not open world file");
@@ -106,9 +98,9 @@ void World::Init(const char* dbPath)
     Reload();
 }
 
-void World::Save()
+void World::Save(const char* filePath)
 {
-    if(m_db.save_file(m_filePath.c_str()))
+    if(m_world.save_file(filePath))
     {
         Logger::Info("Saved world successfully");
     }
@@ -144,7 +136,7 @@ std::optional<UUID> World::GetStaticMeshEntityResourceUUID(UUID uuid) const
 
 bool World::CheckIfEntityExists(const char *entityName) const
 {
-    for (pugi::xml_node entity : m_db.children())
+    for (pugi::xml_node entity : m_world.children())
     {
         if (strcmp(entity.attribute("name").as_string(), entityName) == 0)
         {
@@ -165,7 +157,7 @@ bool World::CheckIfEntityExists(UUID uuid) const
 
 void World::RemoveEntity(const char *entityName)
 {
-    pugi::xml_node entity = m_db.find_child_by_attribute("entity", "name", entityName);
+    pugi::xml_node entity = m_world.find_child_by_attribute("entity", "name", entityName);
 
     if (!entity)
     {
@@ -214,6 +206,7 @@ void World::AddStaticMeshEntity(const char* entityName)
     AddEntityTransform(node);
     pugi::xml_node resource_staticmesh = node.append_child("resource_staticmesh");
     resource_staticmesh.append_attribute("name").set_value("BLANK");
+    resource_staticmesh.append_attribute("uuid").set_value("BLANK");
 }
 
 void World::UnregisterEntity(UUID uuid)
@@ -247,7 +240,7 @@ pugi::xml_node World::AddEntityNode(const char *entityName, EntityType type)
         Logger::Err(std::format("Entity \"{}\" already exists", entityName));
         return {};
     }
-    pugi::xml_node entity = m_db.append_child("entity");
+    pugi::xml_node entity = m_world.append_child("entity");
     entity.append_attribute("name").set_value(entityName);
     UUID uuid;
     entity.append_attribute("uuid").set_value(uuid.ToString().c_str());
@@ -255,8 +248,17 @@ pugi::xml_node World::AddEntityNode(const char *entityName, EntityType type)
     return entity;
 }
 
-void World::Destroy()
+void World::Clear()
 {
     m_entityCount = 0;
+    m_uuids.clear();
+    m_uuid_to_name.clear();
+    m_uuid_to_type.clear();
+    m_uuid_to_node.clear();
+    {
+        std::queue<ResourcePendingStaticMeshEntity> empty;
+        std::swap(empty, m_resourcePendingStaticMeshEntities);
+    }
+    m_uuid_to_pMeshEntity.clear();
 }
 }

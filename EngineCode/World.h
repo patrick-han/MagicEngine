@@ -36,8 +36,8 @@ public:
     ~World() = default;
     static EntityType StrToEntityType(const char* name);
     static const char* EntityTypeToStr(EntityType entityType);
-    void Init(const char* dbPath);
-    void Save();
+    void Init(const char* worldPath);
+    void Save(const char* filePath);
     [[nodiscard]] const char* GetEntityName(UUID uuid) const;
     [[nodiscard]] EntityType GetEntityType(UUID uuid) const;
     [[nodiscard]] const std::unordered_set<UUID>& GetAllUUIDs() const;
@@ -50,13 +50,12 @@ public:
     [[nodiscard]] std::optional<UUID> GetStaticMeshEntityResourceUUID(UUID uuid) const;
 
 
-    void Destroy();
+    void Clear();
+    void Reload();
 public:
     [[nodiscard]] int GetEntityCount() const { return m_entityCount; }
 private:
-    pugi::xml_document m_db;
-    std::string m_filePath;
-    void Reload();
+    pugi::xml_document m_world;
     void UnregisterEntity(UUID uuid);
     void RegisterEntity(UUID uuid,
                             const std::string& name,
@@ -79,7 +78,6 @@ public:
 private:
 
     [[nodiscard]] pugi::xml_node AddEntityNode(const char* entityName, EntityType type);
-    std::string m_mapName;
     int m_entityCount = 0;
 };
 

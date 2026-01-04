@@ -24,7 +24,6 @@ public:
     ResourceManager()
     {
         Logger::Info("Initializing ResourceManager");
-        // m_pWorld = pWorld;
     }
 
     ~ResourceManager()
@@ -51,6 +50,15 @@ public:
     // void LoadModelFromDisk(const std::string& filePath, const std::string& name)
     void LoadModelFromDisk(const char* filePath, const char* name)
     {
+        {
+            std::scoped_lock lock(m_loadedModelDataMutex);
+            if (m_loadedModels.find(name) != m_loadedModels.end())
+            {
+                Logger::Warn(std::format("Skipping LoadModelFromDisk({}): WARN (Already loaded in RAM)", name));
+                return;
+            }
+        }
+
         auto start = std::chrono::steady_clock::now();
         std::optional<ModelData> modelOpt = Data::DeserializeModelDataBlob(filePath);
         if (!modelOpt) 
@@ -98,6 +106,11 @@ public:
 
     void EnqueueUploadModel(const std::string& name)
     {
+        if (m_staticMeshResNameToArrayIndex.find(name) !=  m_staticMeshResNameToArrayIndex.end())
+        {
+            Logger::Warn(std::format("Skipping EnqueueUploadModel({}): WARN (Already uploaded to GPU)", name));
+            return;
+        }
         m_pendingModelUploads.emplace_back(name);
     }
 
@@ -128,6 +141,7 @@ public:
 
             MeshEntity* pMeshEntity = new MeshEntity;
             assert(pMeshEntity);
+            m_meshEntitiesAwaitingResources.push_back(pMeshEntity);
             m_meshEntities.push_back(pMeshEntity);
             m_staticMeshResNameToArrayIndex[job.modelName] = m_meshEntities.size() - 1;
 
@@ -255,7 +269,9 @@ public:
     {
         uint64_t value = GRenderer->GetCurrentStreamingTimelineValue();
         // TODO: we actually don't need to loop through ALL mesh entities, should maintain a list of ones with pending uploads
-        for (MeshEntity* pMeshEntity : m_meshEntities)
+        // for (MeshEntity* pMeshEntity : m_meshEntities)
+        std::vector<MeshEntity*> finishedMeshEntities;
+        for (MeshEntity* pMeshEntity : m_meshEntitiesAwaitingResources)
         {
             for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
@@ -280,15 +296,20 @@ private:
     std::map<std::string, ModelData*> m_loadedModels;
 
 public:
+    void Shutdown()
+    {
+        GRenderer->WaitIdle();
+        GRenderer->DestroyImage(defaultTextureImage);
+    }
     void DestroyAllAssets()
     {
+        GRenderer->WaitIdle();
         for (auto& b: toDestroy)
         {
             GRenderer->DestroyBuffer(b);
         }
+        toDestroy.clear();
         DestroyAllLoadedModels();
-        GRenderer->WaitIdle();
-        GRenderer->DestroyImage(defaultTextureImage);
         DestroyAllGPUResidentMeshes();
         DestroyAllGPUResidentTextures();
         Job::Pool.wait();
@@ -307,43 +328,43 @@ public:
     }
     void DestroyAllGPUResidentMeshes()
     {
-        
-        Job::Pool.detach_task([this](){    
-            // First destroy all GPU resources associated with static meshes
-            // And then we can free our CPU side representations        
-            for (MeshEntity* pMeshEntity : m_meshEntities)
+        // First destroy all GPU resources associated with static meshes
+        // And then we can free our CPU side representations        
+        for (MeshEntity* pMeshEntity : m_meshEntities)
+        {
+            for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
-                for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
-                {
-                    GRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
-                    GRenderer->DestroyBuffer(pSubMesh->indexBuffer);
-                }
+                GRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
+                GRenderer->DestroyBuffer(pSubMesh->indexBuffer);
             }
-            for (MeshEntity* pMeshEntity : m_meshEntities)
+        }
+        for (MeshEntity* pMeshEntity : m_meshEntities)
+        {
+            for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
-                for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
-                {
-                    GMemoryManager->FreeSubMesh(pSubMesh);
-                }
-                delete pMeshEntity;
+                GMemoryManager->FreeSubMesh(pSubMesh);
             }
-            Logger::Info("ResourceManager: Destroyed all meshes");
-        });
+            delete pMeshEntity;
+        }
+        Logger::Info("ResourceManager: Destroyed all meshes");
+        m_meshEntities.clear();
+        m_staticMeshResNameToArrayIndex.clear();
     }
     void DestroyAllGPUResidentTextures()
     {
-        Job::Pool.detach_task([this](){
-            for (const AllocatedImage& image : m_renderableImages)
-            {
-                GRenderer->DestroyImage(image);
-            }
-            Logger::Info("ResourceManager: Destroyed all textures");
-        });
+        for (const AllocatedImage& image : m_renderableImages)
+        {
+            GRenderer->DestroyImage(image);
+        }
+        Logger::Info("ResourceManager: Destroyed all textures");
+        m_renderableImages.clear();
+        GRenderer->m_bindlessManager.Reset();
     }
 
     // These data structures should only be accessed by a single render thread
 public:
     std::unordered_map<std::string, std::size_t> m_staticMeshResNameToArrayIndex; // string is slow key, but this lookup should only happen once or twice during the lifetime of an entity
+    std::vector<MeshEntity*> m_meshEntitiesAwaitingResources;
     std::vector<MeshEntity*> m_meshEntities;
 private:
     std::vector<AllocatedImage> m_renderableImages;

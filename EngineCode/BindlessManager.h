@@ -14,9 +14,13 @@ public:
     ~BindlessManager();
     void Initialize(GPUContext* gpuctx);
     void Shutdown();
+    void Reset()
+    {
+        m_freeTextureSlots.clear();
+        m_numberOfBindlessTexturesAddedSoFar = 0;
+    }
 
     [[nodiscard]] int AddToBindlessTextureArray(const AllocatedImage &texture);
-    // void RemoveFromBindlessArray(int i);
     void UpdateBindlessSamplers(VkSampler linearSampler, VkSampler pointSampler) const;
 
 private:
