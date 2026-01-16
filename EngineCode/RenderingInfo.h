@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include "SubMesh.h"
+#include "Timing.h"
 namespace Magic
 {
 
@@ -28,5 +29,6 @@ struct RenderingInfo
     GameStats gameStats;
     World* pWorld;
     Game* pGame;
+    std::chrono::microseconds updateLoopTimingUS;
 };
 }

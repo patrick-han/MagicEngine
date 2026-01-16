@@ -12,7 +12,7 @@
 #include <cassert>
 #include "../EngineCode/Threading.h"
 #include "../EngineCode/BinaryBlob.h"
-
+#include "../EngineCode/Timing.h"
 #include <filesystem>
 namespace Magic
 {
@@ -150,7 +150,7 @@ bool a = true;
 
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
-
+    auto start = std::chrono::steady_clock::now();
     GResourceManager->ProcessModelUploadJobs();
     GResourceManager->ProcessBufferUploadJobs();
     GResourceManager->ProcessImageUploadJobs();
@@ -270,6 +270,7 @@ bool a = true;
       , .gameStats = stats
       , .pWorld = m_pWorld
       , .pGame = this
+      , .updateLoopTimingUS = Timing::SinceUS(start)
     };
     return renderingInfo;
 }

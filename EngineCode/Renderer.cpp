@@ -539,8 +539,8 @@ void Renderer::DestroyResources()
     }
     m_bindlessManager.Shutdown();
 }
-
-void Renderer::DoUIWork(RenderingInfo& renderingInfo)
+static long long lastGameUpdateLoopTiming = 0;
+void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
 {
     const auto world = renderingInfo.pWorld;
     const auto pGame = renderingInfo.pGame;
@@ -552,6 +552,8 @@ void Renderer::DoUIWork(RenderingInfo& renderingInfo)
     ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
 
     ImGui::Begin("Engine Info", nullptr, flags);
+    ImGui::Text("Game::Update() (us):"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.updateLoopTimingUS.count());
+    ImGui::Text("Frame #:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", frameNumber);
     ImGui::Text("Entity Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.entityCount);
     ImGui::Text("RAM Resident Model Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.ramResidentModelCount);
     ImGui::Text("Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.meshCount);
@@ -623,7 +625,7 @@ void Renderer::DoUIWork(RenderingInfo& renderingInfo)
 
 void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 {
-    DoUIWork(renderingInfo);
+    DoUIWork(frameNumber, renderingInfo);
     PerFrameInFlightData frameData = GetFrameInFlightData(frameNumber);
     VkDevice device = m_gpuctx->GetDevice();
 

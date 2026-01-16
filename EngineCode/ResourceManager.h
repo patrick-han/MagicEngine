@@ -72,7 +72,7 @@ public:
         }
 
         ModelData* pModelData = GMemoryManager->New<ModelData>(std::move(*modelOpt));
-        Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, since(start).count()));
+        Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, Timing::SinceMS(start).count()));
         {
             std::scoped_lock lock(m_loadedModelDataMutex);
             m_loadedModels[name] = pModelData;
