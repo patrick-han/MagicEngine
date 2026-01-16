@@ -16,7 +16,6 @@ public:
     void Shutdown();
     void Reset()
     {
-        m_freeTextureSlots.clear();
         m_numberOfBindlessTexturesAddedSoFar = 0;
     }
 
@@ -30,7 +29,6 @@ private:
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
     VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-    std::vector<int> m_freeTextureSlots;
     int m_numberOfBindlessTexturesAddedSoFar = 0;
 };
 

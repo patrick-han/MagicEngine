@@ -20,6 +20,7 @@ class ResourceManager
 // class Renderer;
 {
     AllocatedImage defaultTextureImage;
+    int defaultTextureImageBindlessSlot = -1;
 public:
     ResourceManager()
     {
@@ -40,6 +41,9 @@ public:
         constexpr size_t dataSize = extent.width * extent.height * numChannels * bytesPerChannel;
         AllocatedBuffer stagingBuffer = GRenderer->UploadBuffer(dataSize, g_DefaultTexture.data(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
         defaultTextureImage = GRenderer->UploadImage(g_DefaultTexture.data(), 4, imci);
+        auto imageViewCreateInfo = DefaultImageViewCreateInfo(defaultTextureImage.image, g_defaultTextureFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
+        defaultTextureImage.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
+        defaultTextureImageBindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(defaultTextureImage);
         GRenderer->DestroyBuffer(stagingBuffer);
     }
 
@@ -281,7 +285,15 @@ public:
                     pSubMesh->diffuseImage.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
 
                     m_renderableImages.push_back(pSubMesh->diffuseImage);
-                    pSubMesh->diffuseTextureBindlessArraySlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(pSubMesh->diffuseImage);
+                    int bindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(pSubMesh->diffuseImage);
+                    if (bindlessSlot < 0)
+                    {
+                        pSubMesh->diffuseTextureBindlessArraySlot = defaultTextureImageBindlessSlot;
+                    }
+                    else
+                    {
+                        pSubMesh->diffuseTextureBindlessArraySlot = bindlessSlot;
+                    }
                     pSubMesh->texturesReady = true;
                 }
             }
@@ -372,6 +384,7 @@ public:
         Logger::Info("ResourceManager: Destroyed all textures");
         m_renderableImages.clear();
         GRenderer->m_bindlessManager.Reset();
+        defaultTextureImageBindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(defaultTextureImage);
     }
 
     // These data structures should only be accessed by a single render thread

@@ -109,17 +109,10 @@ void BindlessManager::Shutdown()
 
 int BindlessManager::AddToBindlessTextureArray(const AllocatedImage &texture)
 {
-    if (!m_freeTextureSlots.empty()) // Try to recycle a slot first
-    {
-        int freeIndex = m_freeTextureSlots.back();
-        UpdateBindlessTextureArrayAtIndex(texture, freeIndex);
-        m_freeTextureSlots.pop_back();
-        return freeIndex;
-    }
     if (m_numberOfBindlessTexturesAddedSoFar == g_maxBindlessResourceCount)
     {
         Logger::Err("Ran out of bindless slots!"); // TODO:
-        std::abort();
+        return -1;
     }
     int freeIndex = m_numberOfBindlessTexturesAddedSoFar;
     UpdateBindlessTextureArrayAtIndex(texture, freeIndex);
