@@ -10,7 +10,8 @@
 #include <iostream>
 #include "Input.h"
 #include "../GameCode/Game.h"
-#include "Platform.h"
+#include "Platform/Platform.h"
+#include "Editor/Editor.h"
 
 
 // IMGUI
@@ -133,9 +134,15 @@ void Application::Startup()
     }
 }
 
+
+#define EDITOR 1
+
 void Application::Run(Game& game)
 {
     GRenderer->BuildResources();
+#if EDITOR
+    GEditor = new Editor();
+#endif
     game.Initialize(GRenderer);
     game.LoadContent();
     while (true)
@@ -165,6 +172,9 @@ void Application::Run(Game& game)
     game.UnloadContent();
     game.Shutdown();
     GRenderer->DestroyResources();
+#if EDITOR
+    delete GEditor;
+#endif
 }
 
 

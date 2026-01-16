@@ -20,11 +20,11 @@ class ResourceManager
 // class Renderer;
 {
     AllocatedImage defaultTextureImage;
+    int defaultTextureImageBindlessSlot = -1;
 public:
     ResourceManager()
     {
         Logger::Info("Initializing ResourceManager");
-        // m_pWorld = pWorld;
     }
 
     ~ResourceManager()
@@ -41,6 +41,9 @@ public:
         constexpr size_t dataSize = extent.width * extent.height * numChannels * bytesPerChannel;
         AllocatedBuffer stagingBuffer = GRenderer->UploadBuffer(dataSize, g_DefaultTexture.data(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
         defaultTextureImage = GRenderer->UploadImage(g_DefaultTexture.data(), 4, imci);
+        auto imageViewCreateInfo = DefaultImageViewCreateInfo(defaultTextureImage.image, g_defaultTextureFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
+        defaultTextureImage.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
+        defaultTextureImageBindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(defaultTextureImage);
         GRenderer->DestroyBuffer(stagingBuffer);
     }
 
@@ -51,6 +54,15 @@ public:
     // void LoadModelFromDisk(const std::string& filePath, const std::string& name)
     void LoadModelFromDisk(const char* filePath, const char* name)
     {
+        {
+            std::scoped_lock lock(m_loadedModelDataMutex);
+            if (m_loadedModels.find(name) != m_loadedModels.end())
+            {
+                Logger::Warn(std::format("Skipping LoadModelFromDisk({}): WARN (Already loaded in RAM)", name));
+                return;
+            }
+        }
+
         auto start = std::chrono::steady_clock::now();
         std::optional<ModelData> modelOpt = Data::DeserializeModelDataBlob(filePath);
         if (!modelOpt) 
@@ -60,7 +72,7 @@ public:
         }
 
         ModelData* pModelData = GMemoryManager->New<ModelData>(std::move(*modelOpt));
-        Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, since(start).count()));
+        Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, Timing::SinceMS(start).count()));
         {
             std::scoped_lock lock(m_loadedModelDataMutex);
             m_loadedModels[name] = pModelData;
@@ -98,6 +110,11 @@ public:
 
     void EnqueueUploadModel(const std::string& name)
     {
+        if (m_staticMeshResNameToArrayIndex.find(name) !=  m_staticMeshResNameToArrayIndex.end())
+        {
+            Logger::Warn(std::format("Skipping EnqueueUploadModel({}): WARN (Already uploaded to GPU)", name));
+            return;
+        }
         m_pendingModelUploads.emplace_back(name);
     }
 
@@ -255,6 +272,7 @@ public:
     {
         uint64_t value = GRenderer->GetCurrentStreamingTimelineValue();
         // TODO: we actually don't need to loop through ALL mesh entities, should maintain a list of ones with pending uploads
+        // for (MeshEntity* pMeshEntity : m_meshEntities)
         for (MeshEntity* pMeshEntity : m_meshEntities)
         {
             for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
@@ -267,7 +285,15 @@ public:
                     pSubMesh->diffuseImage.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
 
                     m_renderableImages.push_back(pSubMesh->diffuseImage);
-                    pSubMesh->diffuseTextureBindlessArraySlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(pSubMesh->diffuseImage);
+                    int bindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(pSubMesh->diffuseImage);
+                    if (bindlessSlot < 0)
+                    {
+                        pSubMesh->diffuseTextureBindlessArraySlot = defaultTextureImageBindlessSlot;
+                    }
+                    else
+                    {
+                        pSubMesh->diffuseTextureBindlessArraySlot = bindlessSlot;
+                    }
                     pSubMesh->texturesReady = true;
                 }
             }
@@ -279,16 +305,36 @@ private:
     std::mutex m_loadedModelDataMutex;
     std::map<std::string, ModelData*> m_loadedModels;
 
+    void ClearPendingUploadJobs()
+    {
+        m_pendingModelUploads.clear();
+        {
+            std::queue<BufferUploadJob> empty;
+            empty.swap(m_pendingBufferUploads);
+        }
+        {
+            std::queue<ImageUploadJob> empty;
+            empty.swap(m_pendingImageUploads);
+        }
+    }
+
 public:
+    void Shutdown()
+    {
+        GRenderer->WaitIdle();
+        GRenderer->DestroyImage(defaultTextureImage);
+    }
     void DestroyAllAssets()
     {
+        GRenderer->WaitIdle();
+        Job::Pool.wait();
+        ClearPendingUploadJobs();
         for (auto& b: toDestroy)
         {
             GRenderer->DestroyBuffer(b);
         }
+        toDestroy.clear();
         DestroyAllLoadedModels();
-        GRenderer->WaitIdle();
-        GRenderer->DestroyImage(defaultTextureImage);
         DestroyAllGPUResidentMeshes();
         DestroyAllGPUResidentTextures();
         Job::Pool.wait();
@@ -307,38 +353,38 @@ public:
     }
     void DestroyAllGPUResidentMeshes()
     {
-        
-        Job::Pool.detach_task([this](){    
-            // First destroy all GPU resources associated with static meshes
-            // And then we can free our CPU side representations        
-            for (MeshEntity* pMeshEntity : m_meshEntities)
+        // First destroy all GPU resources associated with static meshes
+        // And then we can free our CPU side representations        
+        for (MeshEntity* pMeshEntity : m_meshEntities)
+        {
+            for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
-                for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
-                {
-                    GRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
-                    GRenderer->DestroyBuffer(pSubMesh->indexBuffer);
-                }
+                GRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
+                GRenderer->DestroyBuffer(pSubMesh->indexBuffer);
             }
-            for (MeshEntity* pMeshEntity : m_meshEntities)
+        }
+        for (MeshEntity* pMeshEntity : m_meshEntities)
+        {
+            for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
-                for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
-                {
-                    GMemoryManager->FreeSubMesh(pSubMesh);
-                }
-                delete pMeshEntity;
+                GMemoryManager->FreeSubMesh(pSubMesh);
             }
-            Logger::Info("ResourceManager: Destroyed all meshes");
-        });
+            delete pMeshEntity;
+        }
+        Logger::Info("ResourceManager: Destroyed all meshes");
+        m_meshEntities.clear();
+        m_staticMeshResNameToArrayIndex.clear();
     }
     void DestroyAllGPUResidentTextures()
     {
-        Job::Pool.detach_task([this](){
-            for (const AllocatedImage& image : m_renderableImages)
-            {
-                GRenderer->DestroyImage(image);
-            }
-            Logger::Info("ResourceManager: Destroyed all textures");
-        });
+        for (const AllocatedImage& image : m_renderableImages)
+        {
+            GRenderer->DestroyImage(image);
+        }
+        Logger::Info("ResourceManager: Destroyed all textures");
+        m_renderableImages.clear();
+        GRenderer->m_bindlessManager.Reset();
+        defaultTextureImageBindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(defaultTextureImage);
     }
 
     // These data structures should only be accessed by a single render thread

@@ -25,7 +25,7 @@ add_executable(MagicEngine main.cpp
         GameCode/Game.h
         EngineCode/Vulkan/VMAInclude.h
         EngineCode/DisableWarnings.h
-        EngineCode/Platform.h
+        EngineCode/Platform/Platform.h
         EngineCode/Swapchain.cpp
         EngineCode/Swapchain.h
         EngineCode/CompileTimeConstants.h
@@ -77,6 +77,9 @@ add_executable(MagicEngine main.cpp
         EngineCode/Threading.h
         EngineCode/ResourceManager.cpp
         EngineCode/BinaryBlob.h
+        EngineCode/Editor/Editor.cpp
+        EngineCode/Editor/Editor.h
+        EngineCode/Platform/WindowsHeader.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

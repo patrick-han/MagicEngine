@@ -12,7 +12,7 @@
 #include <cassert>
 #include "../EngineCode/Threading.h"
 #include "../EngineCode/BinaryBlob.h"
-
+#include "../EngineCode/Timing.h"
 #include <filesystem>
 namespace Magic
 {
@@ -88,33 +88,31 @@ void Game::Initialize(Renderer* pRenderer)
     GResourceDB->Init("GameCode/magic.db");
     GMemoryManager = new MemoryManager();
     m_pWorld = new World();
-    m_pWorld->Init("GameCode/magic.world");
+    // m_pWorld->Init("GameCode/magic.world");
     GMemoryManager->Initialize();
     GResourceManager = new ResourceManager();
 
     Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
     GResourceManager->UploadDefaultTexture();
+
+    // Make a free camera pointing down +Z with +X left and +Y up
+    m_camera = std::make_unique<Camera>(Vector3f(0.0f, 1.0f, -5.0f), Vector3f(0.0f, 0.0f, 1.0f));
 }
 
 void Game::Shutdown()
 {
-    m_pWorld->Save();
     GResourceDB->Save();
     delete GResourceDB;
-    m_pWorld->Destroy();
     delete m_pWorld;
     GMemoryManager->Shutdown();
     delete GMemoryManager;
+    GResourceManager->Shutdown();
     delete GResourceManager;
 }
 
 void Game::LoadContent()
 {
     Logger::Info("Load MyGame content");
-    // Make a free camera pointing down +Z with +X left and +Y up
-    m_camera = std::make_unique<Camera>(Vector3f(0.0f, 1.0f, -5.0f), Vector3f(0.0f, 0.0f, 1.0f));
-
-
     const std::unordered_set<UUID>& uuids = m_pWorld->GetAllUUIDs();
     for (const UUID& uuid : uuids)
     {
@@ -152,7 +150,7 @@ bool a = true;
 
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
-
+    auto start = std::chrono::steady_clock::now();
     GResourceManager->ProcessModelUploadJobs();
     GResourceManager->ProcessBufferUploadJobs();
     GResourceManager->ProcessImageUploadJobs();
@@ -271,6 +269,8 @@ bool a = true;
       , .meshesToRender = std::move(meshesToRender)
       , .gameStats = stats
       , .pWorld = m_pWorld
+      , .pGame = this
+      , .updateLoopTimingUS = Timing::SinceUS(start)
     };
     return renderingInfo;
 }
