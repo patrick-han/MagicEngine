@@ -141,7 +141,6 @@ public:
 
             MeshEntity* pMeshEntity = new MeshEntity;
             assert(pMeshEntity);
-            m_meshEntitiesAwaitingResources.push_back(pMeshEntity);
             m_meshEntities.push_back(pMeshEntity);
             m_staticMeshResNameToArrayIndex[job.modelName] = m_meshEntities.size() - 1;
 
@@ -270,8 +269,7 @@ public:
         uint64_t value = GRenderer->GetCurrentStreamingTimelineValue();
         // TODO: we actually don't need to loop through ALL mesh entities, should maintain a list of ones with pending uploads
         // for (MeshEntity* pMeshEntity : m_meshEntities)
-        std::vector<MeshEntity*> finishedMeshEntities;
-        for (MeshEntity* pMeshEntity : m_meshEntitiesAwaitingResources)
+        for (MeshEntity* pMeshEntity : m_meshEntities)
         {
             for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
@@ -364,7 +362,6 @@ public:
     // These data structures should only be accessed by a single render thread
 public:
     std::unordered_map<std::string, std::size_t> m_staticMeshResNameToArrayIndex; // string is slow key, but this lookup should only happen once or twice during the lifetime of an entity
-    std::vector<MeshEntity*> m_meshEntitiesAwaitingResources;
     std::vector<MeshEntity*> m_meshEntities;
 private:
     std::vector<AllocatedImage> m_renderableImages;

@@ -23,6 +23,8 @@
 #if PLATFORM_MACOS
 #include <execinfo.h>
 #include <unistd.h>
+#elif PLATFORM_WINDOWS
+#include <stacktrace>
 #endif
 
 #endif
@@ -50,7 +52,11 @@ enum class VMAAllocType
 #define DEBUG_STACKFRAME_SIZE 32
 
 struct AllocationStacktraceDebugInfo {
+#if PLATFORM_MACOS
     void* stack[DEBUG_STACKFRAME_SIZE];
+#elif PLATFORM_WINDOWS
+    std::stacktrace stack;
+#endif
     int frameCount;
 };
 
@@ -101,8 +107,11 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
     AllocationStacktraceDebugInfo allocStack;
 #if PLATFORM_MACOS
     allocStack.frameCount = backtrace(allocStack.stack, DEBUG_STACKFRAME_SIZE);
-    debuginfo.info = allocStack;
+#elif PLATFORM_WINDOWS
+    allocStack.stack = std::stacktrace::current();
+    allocStack.frameCount = allocStack.stack.size();
 #endif
+    debuginfo.info = allocStack;
     g_vmaAllocInfo.insert(std::make_pair(allocatedBuffer.allocation, debuginfo));
 #endif
 
@@ -138,8 +147,11 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
     AllocationStacktraceDebugInfo allocStack;
 #if PLATFORM_MACOS
     allocStack.frameCount = backtrace(allocStack.stack, DEBUG_STACKFRAME_SIZE);
-    debuginfo.info = allocStack;
+#elif PLATFORM_WINDOWS
+    allocStack.stack = std::stacktrace::current();
+    allocStack.frameCount = allocStack.stack.size();
 #endif
+    debuginfo.info = allocStack;
     g_vmaAllocInfo.insert(std::make_pair(allocatedImage.allocation, debuginfo));
 #endif
     return allocatedImage;
@@ -820,6 +832,8 @@ void Renderer::Shutdown()
     {
 #if PLATFORM_MACOS
         backtrace_symbols_fd(debug.second.info.stack, debug.second.info.frameCount, STDERR_FILENO);
+#elif PLATFORM_WINDOWS
+        Logger::Err(std::to_string(debug.second.info.stack));
 #endif
     }
 #endif
