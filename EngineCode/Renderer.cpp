@@ -539,7 +539,7 @@ void Renderer::DestroyResources()
     }
     m_bindlessManager.Shutdown();
 }
-static long long lastGameUpdateLoopTiming = 0;
+
 void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
 {
     const auto world = renderingInfo.pWorld;
@@ -552,7 +552,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
 
     ImGui::Begin("Engine Info", nullptr, flags);
-    ImGui::Text("Game::Update() (us):"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.updateLoopTimingUS.count());
+    ImGui::Text("Game::Update() (us):"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%lld", renderingInfo.updateLoopTimingUS.count());
     ImGui::Text("Frame #:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", frameNumber);
     ImGui::Text("Entity Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.entityCount);
     ImGui::Text("RAM Resident Model Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.ramResidentModelCount);
@@ -843,7 +843,7 @@ void Renderer::Shutdown()
 {
 #if DEBUG_VMA
     {
-        std::scoped_lock(g_vmaAllocInfoMutex);
+        std::scoped_lock lock(g_vmaAllocInfoMutex);
         for (auto& debug : g_vmaAllocInfo)
         {
 #if PLATFORM_MACOS
