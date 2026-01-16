@@ -293,6 +293,19 @@ private:
     std::mutex m_loadedModelDataMutex;
     std::map<std::string, ModelData*> m_loadedModels;
 
+    void ClearPendingUploadJobs()
+    {
+        m_pendingModelUploads.clear();
+        {
+            std::queue<BufferUploadJob> empty;
+            empty.swap(m_pendingBufferUploads);
+        }
+        {
+            std::queue<ImageUploadJob> empty;
+            empty.swap(m_pendingImageUploads);
+        }
+    }
+
 public:
     void Shutdown()
     {
@@ -302,6 +315,8 @@ public:
     void DestroyAllAssets()
     {
         GRenderer->WaitIdle();
+        Job::Pool.wait();
+        ClearPendingUploadJobs();
         for (auto& b: toDestroy)
         {
             GRenderer->DestroyBuffer(b);

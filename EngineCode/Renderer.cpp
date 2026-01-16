@@ -19,7 +19,7 @@
 #endif
 
 #if DEBUG_VMA
-
+#include <mutex>
 #if PLATFORM_MACOS
 #include <execinfo.h>
 #include <unistd.h>
@@ -71,7 +71,7 @@ struct VMAAllocInfo
     std::size_t size = 0;
     AllocationStacktraceDebugInfo info {};
 };
-
+std::mutex g_vmaAllocInfoMutex;
 static std::unordered_map<VmaAllocation, VMAAllocInfo> g_vmaAllocInfo;
 #endif
 
@@ -112,7 +112,10 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
     allocStack.frameCount = allocStack.stack.size();
 #endif
     debuginfo.info = allocStack;
-    g_vmaAllocInfo.insert(std::make_pair(allocatedBuffer.allocation, debuginfo));
+    {
+        std::scoped_lock lock(g_vmaAllocInfoMutex);
+        g_vmaAllocInfo.insert(std::make_pair(allocatedBuffer.allocation, debuginfo));
+    }
 #endif
 
     void* data;
@@ -126,7 +129,10 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 {
     vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), allocatedBuffer.buffer, allocatedBuffer.allocation);
 #if DEBUG_VMA
-    g_vmaAllocInfo.erase(allocatedBuffer.allocation);
+    {
+        std::scoped_lock lock(g_vmaAllocInfoMutex);
+        g_vmaAllocInfo.erase(allocatedBuffer.allocation);
+    }
 #endif
 }
 
@@ -152,7 +158,10 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
     allocStack.frameCount = allocStack.stack.size();
 #endif
     debuginfo.info = allocStack;
-    g_vmaAllocInfo.insert(std::make_pair(allocatedImage.allocation, debuginfo));
+    {
+        std::scoped_lock lock(g_vmaAllocInfoMutex);
+        g_vmaAllocInfo.insert(std::make_pair(allocatedImage.allocation, debuginfo));
+    }
 #endif
     return allocatedImage;
 }
@@ -195,7 +204,10 @@ void Renderer::DestroyImage(AllocatedImage allocatedImage)
 {
     vmaDestroyImage(m_gpuctx->GetVmaAllocator(), allocatedImage.image, allocatedImage.allocation);
 #if DEBUG_VMA
-    g_vmaAllocInfo.erase(allocatedImage.allocation);
+    {
+        std::scoped_lock lock(g_vmaAllocInfoMutex);
+        g_vmaAllocInfo.erase(allocatedImage.allocation);
+    }
 #endif
     vkDestroyImageView(m_gpuctx->GetDevice(), allocatedImage.view, nullptr);
 }
@@ -828,13 +840,16 @@ void Renderer::WaitIdle()
 void Renderer::Shutdown()
 {
 #if DEBUG_VMA
-    for (auto& debug : g_vmaAllocInfo)
     {
+        std::scoped_lock(g_vmaAllocInfoMutex);
+        for (auto& debug : g_vmaAllocInfo)
+        {
 #if PLATFORM_MACOS
-        backtrace_symbols_fd(debug.second.info.stack, debug.second.info.frameCount, STDERR_FILENO);
+            backtrace_symbols_fd(debug.second.info.stack, debug.second.info.frameCount, STDERR_FILENO);
 #elif PLATFORM_WINDOWS
-        Logger::Err(std::to_string(debug.second.info.stack));
+            Logger::Err(std::to_string(debug.second.info.stack));
 #endif
+        }
     }
 #endif
     VkDevice device = m_gpuctx->GetDevice();
