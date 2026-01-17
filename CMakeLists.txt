@@ -13,8 +13,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/Application.h
         EngineCode/Application.cpp
         EngineCode/Vulkan/Include.h
-        EngineCode/Common/Log.h
-        EngineCode/Common/Log.cpp
+        CommonCode/Log.h
+        CommonCode/Log.cpp
         EngineCode/Vulkan/Debug.h
         EngineCode/GPUContext.cpp
         EngineCode/GPUContext.h
@@ -39,22 +39,22 @@ add_executable(MagicEngine main.cpp
         EngineCode/CommandEncoder.cpp
         EngineCode/CommandEncoder.h
         EngineCode/Buffer.h
-        EngineCode/Common/Math/Vector3f.cpp
-        EngineCode/Common/Math/Vector3f.h
+        CommonCode/Math/Vector3f.cpp
+        CommonCode/Math/Vector3f.h
         EngineCode/VertexDescriptors.h
-        EngineCode/Common/Math/Matrix4f.h
-        EngineCode/Common/Math/Matrix4f.cpp
-        EngineCode/Common/Math/Vector4f.h
-        EngineCode/Common/Math/Vector4f.cpp
+        CommonCode/Math/Matrix4f.h
+        CommonCode/Math/Matrix4f.cpp
+        CommonCode/Math/Vector4f.h
+        CommonCode/Math/Vector4f.cpp
         EngineCode/Vertex.h
         EngineCode/Model.h
         EngineCode/Camera.cpp
         EngineCode/Camera.h
-        EngineCode/Common/Math/Math.h
+        CommonCode/Math/Math.h
         EngineCode/Input.h
         EngineCode/RenderingInfo.h
         EngineCode/ResourceManager.h
-        EngineCode/Common/Math/Vector2f.h
+        CommonCode/Math/Vector2f.h
         EngineCode/BindlessManager.cpp
         EngineCode/BindlessManager.h
         EngineCode/Timing.h
@@ -68,7 +68,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/StaticMeshEntity.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
-        EngineCode/Common/AABB.h
+        CommonCode/AABB.h
         EngineCode/pugixml.h
         EngineCode/ResourceDatabase.cpp
         EngineCode/ResourceDatabase.h
@@ -76,7 +76,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/Threading.cpp
         EngineCode/Threading.h
         EngineCode/ResourceManager.cpp
-        EngineCode/Common/BinaryBlob.h
+        CommonCode/BinaryBlob.h
         EngineCode/Editor/Editor.cpp
         EngineCode/Editor/Editor.h
         EngineCode/Platform/WindowsHeader.h

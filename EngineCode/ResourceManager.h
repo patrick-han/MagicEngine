@@ -7,7 +7,7 @@
 #include <vector>
 #include <queue>
 #include "Renderer.h" // TODO: move to .cpp file
-#include "Common/Log.h"
+#include "../CommonCode/Log.h"
 #include "Timing.h"
 #include "MemoryManager.h"
 #include "World.h"

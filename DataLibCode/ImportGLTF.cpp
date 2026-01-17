@@ -1,7 +1,7 @@
 #include "ImportGLTF.h"
 #define CGLTF_IMPLEMENTATION
 #include "ThirdParty/cgltf.h"
-#include "../EngineCode/Common/Log.h"
+#include "../CommonCode/Log.h"
 #include "../EngineCode/Model.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"

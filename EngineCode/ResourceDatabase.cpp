@@ -1,5 +1,5 @@
 #include "ResourceDatabase.h"
-#include "Common/Log.h"
+#include "../CommonCode/Log.h"
 #include <cassert>
 
 namespace Magic

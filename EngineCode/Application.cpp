@@ -1,5 +1,5 @@
 #include "Application.h"
-#include "Common/Log.h"
+#include "../CommonCode/Log.h"
 #include "Window.h"
 #include "Swapchain.h"
 #include "GPUContext.h"

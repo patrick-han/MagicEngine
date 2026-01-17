@@ -1,7 +1,7 @@
 #pragma once
 #include <optional>
 #include "../EngineCode/Model.h"
-#include "../EngineCode/Common/BinaryBlob.h"
+#include "../CommonCode/BinaryBlob.h"
 
 
 namespace Magic::Data

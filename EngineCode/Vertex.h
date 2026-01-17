@@ -1,5 +1,5 @@
 #pragma once
-#include "Common/Math/Vector3f.h"
+#include "../CommonCode/Math/Vector3f.h"
 
 namespace Magic
 {

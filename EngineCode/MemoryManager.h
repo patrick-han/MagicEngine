@@ -1,7 +1,7 @@
 #pragma once
 #include "Allocators.h"
 #include "SubMesh.h"
-#include "Common/Log.h"
+#include "../CommonCode/Log.h"
 namespace Magic
 {
 

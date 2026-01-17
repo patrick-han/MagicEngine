@@ -1,7 +1,7 @@
 #include "Camera.h"
-#include "Common/Math/Math.h"
+#include "../CommonCode/Math/Math.h"
 #include <cmath>
-#include "Common/Log.h"
+#include "../CommonCode/Log.h"
 
 namespace Magic {
 Camera::Camera(Vector3f _position, Vector3f _forward)

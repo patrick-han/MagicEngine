@@ -1,5 +1,5 @@
 #include "Game.h"
-#include "../EngineCode/Common/Log.h"
+#include "../CommonCode/Log.h"
 #include "../EngineCode/Camera.h"
 #include "../EngineCode/Input.h"
 #include "../EngineCode/World.h"
@@ -11,7 +11,7 @@
 #include <vector>
 #include <cassert>
 #include "../EngineCode/Threading.h"
-#include "../EngineCode/Common/BinaryBlob.h"
+#include "../CommonCode/BinaryBlob.h"
 #include "../EngineCode/Timing.h"
 #include <filesystem>
 namespace Magic

@@ -3,7 +3,7 @@
 #include "Renderer.h"
 #include "MemoryManager.h"
 #include <algorithm>
-#include "Common/Log.h"
+#include "../CommonCode/Log.h"
 #include <cassert>
 
 namespace Magic

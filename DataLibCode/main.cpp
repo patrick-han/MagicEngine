@@ -1,6 +1,6 @@
 #include "ImportGLTF.h"
 #include "DataSerialization.h"
-#include "../EngineCode/Common/Log.h"
+#include "../CommonCode/Log.h"
 #include <filesystem>
 namespace Magic::Data
 {

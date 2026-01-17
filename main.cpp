@@ -2,7 +2,7 @@
 #include "root.magic"
 #include "EngineCode/Application.h"
 #include "GameCode/Game.h"
-#include "EngineCode/Common/Log.h"
+#include "CommonCode/Log.h"
 #include "EngineCode/MemoryManager.h"
 
 int main()

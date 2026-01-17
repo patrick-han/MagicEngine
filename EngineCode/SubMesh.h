@@ -1,8 +1,8 @@
 #pragma once
 #include "Buffer.h"
 #include "Image.h"
-#include "Common/Math/Matrix4f.h"
-#include "Common/AABB.h"
+#include "../CommonCode/Math/Matrix4f.h"
+#include "../CommonCode/AABB.h"
 
 namespace Magic
 {
