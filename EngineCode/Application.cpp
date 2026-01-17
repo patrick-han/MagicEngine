@@ -12,6 +12,7 @@
 #include "../GameCode/Game.h"
 #include "Platform/Platform.h"
 #include "Editor/Editor.h"
+#include "MemoryManager.h"
 
 
 // IMGUI
@@ -59,7 +60,7 @@ void Application::Startup()
         {
             sdlExtensions[i] = sdlVulkanExtensions[i];
         }
-        m_gpuctx = new GPUContext();
+        m_gpuctx = GMemoryManager->New<GPUContext>();
         m_gpuctx->Startup(sdlExtensions);
     }
 
@@ -97,7 +98,7 @@ void Application::Startup()
         , defaultWindow->GetHeight()));
 
     // Renderer
-    GRenderer = new Renderer();
+    GRenderer = GMemoryManager->New<Renderer>();
     GRenderer->Startup(m_gpuctx, m_swapchains[Window::DEFAULT_WINDOW].get());
     // TODO: move this somewhere else, probably a Camera class
     GRenderer->outputWidth = defaultWindow->GetWidth();
@@ -141,7 +142,7 @@ void Application::Run(Game& game)
 {
     GRenderer->BuildResources();
 #if EDITOR
-    GEditor = new Editor();
+    GEditor = GMemoryManager->New<Editor>();
 #endif
     game.Initialize(GRenderer);
     game.LoadContent();
@@ -173,7 +174,7 @@ void Application::Run(Game& game)
     game.Shutdown();
     GRenderer->DestroyResources();
 #if EDITOR
-    delete GEditor;
+    GMemoryManager->Delete(GEditor);
 #endif
 }
 
@@ -195,9 +196,9 @@ void Application::Shutdown()
         window.reset();
     }
     GRenderer->Shutdown();
-    delete GRenderer;
+    GMemoryManager->Delete(GRenderer);
     m_gpuctx->Shutdown();
-    delete m_gpuctx;
+    GMemoryManager->Delete(m_gpuctx);
 }
 
 static bool g_bReleaseMouse = false;

@@ -143,7 +143,7 @@ public:
                 }
             }
 
-            StaticMeshEntity* pMeshEntity = new StaticMeshEntity;
+            StaticMeshEntity* pMeshEntity = GMemoryManager->New<StaticMeshEntity>();
             assert(pMeshEntity);
             m_meshEntities.push_back(pMeshEntity);
             m_staticMeshResNameToArrayIndex[job.modelName] = m_meshEntities.size() - 1;
@@ -369,7 +369,7 @@ public:
             {
                 GMemoryManager->FreeSubMesh(pSubMesh);
             }
-            delete pMeshEntity;
+            GMemoryManager->Delete(pMeshEntity);
         }
         Logger::Info("ResourceManager: Destroyed all meshes");
         m_meshEntities.clear();

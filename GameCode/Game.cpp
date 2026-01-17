@@ -84,13 +84,10 @@ void Game::Initialize(Renderer* pRenderer)
     blob.Clear();
     */
 
-    GResourceDB = new ResourceDatabase();
+    GResourceDB = GMemoryManager->New<ResourceDatabase>();
     GResourceDB->Init("GameCode/magic.db");
-    GMemoryManager = new MemoryManager();
-    m_pWorld = new World();
-    // m_pWorld->Init("GameCode/magic.world");
-    GMemoryManager->Initialize();
-    GResourceManager = new ResourceManager();
+    m_pWorld = GMemoryManager->New<World>();
+    GResourceManager = GMemoryManager->New<ResourceManager>();
 
     Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
     GResourceManager->UploadDefaultTexture();
@@ -102,12 +99,10 @@ void Game::Initialize(Renderer* pRenderer)
 void Game::Shutdown()
 {
     GResourceDB->Save();
-    delete GResourceDB;
-    delete m_pWorld;
-    GMemoryManager->Shutdown();
-    delete GMemoryManager;
+    GMemoryManager->Delete(GResourceDB);
+    GMemoryManager->Delete(m_pWorld);
     GResourceManager->Shutdown();
-    delete GResourceManager;
+    GMemoryManager->Delete(GResourceManager);
 }
 
 void Game::LoadContent()
