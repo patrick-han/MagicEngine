@@ -6,8 +6,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-static int i_node_count = 0;
-
 namespace Magic
 {
 
@@ -69,7 +67,7 @@ static Matrix4f ConvertCGLTFMatrix(const cgltf_float* const in)
 }
 
 
-void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::path& filePath)
+void GLTFImporter::ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::path& filePath)
 {
     cgltf_float worldTransformCGLTF[16];
     cgltf_node_transform_world(node, worldTransformCGLTF);
@@ -107,7 +105,7 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
                     const cgltf_attribute& attribute = primitive->attributes[attribute_i];
                     if (attribute.type == cgltf_attribute_type_position)
                     {
-                        Logger::Info(std::format("Position attribute count: {}", attribute.data->count));
+                        // Logger::Info(std::format("Position attribute count: {}", attribute.data->count));
                         vertexCount = attribute.data->count;
                     }
                 }
@@ -205,6 +203,14 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
                     }
                     else
                     {
+                        if (m_texturesSeen.find(baseColor.texture) != m_texturesSeen.end())
+                        {
+                            m_texturesSeen.insert(baseColor.texture);
+                        }
+                        else
+                        {
+                            Logger::Info("Encountered the same texture twice!");
+                        }
                         std::vector<uint8_t> baseColorTextureBytes;
                         const cgltf_image* image = baseColor.texture->image;
                         if (image->buffer_view) // Case 1: Image is embedded in the buffer view
@@ -232,7 +238,7 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
 
     assert(modelData.m_subMeshes.size() == modelData.m_transforms.size());
 
-    i_node_count++;
+    m_i_node_count++;
     if (node->children_count > 0)
     {
         for (cgltf_size i = 0; i < node->children_count; i++)
@@ -242,7 +248,7 @@ void ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::
     }
 }
 
-void ImportGLTF(const std::string& filepathStr, ModelData& modelData)
+void GLTFImporter::ImportGLTF(const std::string& filepathStr, ModelData& modelData)
 {
     cgltf_options options = {};
     cgltf_data* gltfData = nullptr;
@@ -265,8 +271,8 @@ void ImportGLTF(const std::string& filepathStr, ModelData& modelData)
         ProcessNode(node, modelData, filepath);
     }
 
-    Logger::Info(std::format("Total nodes processed: {}", i_node_count ));
-    i_node_count = 0;
+    Logger::Info(std::format("Total nodes processed: {}", m_i_node_count ));
+    m_i_node_count = 0;
     cgltf_free(gltfData);
 }
 
