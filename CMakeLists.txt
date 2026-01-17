@@ -80,7 +80,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/Editor/Editor.cpp
         EngineCode/Editor/Editor.h
         EngineCode/Platform/WindowsHeader.h
-        EngineCode/RendererUI.cpp
+        EngineCode/RendererEditor.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)

@@ -36,9 +36,9 @@ EntityType World::StrToEntityType(const char* name)
     return EntityType::Unknown;
 }
 
-const char * World::EntityTypeToStr(EntityType resType)
+const char * World::EntityTypeToStr(EntityType entityType)
 {
-    switch (resType)
+    switch (entityType)
     {
         case EntityType::StaticMesh:
         {
@@ -210,6 +210,7 @@ void World::AddStaticMeshEntity(const char* entityName)
 
 void World::UnregisterEntity(UUID uuid)
 {
+    EntityType type = m_uuid_to_type.at(uuid);
     m_uuids.erase(uuid);
     m_uuid_to_name.erase(uuid);
     m_uuid_to_type.erase(uuid);
@@ -219,6 +220,18 @@ void World::UnregisterEntity(UUID uuid)
         && s == m_uuid_to_type.size()
         && s == m_uuid_to_node.size()
         );
+    switch (type)
+    {
+        case EntityType::StaticMesh:
+        {
+            const auto n = m_uuid_to_pMeshEntity.erase(uuid);
+            assert(n > 0);
+        }
+        default:
+        {
+            Logger::Warn("Trying to unregister unknown Entity Type!");
+        }
+    }
 }
 
 void World::RegisterEntity(UUID uuid, const std::string &name, const EntityType resType, pugi::xml_node node)
