@@ -619,6 +619,23 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
             std::string s = std::string("RandomStaticMesh") + std::to_string(dist(rng));
             world->AddStaticMeshEntity(s.c_str());
         }
+        if (ImGui::Button("Remove Selected Entity", ImVec2(150, 30)))
+        {
+            if (GEditor->isSceneOutlineSelectedUUIDValid = true)
+            {
+                world->RemoveEntity(GEditor->sceneOutlineSelectedUUID);
+                const std::unordered_set<UUID>& uuids = world->GetAllUUIDs();
+                if (!uuids.empty())
+                {
+                    GEditor->sceneOutlineSelectedUUID = *uuids.begin();
+                    GEditor->isSceneOutlineSelectedUUIDValid = true;
+                }
+                else
+                {
+                    GEditor->isSceneOutlineSelectedUUIDValid = false;
+                }
+            }
+        }
     }
     ImGui::Text("World Loaded:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%s", GEditor->loadedWorldNameBuffer);
     ImGui::End();

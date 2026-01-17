@@ -214,7 +214,11 @@ void World::UnregisterEntity(UUID uuid)
     m_uuid_to_name.erase(uuid);
     m_uuid_to_type.erase(uuid);
     m_uuid_to_node.erase(uuid);
-    assert(m_uuids.size() == m_uuid_to_name.size() == m_uuid_to_type.size() == m_uuid_to_node.size());
+    const std::size_t s = m_uuids.size();
+    assert(s == m_uuid_to_name.size()
+        && s == m_uuid_to_type.size()
+        && s == m_uuid_to_node.size()
+        );
 }
 
 void World::RegisterEntity(UUID uuid, const std::string &name, const EntityType resType, pugi::xml_node node)
