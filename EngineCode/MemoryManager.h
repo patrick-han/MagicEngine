@@ -1,7 +1,7 @@
 #pragma once
 #include "Allocators.h"
 #include "SubMesh.h"
-
+#include "Common/Log.h"
 namespace Magic
 {
 
@@ -23,7 +23,12 @@ public:
         // {
             // Fallback to regular new
             T* temp = new T(std::forward<Args>(args)...);
-            m_genericAllocatePointers.insert((void*)temp);
+            if (!temp)
+            {
+                Logger::Err("MemoryManager::New() failed");
+                std::exit(1);
+            }
+            m_genericNewDeletePointers.insert((void*)temp);
             return temp;
         // }
     }
@@ -36,17 +41,21 @@ public:
         // }
         // else
         // {
-        m_genericAllocatePointers.erase(ptr);
+        m_genericNewDeletePointers.erase(ptr);
         delete ptr;
         // }
     }
+
+    void* Malloc(std::size_t sizeBytes);
+    void Free(void* ptr);
 
     [[nodiscard]] SubMesh* AllocateSubMesh();
     void FreeSubMesh(SubMesh*);
 
 private:
     FixedPODTypePoolAllocator<SubMesh>* m_pSubMeshPool;
-    std::unordered_set<void*> m_genericAllocatePointers;
+    std::unordered_set<void*> m_genericNewDeletePointers;
+    std::unordered_set<void*> m_genericMallocFreePointers;
 };
 
 
