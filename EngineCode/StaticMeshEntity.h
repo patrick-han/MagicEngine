@@ -5,11 +5,11 @@
 namespace Magic
 {
 
-class MeshEntity final : public IEntity
+class StaticMeshEntity final : public IEntity
 {
 public:
-    MeshEntity();
-    ~MeshEntity();
+    StaticMeshEntity();
+    ~StaticMeshEntity();
     virtual EntityType GetEntityType() override { return EntityType::StaticMesh; }
     void AddSubMesh(SubMesh* pSubMesh);
     [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;

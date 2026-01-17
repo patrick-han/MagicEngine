@@ -6,11 +6,11 @@
 
 namespace Magic
 {
-class MeshEntity;
+class StaticMeshEntity;
 struct SubMesh
 {
     bool ReadyToRender() { return vertexBufferReady && indexBufferReady && texturesReady; }
-    MeshEntity* m_parentMesh = nullptr;
+    StaticMeshEntity* m_parentMesh = nullptr;
     Matrix4f m_worldMatrix;
     AllocatedBuffer vertexBuffer;
     AllocatedBuffer indexBuffer;

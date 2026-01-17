@@ -64,8 +64,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/World.cpp
         EngineCode/Entity.h
         EngineCode/SubMesh.h
-        EngineCode/MeshEntity.h
-        EngineCode/MeshEntity.cpp
+        EngineCode/StaticMeshEntity.h
+        EngineCode/StaticMeshEntity.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
         EngineCode/Common/AABB.h

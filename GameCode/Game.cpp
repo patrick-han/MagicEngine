@@ -167,15 +167,15 @@ bool a = true;
         }
         m_pWorld->m_resourcePendingStaticMeshEntities.pop();
         std::size_t meshEntityArrayIndex = it->second;
-        MeshEntity* m = GResourceManager->m_meshEntities.at(meshEntityArrayIndex);
+        StaticMeshEntity* m = GResourceManager->m_meshEntities.at(meshEntityArrayIndex);
         m_pWorld->m_uuid_to_pMeshEntity.insert({pendingStaticMeshEntity.entityUUID, m});
     }
 
     std::vector<SubMesh*> meshesToRender;
     {
-        for (auto meshEntity : m_pWorld->m_uuid_to_pMeshEntity)
+        for (auto staticMeshEntity : m_pWorld->m_uuid_to_pMeshEntity)
         {
-            MeshEntity* pMeshEntity = meshEntity.second;
+            StaticMeshEntity* pMeshEntity = staticMeshEntity.second;
             for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
                 if (!ShouldCull(pSubMesh))
@@ -247,7 +247,7 @@ bool a = true;
 
     // TEMP: count submeshes
     int subMeshCount = 0;
-    for (MeshEntity* pMeshEntity : GResourceManager->m_meshEntities)
+    for (StaticMeshEntity* pMeshEntity : GResourceManager->m_meshEntities)
     {
         subMeshCount += pMeshEntity->GetSubMeshes().size();
     }

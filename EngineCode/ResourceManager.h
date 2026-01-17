@@ -143,7 +143,7 @@ public:
                 }
             }
 
-            MeshEntity* pMeshEntity = new MeshEntity;
+            StaticMeshEntity* pMeshEntity = new StaticMeshEntity;
             assert(pMeshEntity);
             m_meshEntities.push_back(pMeshEntity);
             m_staticMeshResNameToArrayIndex[job.modelName] = m_meshEntities.size() - 1;
@@ -272,8 +272,8 @@ public:
     {
         uint64_t value = GRenderer->GetCurrentStreamingTimelineValue();
         // TODO: we actually don't need to loop through ALL mesh entities, should maintain a list of ones with pending uploads
-        // for (MeshEntity* pMeshEntity : m_meshEntities)
-        for (MeshEntity* pMeshEntity : m_meshEntities)
+        // for (StaticMeshEntity* pMeshEntity : m_meshEntities)
+        for (StaticMeshEntity* pMeshEntity : m_meshEntities)
         {
             for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
@@ -355,7 +355,7 @@ public:
     {
         // First destroy all GPU resources associated with static meshes
         // And then we can free our CPU side representations        
-        for (MeshEntity* pMeshEntity : m_meshEntities)
+        for (StaticMeshEntity* pMeshEntity : m_meshEntities)
         {
             for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
@@ -363,7 +363,7 @@ public:
                 GRenderer->DestroyBuffer(pSubMesh->indexBuffer);
             }
         }
-        for (MeshEntity* pMeshEntity : m_meshEntities)
+        for (StaticMeshEntity* pMeshEntity : m_meshEntities)
         {
             for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
             {
@@ -390,7 +390,7 @@ public:
     // These data structures should only be accessed by a single render thread
 public:
     std::unordered_map<std::string, std::size_t> m_staticMeshResNameToArrayIndex; // string is slow key, but this lookup should only happen once or twice during the lifetime of an entity
-    std::vector<MeshEntity*> m_meshEntities;
+    std::vector<StaticMeshEntity*> m_meshEntities;
 private:
     std::vector<AllocatedImage> m_renderableImages;
 
