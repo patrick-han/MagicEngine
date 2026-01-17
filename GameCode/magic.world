@@ -1,4 +1,5 @@
 <?xml version="1.0"?>
+<root />
 <entity name="PlayerEntity" uuid="5ECE79DE-B979-40C9-843F-C024172F7B72" type="staticmesh">
 	<transform>
 		<row0>1,0,0,0</row0>
