@@ -13,8 +13,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/Application.h
         EngineCode/Application.cpp
         EngineCode/Vulkan/Include.h
-        CommonCode/Log.h
-        CommonCode/Log.cpp
         EngineCode/Vulkan/Debug.h
         EngineCode/GPUContext.cpp
         EngineCode/GPUContext.h
@@ -39,22 +37,14 @@ add_executable(MagicEngine main.cpp
         EngineCode/CommandEncoder.cpp
         EngineCode/CommandEncoder.h
         EngineCode/Buffer.h
-        CommonCode/Math/Vector3f.cpp
-        CommonCode/Math/Vector3f.h
         EngineCode/VertexDescriptors.h
-        CommonCode/Math/Matrix4f.h
-        CommonCode/Math/Matrix4f.cpp
-        CommonCode/Math/Vector4f.h
-        CommonCode/Math/Vector4f.cpp
         EngineCode/Vertex.h
         EngineCode/Model.h
         EngineCode/Camera.cpp
         EngineCode/Camera.h
-        CommonCode/Math/Math.h
         EngineCode/Input.h
         EngineCode/RenderingInfo.h
         EngineCode/ResourceManager.h
-        CommonCode/Math/Vector2f.h
         EngineCode/BindlessManager.cpp
         EngineCode/BindlessManager.h
         EngineCode/Timing.h
@@ -68,7 +58,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/StaticMeshEntity.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
-        CommonCode/AABB.h
         EngineCode/pugixml.h
         EngineCode/ResourceDatabase.cpp
         EngineCode/ResourceDatabase.h
@@ -76,7 +65,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/Threading.cpp
         EngineCode/Threading.h
         EngineCode/ResourceManager.cpp
-        CommonCode/BinaryBlob.h
         EngineCode/Editor/Editor.cpp
         EngineCode/Editor/Editor.h
         EngineCode/Platform/WindowsHeader.h
@@ -85,6 +73,9 @@ add_executable(MagicEngine main.cpp
 
 add_subdirectory(EngineCode/ThirdParty)
 target_link_libraries(MagicEngine PRIVATE ThirdPartyLibraries)
+
+add_subdirectory(CommonCode)
+target_link_libraries(MagicEngine PRIVATE CommonLibrary)
 
 # DataLib and DataCooker
 add_subdirectory(DataLibCode)
