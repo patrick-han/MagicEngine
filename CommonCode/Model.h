@@ -29,7 +29,7 @@ struct SubMeshData
     std::vector<uint32_t> m_indices;
 };
 
-struct ModelData
+struct StaticMeshData
 {
     std::vector<SubMeshData> m_subMeshes;
     std::vector<Matrix4f> m_transforms;

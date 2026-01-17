@@ -7,7 +7,7 @@
 namespace Magic::Data
 {
 
-inline void SerializeModelDataBlob(const ModelData& model, const std::string& filename) 
+inline void SerializeStaticMeshDataBlob(const StaticMeshData& model, const std::string& filename) 
 {
     BinaryBlob blob;
     blob.AddU64(model.m_subMeshes.size());
@@ -27,11 +27,11 @@ inline void SerializeModelDataBlob(const ModelData& model, const std::string& fi
     blob.SaveToFile(filename);
 }
 
-inline std::optional<ModelData> DeserializeModelDataBlob(const std::string& filename)
+inline std::optional<StaticMeshData> DeserializeStaticMeshDataBlob(const std::string& filename)
 {
     BinaryBlob blob;
     blob.LoadFromFile(filename);
-    ModelData model;
+    StaticMeshData model;
     uint64_t subMeshCount = blob.GetU64();
     model.m_subMeshes.resize(subMeshCount);
 

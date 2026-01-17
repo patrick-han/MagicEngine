@@ -20,7 +20,7 @@ static bool DoDaPointersSameData(const unsigned char* ptr1, const unsigned char*
     return true;
 }
 
-static void LoadTextureData(const std::filesystem::path& texturePath, TextureData& textureData, ModelData& modelData)
+static void LoadTextureData(const std::filesystem::path& texturePath, TextureData& textureData, StaticMeshData& modelData)
 {
     int textureWidth = 0;
     int textureHeight = 0;
@@ -67,7 +67,7 @@ static Matrix4f ConvertCGLTFMatrix(const cgltf_float* const in)
 }
 
 
-void GLTFImporter::ProcessNode(cgltf_node* node, ModelData& modelData, const std::filesystem::path& filePath)
+void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& modelData, const std::filesystem::path& filePath)
 {
     cgltf_float worldTransformCGLTF[16];
     cgltf_node_transform_world(node, worldTransformCGLTF);
@@ -254,7 +254,7 @@ void GLTFImporter::ProcessNode(cgltf_node* node, ModelData& modelData, const std
     }
 }
 
-void GLTFImporter::ImportGLTF(const std::string& filepathStr, ModelData& modelData)
+void GLTFImporter::ImportGLTF(const std::string& filepathStr, StaticMeshData& modelData)
 {
     cgltf_options options = {};
     cgltf_data* gltfData = nullptr;

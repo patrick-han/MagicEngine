@@ -55,7 +55,7 @@ public:
     void LoadModelFromDisk(const char* filePath, const char* name)
     {
         {
-            std::scoped_lock lock(m_loadedModelDataMutex);
+            std::scoped_lock lock(m_loadedStaticMeshDataMutex);
             if (m_loadedModels.find(name) != m_loadedModels.end())
             {
                 Logger::Warn(std::format("Skipping LoadModelFromDisk({}): WARN (Already loaded in RAM)", name));
@@ -64,18 +64,18 @@ public:
         }
 
         auto start = std::chrono::steady_clock::now();
-        std::optional<ModelData> modelOpt = Data::DeserializeModelDataBlob(filePath);
+        std::optional<StaticMeshData> modelOpt = Data::DeserializeStaticMeshDataBlob(filePath);
         if (!modelOpt) 
         {
             Logger::Err(std::format("LoadModelFromDisk({}): FAILED (could not load '{}')", name, filePath));
             return;
         }
 
-        ModelData* pModelData = GMemoryManager->New<ModelData>(std::move(*modelOpt));
+        StaticMeshData* pStaticMeshData = GMemoryManager->New<StaticMeshData>(std::move(*modelOpt));
         Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, Timing::SinceMS(start).count()));
         {
-            std::scoped_lock lock(m_loadedModelDataMutex);
-            m_loadedModels[name] = pModelData;
+            std::scoped_lock lock(m_loadedStaticMeshDataMutex);
+            m_loadedModels[name] = pStaticMeshData;
         }
     }
 
@@ -129,9 +129,9 @@ public:
         {
             const ModelUploadJob& job = *it;
 
-            ModelData* testModel = nullptr;
+            StaticMeshData* testModel = nullptr;
             {
-                std::scoped_lock lock(m_loadedModelDataMutex);
+                std::scoped_lock lock(m_loadedStaticMeshDataMutex);
                 if (m_loadedModels.find(job.modelName) != m_loadedModels.end())
                 {
                     testModel = m_loadedModels[job.modelName];
@@ -302,8 +302,8 @@ public:
 
 private:
     // These data structures may be accessed by multiple threads when loading from disk
-    std::mutex m_loadedModelDataMutex;
-    std::map<std::string, ModelData*> m_loadedModels;
+    std::mutex m_loadedStaticMeshDataMutex;
+    std::map<std::string, StaticMeshData*> m_loadedModels;
 
     void ClearPendingUploadJobs()
     {
@@ -342,9 +342,9 @@ public:
 // private:
     void DestroyAllLoadedModels()
     {
-        std::map<std::string, ModelData*> to_free;
+        std::map<std::string, StaticMeshData*> to_free;
         {
-            std::scoped_lock lock(m_loadedModelDataMutex);
+            std::scoped_lock lock(m_loadedStaticMeshDataMutex);
             to_free.swap(m_loadedModels);
         }
         for (auto& [_, p] : to_free) GMemoryManager->Delete(p);
@@ -396,7 +396,7 @@ private:
 
     
 public:
-    int GetRAMResidentModelCount() { std::scoped_lock lock(m_loadedModelDataMutex); return m_loadedModels.size(); }
+    int GetRAMResidentModelCount() { std::scoped_lock lock(m_loadedStaticMeshDataMutex); return m_loadedModels.size(); }
     int GetTextureCount() { return m_renderableImages.size(); }
     int GetPendingModelUploadJobCount() { return m_pendingModelUploads.size(); }
     int GetPendingBufferUploadJobCount() { return m_pendingBufferUploads.size(); }

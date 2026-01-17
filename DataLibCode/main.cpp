@@ -37,14 +37,14 @@ int main(int argc, char *argv[])
     {
         Logger::Err(std::format("Unknown argument: {}", typeArg));
     }
-    ModelData modelData;
+    StaticMeshData modelData;
     GLTFImporter importer;
     if (assetType == Data::AssetType::StaticMesh)
     {
         importer.ImportGLTF(filepathStr, modelData);
     }
 
-    Data::SerializeModelDataBlob(modelData, outputPath);
+    Data::SerializeStaticMeshDataBlob(modelData, outputPath);
 
     Logger::Info(std::format("Processed model: {}", filepathStr));
 }
