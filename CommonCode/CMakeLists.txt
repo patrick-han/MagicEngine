@@ -19,5 +19,7 @@ target_sources(COMMON PRIVATE
         Math/Vector3f.h
         Math/Vector4f.cpp
         Math/Vector4f.h
+        Vertex.h
+        Model.h
 )
 target_link_libraries(CommonLibrary INTERFACE COMMON)

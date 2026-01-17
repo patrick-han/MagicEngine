@@ -38,8 +38,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/CommandEncoder.h
         EngineCode/Buffer.h
         EngineCode/VertexDescriptors.h
-        EngineCode/Vertex.h
-        EngineCode/Model.h
         EngineCode/Camera.cpp
         EngineCode/Camera.h
         EngineCode/Input.h

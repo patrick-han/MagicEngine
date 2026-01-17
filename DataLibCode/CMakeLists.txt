@@ -1,8 +1,6 @@
 add_subdirectory(ThirdParty)
 add_executable(DataCooker main.cpp
         DataSerialization.h
-        ../EngineCode/Vertex.h
-        ../EngineCode/Model.h
         stb_image.h
         ImportGLTF.cpp
 )
