@@ -347,7 +347,7 @@ public:
             std::scoped_lock lock(m_loadedModelDataMutex);
             to_free.swap(m_loadedModels);
         }
-        for (auto& [_, p] : to_free) GMemoryManager->Delete<ModelData>(p);
+        for (auto& [_, p] : to_free) GMemoryManager->Delete(p);
         Logger::Info("ResourceManager: Destroyed all RAM loaded models");
         
     }

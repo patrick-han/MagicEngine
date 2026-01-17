@@ -16,12 +16,12 @@ MemoryManager::~MemoryManager()
 
 void MemoryManager::Initialize()
 {
-    m_pSubMeshPool = GMemoryManager->New<FixedPODTypePoolAllocator<SubMesh>>(g_maxSubMeshes);
+    m_pSubMeshPool = this->New<FixedPODTypePoolAllocator<SubMesh>>(g_maxSubMeshes);
 }
 
 void MemoryManager::Shutdown()
 {
-    GMemoryManager->Delete(m_pSubMeshPool);
+    this->Delete(m_pSubMeshPool);
     assert(m_genericAllocatePointers.size() == 0 && "Not all MemoryManager allocations were freed");
 }
 

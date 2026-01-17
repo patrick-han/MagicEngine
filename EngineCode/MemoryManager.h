@@ -28,8 +28,7 @@ public:
         // }
     }
 
-    template<typename T>
-    void Delete(T* ptr)
+    void Delete(void* ptr)
     {
         // if constexpr (std::is_same_v<T, SubMesh>)
         // {
