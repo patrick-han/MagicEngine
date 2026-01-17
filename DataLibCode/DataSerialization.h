@@ -16,13 +16,14 @@ inline void SerializeModelDataBlob(const ModelData& model, const std::string& fi
         blob.AddSimpleVertexArr(mesh.m_vertices.data(), mesh.m_vertices.size());
         blob.AddU64(mesh.m_indices.size());
         blob.AddU32Array(mesh.m_indices.data(), mesh.m_indices.size());
-        blob.AddSizeT(mesh.materialData.diffuseData.data.size());
-        blob.AddUCharArr(mesh.materialData.diffuseData.data.data(), mesh.materialData.diffuseData.data.size());
         blob.AddI32(mesh.materialData.diffuseData.width);
         blob.AddI32(mesh.materialData.diffuseData.height);
         blob.AddI32(mesh.materialData.diffuseData.numChannels);
+        blob.AddI32(mesh.materialData.diffuseData.baseTextureDataOffset);
     }
     blob.AddMatrix4fArr(model.m_transforms.data(), model.m_transforms.size());
+    blob.AddSizeT(model.textureData.size());
+    blob.AddUCharArr(model.textureData.data(), model.textureData.size());
     blob.SaveToFile(filename);
 }
 
@@ -41,15 +42,16 @@ inline std::optional<ModelData> DeserializeModelDataBlob(const std::string& file
         uint64_t indexCount = blob.GetU64();
         mesh.m_indices.resize(indexCount);
         blob.GetU32Array(mesh.m_indices.data(), indexCount);
-        std::size_t diffuseTextureByteCount = blob.GetSizeT();
-        mesh.materialData.diffuseData.data.resize(diffuseTextureByteCount);
-        blob.GetUCharArr(mesh.materialData.diffuseData.data.data(), diffuseTextureByteCount);
         mesh.materialData.diffuseData.width = blob.GetI32();
         mesh.materialData.diffuseData.height = blob.GetI32();
         mesh.materialData.diffuseData.numChannels = blob.GetI32();
+        mesh.materialData.diffuseData.baseTextureDataOffset = blob.GetI32();
     }
     model.m_transforms.resize(model.m_subMeshes.size());
     blob.GetMatrix4fArr(model.m_transforms.data(), model.m_transforms.size());
+    std::size_t textureDataSize = blob.GetSizeT();
+    model.textureData.resize(textureDataSize);
+    blob.GetUCharArr(model.textureData.data(), model.textureData.size());
     return model;
 }
 

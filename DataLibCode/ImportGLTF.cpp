@@ -2,7 +2,6 @@
 #define CGLTF_IMPLEMENTATION
 #include "ThirdParty/cgltf.h"
 #include "../CommonCode/Log.h"
-#include "../CommonCode/Model.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
@@ -21,7 +20,7 @@ static bool DoDaPointersSameData(const unsigned char* ptr1, const unsigned char*
     return true;
 }
 
-static void LoadTextureData(const std::filesystem::path& texturePath, TextureData& textureData)
+static void LoadTextureData(const std::filesystem::path& texturePath, TextureData& textureData, ModelData& modelData)
 {
     int textureWidth = 0;
     int textureHeight = 0;
@@ -45,7 +44,8 @@ static void LoadTextureData(const std::filesystem::path& texturePath, TextureDat
     textureData.width = textureWidth;
     textureData.height = textureHeight;
     textureData.numChannels = desiredChannels;
-    textureData.data = std::move(pixels);
+    textureData.baseTextureDataOffset = modelData.textureData.size();
+    modelData.textureData.insert(modelData.textureData.end(), pixels.begin(), pixels.end()); // TODO: This copies everything maybe revisit this later
 }
 
 /*
@@ -153,6 +153,11 @@ void GLTFImporter::ProcessNode(cgltf_node* node, ModelData& modelData, const std
                                 Logger::Err("Texcoord is not vec2! Skipping to next attribute...");
                                 continue;
                             }
+                            if (attribute.index != 0)
+                            {
+                                // ignore TEXCOORD_1+ for now
+                                break;
+                            }
                             cgltf_float vec[2];
                             for (cgltf_size i = 0; i < accessor->count; ++i)
                             {
@@ -203,27 +208,28 @@ void GLTFImporter::ProcessNode(cgltf_node* node, ModelData& modelData, const std
                     }
                     else
                     {
-                        if (m_texturesSeen.find(baseColor.texture) != m_texturesSeen.end())
+                        assert(baseColor.texcoord == 0); // TODO: only want to mess with TEXCOORD_0 for now, but this tells us which UV set the texture uses
+                        if (m_texturesSeen.find(baseColor.texture->image->name) == m_texturesSeen.end())
                         {
-                            m_texturesSeen.insert(baseColor.texture);
+                            const cgltf_image* image = baseColor.texture->image;
+                            if (image->buffer_view) // Case 1: Image is embedded in the buffer view
+                            {
+                                // TODO:
+                                assert(false);
+                            }
+                            else // Case 2: Load from file
+                            {
+                                std::filesystem::path textureFilePath = filePath.parent_path() / std::filesystem::path(image->uri);
+                                TextureData textureData;
+                                LoadTextureData(textureFilePath, textureData, modelData);
+                                meshData.materialData.diffuseData = textureData;
+                                m_texturesSeen.insert(std::pair{image->name, textureData});
+                            }
                         }
                         else
                         {
                             Logger::Info("Encountered the same texture twice!");
-                        }
-                        std::vector<uint8_t> baseColorTextureBytes;
-                        const cgltf_image* image = baseColor.texture->image;
-                        if (image->buffer_view) // Case 1: Image is embedded in the buffer view
-                        {
-                            // TODO:
-                            assert(false);
-                        }
-                        else // Case 2: Load from file
-                        {
-                            std::filesystem::path textureFilePath = filePath.parent_path() / std::filesystem::path(image->uri);
-                            TextureData textureData;
-                            LoadTextureData(textureFilePath, textureData);
-                            meshData.materialData.diffuseData = std::move(textureData);
+                            meshData.materialData.diffuseData = m_texturesSeen.at(baseColor.texture->image->name);
                         }
                     }
                 }

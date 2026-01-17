@@ -181,7 +181,7 @@ public:
                 m_pendingBufferUploads.push(vertexBufferJob);
                 m_pendingBufferUploads.push(indexBufferJob);
 
-                const bool hasDiffuseTexture = pSubMesh->hasTexture = meshData.materialData.diffuseData.data.size() != 0;
+                const bool hasDiffuseTexture = pSubMesh->hasTexture = meshData.materialData.diffuseData.width != 0;
                 if (hasDiffuseTexture) // TODO:
                 {
                     VkExtent3D imageExtent
@@ -191,7 +191,7 @@ public:
                         , .depth = 1
                     };
                     const VkImageCreateInfo imci = DefaultImageCreateInfo(g_defaultTextureFormat, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
-                    m_pendingImageUploads.emplace(imageExtent, imci, /*format,*/ meshData.materialData.diffuseData.data.data(), meshData.materialData.diffuseData.numChannels, pSubMesh);
+                    m_pendingImageUploads.emplace(imageExtent, imci, /*format,*/ testModel->textureData.data() + meshData.materialData.diffuseData.baseTextureDataOffset, meshData.materialData.diffuseData.numChannels, pSubMesh);
                 }
                 else
                 {

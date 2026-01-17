@@ -11,7 +11,7 @@ struct TextureData
     int width = 0;
     int height = 0;
     int numChannels = 0;
-    std::vector<unsigned char> data;
+    int baseTextureDataOffset = 0; // into textureData in model data
 };
 
 struct MaterialData
@@ -33,6 +33,7 @@ struct ModelData
 {
     std::vector<SubMeshData> m_subMeshes;
     std::vector<Matrix4f> m_transforms;
+    std::vector<unsigned char> textureData;
 };
 
 }
