@@ -120,9 +120,9 @@ void Game::LoadContent()
             const char* resPath = GResourceDB->GetResPath(*res_uuid);
             const char* resName = GResourceDB->GetResName(*res_uuid);
             Job::Pool.detach_task([=]() {
-                GResourceManager->LoadModelFromDisk(resPath, resName);
+                GResourceManager->LoadStaticMeshDataFromDisk(resPath, resName);
             });
-            GResourceManager->EnqueueUploadModel(resName);
+            GResourceManager->EnqueueUploadStaticMeshData(resName);
         }
     }
 }
@@ -149,7 +149,7 @@ bool a = true;
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
     auto start = std::chrono::steady_clock::now();
-    GResourceManager->ProcessModelUploadJobs();
+    GResourceManager->ProcessStaticMeshDataUploadJobs();
     GResourceManager->ProcessBufferUploadJobs();
     GResourceManager->ProcessImageUploadJobs();
     GResourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
@@ -252,11 +252,11 @@ bool a = true;
     GameStats stats = 
     {
         .entityCount = m_pWorld->GetEntityCount()
-        , .ramResidentModelCount = GResourceManager->GetRAMResidentModelCount()
+        , .ramResidentStaticMeshDataCount = GResourceManager->GetRAMResidentStaticMeshDataCount()
         , .meshCount = static_cast<int>(GResourceManager->m_meshEntities.size())
         , .subMeshCount = subMeshCount
         , .textureCount = GResourceManager->GetTextureCount()
-        , .pendingModelUploadCount = GResourceManager->GetPendingModelUploadJobCount()
+        , .pendingStaticMeshDataUploadCount = GResourceManager->GetPendingStaticMeshDataUploadJobCount()
         , .pendingBufferUploadCount = GResourceManager->GetPendingBufferUploadJobCount()
         , .pendingImageUploadCount = GResourceManager->GetPendingImageUploadJobCount()
         , .pendingStaticMeshEntities = static_cast<int>(m_pWorld->m_resourcePendingStaticMeshEntities.size())

@@ -49,39 +49,39 @@ public:
 
 
     /*
-     * Loads the model from disk and assigns it the given name
+     * Loads the StaticMeshData from disk and assigns it the given name
      */
-    // void LoadModelFromDisk(const std::string& filePath, const std::string& name)
-    void LoadModelFromDisk(const char* filePath, const char* name)
+    // void LoadStaticMeshDataFromDisk(const std::string& filePath, const std::string& name)
+    void LoadStaticMeshDataFromDisk(const char* filePath, const char* name)
     {
         {
             std::scoped_lock lock(m_loadedStaticMeshDataMutex);
-            if (m_loadedModels.find(name) != m_loadedModels.end())
+            if (m_loadedStaticMeshDatas.find(name) != m_loadedStaticMeshDatas.end())
             {
-                Logger::Warn(std::format("Skipping LoadModelFromDisk({}): WARN (Already loaded in RAM)", name));
+                Logger::Warn(std::format("Skipping LoadStaticMeshDataFromDisk({}): WARN (Already loaded in RAM)", name));
                 return;
             }
         }
 
         auto start = std::chrono::steady_clock::now();
-        std::optional<StaticMeshData> modelOpt = Data::DeserializeStaticMeshDataBlob(filePath);
-        if (!modelOpt) 
+        std::optional<StaticMeshData> staticMeshDataOpt = Data::DeserializeStaticMeshDataBlob(filePath);
+        if (!staticMeshDataOpt) 
         {
-            Logger::Err(std::format("LoadModelFromDisk({}): FAILED (could not load '{}')", name, filePath));
+            Logger::Err(std::format("LoadStaticMeshDataFromDisk({}): FAILED (could not load '{}')", name, filePath));
             return;
         }
 
-        StaticMeshData* pStaticMeshData = GMemoryManager->New<StaticMeshData>(std::move(*modelOpt));
-        Logger::Info(std::format("LoadModelFromDisk({}) = {} ms", name, Timing::SinceMS(start).count()));
+        StaticMeshData* pStaticMeshData = GMemoryManager->New<StaticMeshData>(std::move(*staticMeshDataOpt));
+        Logger::Info(std::format("LoadStaticMeshDataFromDisk({}) = {} ms", name, Timing::SinceMS(start).count()));
         {
             std::scoped_lock lock(m_loadedStaticMeshDataMutex);
-            m_loadedModels[name] = pStaticMeshData;
+            m_loadedStaticMeshDatas[name] = pStaticMeshData;
         }
     }
 
-    struct ModelUploadJob
+    struct StaticMeshDataUploadJob
     {
-        std::string modelName;
+        std::string staticMeshDataName;
     };
 
     struct BufferUploadJob
@@ -104,37 +104,37 @@ public:
 
     static const VkFormat g_defaultTextureFormat = VK_FORMAT_R8G8B8A8_UNORM; // TODO: hardcoded default format
 
-    std::vector<ModelUploadJob> m_pendingModelUploads;
+    std::vector<StaticMeshDataUploadJob> m_pendingStaticMeshDataUploads;
     std::queue<BufferUploadJob> m_pendingBufferUploads;
     std::queue<ImageUploadJob> m_pendingImageUploads;
 
-    void EnqueueUploadModel(const std::string& name)
+    void EnqueueUploadStaticMeshData(const std::string& name)
     {
         if (m_staticMeshResNameToArrayIndex.find(name) !=  m_staticMeshResNameToArrayIndex.end())
         {
-            Logger::Warn(std::format("Skipping EnqueueUploadModel({}): WARN (Already uploaded to GPU)", name));
+            Logger::Warn(std::format("Skipping EnqueueUploadStaticMeshData({}): WARN (Already uploaded to GPU)", name));
             return;
         }
-        m_pendingModelUploads.emplace_back(name);
+        m_pendingStaticMeshDataUploads.emplace_back(name);
     }
 
-    void ProcessModelUploadJobs()
+    void ProcessStaticMeshDataUploadJobs()
     {
-        if (m_pendingModelUploads.empty())
+        if (m_pendingStaticMeshDataUploads.empty())
         {
             return;
         }
 
-        for (auto it = m_pendingModelUploads.begin(); it != m_pendingModelUploads.end();)
+        for (auto it = m_pendingStaticMeshDataUploads.begin(); it != m_pendingStaticMeshDataUploads.end();)
         {
-            const ModelUploadJob& job = *it;
+            const StaticMeshDataUploadJob& job = *it;
 
-            StaticMeshData* testModel = nullptr;
+            StaticMeshData* testStaticMeshData = nullptr;
             {
                 std::scoped_lock lock(m_loadedStaticMeshDataMutex);
-                if (m_loadedModels.find(job.modelName) != m_loadedModels.end())
+                if (m_loadedStaticMeshDatas.find(job.staticMeshDataName) != m_loadedStaticMeshDatas.end())
                 {
-                    testModel = m_loadedModels[job.modelName];
+                    testStaticMeshData = m_loadedStaticMeshDatas[job.staticMeshDataName];
                 }
                 else
                 {
@@ -146,10 +146,10 @@ public:
             StaticMeshEntity* pMeshEntity = GMemoryManager->New<StaticMeshEntity>();
             assert(pMeshEntity);
             m_meshEntities.push_back(pMeshEntity);
-            m_staticMeshResNameToArrayIndex[job.modelName] = m_meshEntities.size() - 1;
+            m_staticMeshResNameToArrayIndex[job.staticMeshDataName] = m_meshEntities.size() - 1;
 
             size_t meshCounter = 0;
-            for (const SubMeshData& meshData : testModel->m_subMeshes)
+            for (const SubMeshData& meshData : testStaticMeshData->m_subMeshes)
             {
                 // We can go ahead and fill out some of the data now and wait for buffers later
                 // SubMesh* pSubMesh = pMeshEntity->AddSubMesh();
@@ -157,7 +157,7 @@ public:
                 pMeshEntity->AddSubMesh(pSubMesh);
                 pSubMesh->indexCount = static_cast<uint32_t>(meshData.m_indices.size());
                 Matrix4f matrix;
-                pSubMesh->m_worldMatrix = testModel->m_transforms[meshCounter];
+                pSubMesh->m_worldMatrix = testStaticMeshData->m_transforms[meshCounter];
 
                 // calculate aabb, TODO: this can be spun off into a separate job, or better yet done in the cooker
                 for (const auto& vertex : meshData.m_vertices)
@@ -191,7 +191,7 @@ public:
                         , .depth = 1
                     };
                     const VkImageCreateInfo imci = DefaultImageCreateInfo(g_defaultTextureFormat, imageExtent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
-                    m_pendingImageUploads.emplace(imageExtent, imci, /*format,*/ testModel->textureData.data() + meshData.materialData.diffuseData.baseTextureDataOffset, meshData.materialData.diffuseData.numChannels, pSubMesh);
+                    m_pendingImageUploads.emplace(imageExtent, imci, /*format,*/ testStaticMeshData->textureData.data() + meshData.materialData.diffuseData.baseTextureDataOffset, meshData.materialData.diffuseData.numChannels, pSubMesh);
                 }
                 else
                 {
@@ -200,7 +200,7 @@ public:
                 }
                 meshCounter++;
             }
-            it = m_pendingModelUploads.erase(it);
+            it = m_pendingStaticMeshDataUploads.erase(it);
         }
     }
 
@@ -303,11 +303,11 @@ public:
 private:
     // These data structures may be accessed by multiple threads when loading from disk
     std::mutex m_loadedStaticMeshDataMutex;
-    std::map<std::string, StaticMeshData*> m_loadedModels;
+    std::map<std::string, StaticMeshData*> m_loadedStaticMeshDatas;
 
     void ClearPendingUploadJobs()
     {
-        m_pendingModelUploads.clear();
+        m_pendingStaticMeshDataUploads.clear();
         {
             std::queue<BufferUploadJob> empty;
             empty.swap(m_pendingBufferUploads);
@@ -334,21 +334,21 @@ public:
             GRenderer->DestroyBuffer(b);
         }
         toDestroy.clear();
-        DestroyAllLoadedModels();
+        DestroyAllLoadedStaticMeshDatas();
         DestroyAllGPUResidentMeshes();
         DestroyAllGPUResidentTextures();
         Job::Pool.wait();
     }
 // private:
-    void DestroyAllLoadedModels()
+    void DestroyAllLoadedStaticMeshDatas()
     {
         std::map<std::string, StaticMeshData*> to_free;
         {
             std::scoped_lock lock(m_loadedStaticMeshDataMutex);
-            to_free.swap(m_loadedModels);
+            to_free.swap(m_loadedStaticMeshDatas);
         }
         for (auto& [_, p] : to_free) GMemoryManager->Delete(p);
-        Logger::Info("ResourceManager: Destroyed all RAM loaded models");
+        Logger::Info("ResourceManager: Destroyed all RAM loaded StaticMeshData");
         
     }
     void DestroyAllGPUResidentMeshes()
@@ -396,9 +396,9 @@ private:
 
     
 public:
-    int GetRAMResidentModelCount() { std::scoped_lock lock(m_loadedStaticMeshDataMutex); return m_loadedModels.size(); }
+    int GetRAMResidentStaticMeshDataCount() { std::scoped_lock lock(m_loadedStaticMeshDataMutex); return m_loadedStaticMeshDatas.size(); }
     int GetTextureCount() { return m_renderableImages.size(); }
-    int GetPendingModelUploadJobCount() { return m_pendingModelUploads.size(); }
+    int GetPendingStaticMeshDataUploadJobCount() { return m_pendingStaticMeshDataUploads.size(); }
     int GetPendingBufferUploadJobCount() { return m_pendingBufferUploads.size(); }
     int GetPendingImageUploadJobCount() { return m_pendingImageUploads.size(); }
 };

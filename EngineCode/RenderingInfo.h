@@ -8,11 +8,11 @@ namespace Magic
 struct GameStats
 {
     int entityCount = 0;
-    int ramResidentModelCount = 0;
+    int ramResidentStaticMeshDataCount = 0;
     int meshCount = 0;
     int subMeshCount = 0;
     int textureCount = 0;
-    int pendingModelUploadCount = 0;
+    int pendingStaticMeshDataUploadCount = 0;
     int pendingBufferUploadCount = 0;
     int pendingImageUploadCount = 0;
     int pendingStaticMeshEntities = 0;

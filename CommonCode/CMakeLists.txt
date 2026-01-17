@@ -20,6 +20,6 @@ target_sources(COMMON PRIVATE
         Math/Vector4f.cpp
         Math/Vector4f.h
         Vertex.h
-        Model.h
+        StaticMeshData.h
 )
 target_link_libraries(CommonLibrary INTERFACE COMMON)

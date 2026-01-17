@@ -20,7 +20,7 @@ static bool DoDaPointersSameData(const unsigned char* ptr1, const unsigned char*
     return true;
 }
 
-static void LoadTextureData(const std::filesystem::path& texturePath, TextureData& textureData, StaticMeshData& modelData)
+static void LoadTextureData(const std::filesystem::path& texturePath, TextureData& textureData, StaticMeshData& staticMeshDataData)
 {
     int textureWidth = 0;
     int textureHeight = 0;
@@ -44,8 +44,8 @@ static void LoadTextureData(const std::filesystem::path& texturePath, TextureDat
     textureData.width = textureWidth;
     textureData.height = textureHeight;
     textureData.numChannels = desiredChannels;
-    textureData.baseTextureDataOffset = modelData.textureData.size();
-    modelData.textureData.insert(modelData.textureData.end(), pixels.begin(), pixels.end()); // TODO: This copies everything maybe revisit this later
+    textureData.baseTextureDataOffset = staticMeshDataData.textureData.size();
+    staticMeshDataData.textureData.insert(staticMeshDataData.textureData.end(), pixels.begin(), pixels.end()); // TODO: This copies everything maybe revisit this later
 }
 
 /*
@@ -67,7 +67,7 @@ static Matrix4f ConvertCGLTFMatrix(const cgltf_float* const in)
 }
 
 
-void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& modelData, const std::filesystem::path& filePath)
+void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataData, const std::filesystem::path& filePath)
 {
     cgltf_float worldTransformCGLTF[16];
     cgltf_node_transform_world(node, worldTransformCGLTF);
@@ -86,7 +86,7 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& modelData, cons
         for (cgltf_size primitive_i = 0; primitive_i < mesh->primitives_count; ++primitive_i) // gltf primitive ~= a mesh in my mind
         {
             // All meshes and primitives of a node share the same transform? Since transforms are defined at the node level
-            modelData.m_transforms.push_back(worldTransform);
+            staticMeshDataData.m_transforms.push_back(worldTransform);
             //
 
             SubMeshData meshData;
@@ -221,7 +221,7 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& modelData, cons
                             {
                                 std::filesystem::path textureFilePath = filePath.parent_path() / std::filesystem::path(image->uri);
                                 TextureData textureData;
-                                LoadTextureData(textureFilePath, textureData, modelData);
+                                LoadTextureData(textureFilePath, textureData, staticMeshDataData);
                                 meshData.materialData.diffuseData = textureData;
                                 m_texturesSeen.insert(std::pair{image->name, textureData});
                             }
@@ -238,23 +238,23 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& modelData, cons
             {
                 vertex.color = baseColorFactor;
             }
-            modelData.m_subMeshes.push_back(std::move(meshData));
+            staticMeshDataData.m_subMeshes.push_back(std::move(meshData));
         }
     }
 
-    assert(modelData.m_subMeshes.size() == modelData.m_transforms.size());
+    assert(staticMeshDataData.m_subMeshes.size() == staticMeshDataData.m_transforms.size());
 
     m_i_node_count++;
     if (node->children_count > 0)
     {
         for (cgltf_size i = 0; i < node->children_count; i++)
         {
-            ProcessNode(node->children[i], modelData, filePath);
+            ProcessNode(node->children[i], staticMeshDataData, filePath);
         }
     }
 }
 
-void GLTFImporter::ImportGLTF(const std::string& filepathStr, StaticMeshData& modelData)
+void GLTFImporter::ImportGLTF(const std::string& filepathStr, StaticMeshData& staticMeshDataData)
 {
     cgltf_options options = {};
     cgltf_data* gltfData = nullptr;
@@ -274,7 +274,7 @@ void GLTFImporter::ImportGLTF(const std::string& filepathStr, StaticMeshData& mo
     for (cgltf_size i = 0; i < scene.nodes_count; ++i)
     {
         cgltf_node* node = scene.nodes[i];
-        ProcessNode(node, modelData, filepath);
+        ProcessNode(node, staticMeshDataData, filepath);
     }
 
     Logger::Info(std::format("Total nodes processed: {}", m_i_node_count ));
