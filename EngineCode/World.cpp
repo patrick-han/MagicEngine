@@ -93,7 +93,6 @@ void World::Init(const char* worldPath)
     {
         Logger::Err("Could not open world file");
         Logger::Err(std::format("{}", result.description()));
-        exit(1);
     }
     Reload();
 }

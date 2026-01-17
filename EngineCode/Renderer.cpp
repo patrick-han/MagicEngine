@@ -38,6 +38,7 @@
 #include "World.h"
 #include "Editor/Editor.h"
 #include "../GameCode/Game.h"
+#include "ResourceDatabase.h"
 namespace Magic
 {
 
@@ -564,60 +565,123 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::Text("Pending Image Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingImageUploadCount);
     ImGui::Text("Pending StaticMesh Entities:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingStaticMeshEntities);
     ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
-    if (ImGui::Button("Add StaticMeshEntity", ImVec2(150, 30)))
+    if (!GEditor->isWorldLoaded)
     {
-        std::random_device dev;
-        std::mt19937 rng(dev());
-        std::uniform_int_distribution<std::mt19937::result_type> dist(1,610293);
-        std::string s = std::string("RandomStaticMesh") + std::to_string(dist(rng));
-        world->AddStaticMeshEntity(s.c_str());
+        ImGui::InputText("##WorldNameTextBox", GEditor->loadWorldTextBoxNameBuffer, IM_ARRAYSIZE(GEditor->loadWorldTextBoxNameBuffer));
+
+        if (ImGui::Button("Load World", ImVec2(150, 30)))
+        {
+            if (!GEditor->isWorldLoaded)
+            {
+                world->Init(GEditor->loadWorldTextBoxNameBuffer);
+                pGame->LoadContent();
+                const std::unordered_set<UUID>& uuids = world->GetAllUUIDs();
+                if (!uuids.empty())
+                {
+                    GEditor->sceneOutlineSelectedUUID = *uuids.begin();
+                    GEditor->isSceneOutlineSelectedUUIDValid = true;
+                }
+                GEditor->isWorldLoaded = true;
+                strncpy_s(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
+            }
+            else
+            {
+                Logger::Warn("World already loaded! Please unload the current world first before loading another!");
+            }
+        }
     }
-    ImGui::Text("World:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%s", "TEST_NAME");
-    if (ImGui::Button("Unload World", ImVec2(150, 30)))
+    else
     {
-        // if (!pGame->m_loadingOrUnloadingContent)
-        // {
-            world->Clear();
-            pGame->UnloadContent();
-            renderingInfo.meshesToRender.clear(); // Invalidate all queued up items
-        // }
+        if (ImGui::Button("Unload World", ImVec2(150, 30)))
+        {
+            if (GEditor->isWorldLoaded)
+            {
+                world->Clear();
+                pGame->UnloadContent();
+                renderingInfo.meshesToRender.clear(); // Invalidate all queued up items
+                GEditor->isWorldLoaded = false;
+                GEditor->isSceneOutlineSelectedUUIDValid = false;
+                strncpy_s(GEditor->loadedWorldNameBuffer, "NONE", 4);
+            }
+        }
+        if (ImGui::Button("Save World", ImVec2(150, 30)))
+        {
+            if (GEditor->isWorldLoaded)
+            {
+                world->Save(GEditor->loadWorldTextBoxNameBuffer);
+            }
+        }
+        if (ImGui::Button("Add StaticMeshEntity", ImVec2(150, 30)))
+        {
+            std::random_device dev;
+            std::mt19937 rng(dev());
+            std::uniform_int_distribution<std::mt19937::result_type> dist(1,610293);
+            std::string s = std::string("RandomStaticMesh") + std::to_string(dist(rng));
+            world->AddStaticMeshEntity(s.c_str());
+        }
     }
-    ImGui::InputText("##MyInputText", GEditor->worldNameBuffer, IM_ARRAYSIZE(GEditor->worldNameBuffer));
-    if (ImGui::Button("Load World", ImVec2(150, 30)))
+    ImGui::Text("World Loaded:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%s", GEditor->loadedWorldNameBuffer);
+    ImGui::End();
+
+    ImGui::SetNextWindowPos(ImVec2(0, displaySize.y * 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(250.0f, displaySize.y * 0.5f));
+
+    if (ImGui::Begin("Scene Outline", nullptr, flags))
     {
-        // if (!pGame->m_loadingOrUnloadingContent)
-        // {
-            world->Init(GEditor->worldNameBuffer);
-            pGame->LoadContent();
-        // }
-    }
-    if (ImGui::Button("Save World", ImVec2(150, 30)))
-    {
-        // if (!pGame->m_loadingOrUnloadingContent)
-        // {
-            world->Save(GEditor->worldNameBuffer);
-        // }
+        // Make a scrollable region that fills the window's content area
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        ImGui::BeginChild("SceneOutlineList", avail, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
+
+        for (const auto& uuid : world->GetAllUUIDs()) // std::set
+        {
+            const std::string& name = world->GetEntityName(uuid);
+            const EntityType entityType = world->GetEntityType(uuid);
+
+            bool isSelected = (uuid == GEditor->sceneOutlineSelectedUUID);
+            if (ImGui::Selectable(name.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
+            {
+                GEditor->sceneOutlineSelectedUUID = uuid;
+            }
+        }
+
+        ImGui::EndChild();
     }
     ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(0, displaySize.y / 2));
-    ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
-    ImGui::Begin("Scene Outline", nullptr, flags);
 
-    // TODO:
-    // This should be more data driven, I guess, where we only ever send the exact data we want to be rendered
-    // So the Game update loop might go ahead and fill a per frame arena with the info and just send a pointer over
-    
-    for (const auto& uuid : world->GetAllUUIDs())
+    ImGui::SetNextWindowPos(ImVec2(displaySize.x - 250.0f, 0.0f));
+    ImGui::SetNextWindowSize(ImVec2(250.0f, displaySize.y));
+    ImGui::Begin("Inspector", nullptr, flags);
+    if (!GEditor->isSceneOutlineSelectedUUIDValid) // Sometimes we may start with an empty world, but later add an entity
     {
-        const std::string& name = world->GetEntityName(uuid);
-        const EntityType entityType = world->GetEntityType(uuid);
-        ImGui::TextColored(ImVec4(0,1,0,1), "%s", name.c_str());
-        ImGui::SameLine();
-        ImGui::TextColored(ImVec4(0.2, 0.8, 0.8, 1), "%s", World::EntityTypeToStr(entityType));
-        // ImGui::SameLine();
-        // ImGui::Text("%s", uuid.ToString().c_str());
-        // ImGui::Text("%s", world->GetResPath(uuid));
+        const std::unordered_set<UUID>& uuids = world->GetAllUUIDs();
+        if (!uuids.empty())
+        {
+            GEditor->sceneOutlineSelectedUUID = *uuids.begin();
+            GEditor->isSceneOutlineSelectedUUIDValid = true;
+        }
+    }
+    if (GEditor->isSceneOutlineSelectedUUIDValid)
+    {
+        UUID selectedUUID = GEditor->sceneOutlineSelectedUUID;
+        const EntityType entityType = world->GetEntityType(selectedUUID);
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.8f, 1.0f), "%s", World::EntityTypeToStr(entityType));
+    }
+    ImGui::End();
+
+
+    ImGui::SetNextWindowPos(ImVec2(250, (displaySize.y / 2) + (displaySize.y / 3)));
+    ImGui::SetNextWindowSize(ImVec2(500, (displaySize.y / 2) - (displaySize.y / 3)));
+    ImGui::Begin("Resource Database", nullptr, flags);
+
+    ImGui::PushItemWidth(200.0f); 
+    ImGui::InputText("ResName##NewResourceNameTextBox", GEditor->newResourceNameBuffer, IM_ARRAYSIZE(GEditor->newResourceNameBuffer));
+    ImGui::InputText("ResPath##NewResourcePathTextBox", GEditor->newResourcePathBuffer, IM_ARRAYSIZE(GEditor->newResourcePathBuffer));
+    ImGui::PopItemWidth();
+    if (ImGui::Button("Add New Resource", ImVec2(150, 30)))
+    {
+        GResourceDB->AddStaticMeshResource(GEditor->newResourceNameBuffer, GEditor->newResourcePathBuffer);
+        GResourceDB->Save();
     }
     ImGui::End();
 }
