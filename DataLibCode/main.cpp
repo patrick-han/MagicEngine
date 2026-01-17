@@ -1,7 +1,6 @@
 #include "ImportGLTF.h"
 #include "DataSerialization.h"
 #include "../EngineCode/Common/Log.h"
-#include "../EngineCode/Common/Math/Matrix4f.h"
 #include <filesystem>
 namespace Magic::Data
 {

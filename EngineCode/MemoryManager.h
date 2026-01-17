@@ -46,6 +46,26 @@ public:
         // }
     }
 
+    template<typename T>
+    T* NewArr(std::size_t numObjects)
+    {
+        T* temp = new T[numObjects];
+        if (!temp)
+        {
+            Logger::Err("MemoryManager::NewArr() failed");
+            std::exit(1);
+        }
+        m_genericNewDeletePointers.insert((void*)temp);
+        return temp;
+    }
+
+    void DeleteArr(void* ptr)
+    {
+        m_genericNewDeletePointers.erase(ptr);
+        delete[] ptr;
+    }
+
+
     void* Malloc(std::size_t sizeBytes);
     void Free(void* ptr);
 

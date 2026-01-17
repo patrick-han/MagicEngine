@@ -57,6 +57,9 @@ void Game::Initialize(Renderer* pRenderer)
     char B = blob.GetChar();
     char c = blob.GetChar();
     char D = blob.GetChar();
+    std::vector<std::uint32_t> u32v1;
+    u32v1.resize(3);
+    blob.GetU32Array(u32v1.data(), 3);
     Vector3f v = blob.GetVector3f();
     Matrix4f M0 = blob.GetMatrix4f();
     SimpleVertex vtx0 = blob.GetSimpleVertex();

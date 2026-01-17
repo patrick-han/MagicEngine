@@ -1,6 +1,5 @@
 #pragma once
 #include <cstddef>
-#include "MemoryManager.h"
 #include <cstdlib>
 #include <cassert>
 #include <cstring>
@@ -17,14 +16,14 @@ public:
     }
     ~BinaryBlob()
     {
-        GMemoryManager->Free(m_pBlob);
+        delete[] m_pBlob;
     }
     void InitializeAndAlloc()
     {
         m_rwPtr = 0;
         m_blobSize = 0;
         m_reservedBlobSize = 128;
-        m_pBlob = (std::byte*)GMemoryManager->Malloc(m_reservedBlobSize);
+        m_pBlob = new std::byte[m_reservedBlobSize];
     }
 
     bool LoadFromFile(const std::string& blobFilePath)
@@ -36,11 +35,11 @@ public:
         std::size_t blobSize = std::ftell(fileHandle);
         std::rewind(fileHandle);
 
-        GMemoryManager->Free(m_pBlob);
+        delete[] m_pBlob;
         m_rwPtr = 0;
         m_reservedBlobSize = blobSize;
         m_blobSize = blobSize;
-        m_pBlob = (std::byte*)GMemoryManager->Malloc(m_reservedBlobSize);
+        m_pBlob = new std::byte[m_reservedBlobSize];
 
         std::size_t outBytes = std::fread(m_pBlob, blobSize, 1, fileHandle);
         std::fclose(fileHandle);
@@ -71,7 +70,7 @@ public:
 
     void Clear()
     {
-        GMemoryManager->Free(m_pBlob);
+        delete[] m_pBlob;
         InitializeAndAlloc(); // ditto
     }
 
