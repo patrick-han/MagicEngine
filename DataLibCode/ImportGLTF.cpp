@@ -209,7 +209,7 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataD
                     else
                     {
                         assert(baseColor.texcoord == 0); // TODO: only want to mess with TEXCOORD_0 for now, but this tells us which UV set the texture uses
-                        if (m_texturesSeen.find(baseColor.texture->image->name) == m_texturesSeen.end())
+                        if (m_texturesSeen.find(baseColor.texture->image->uri) == m_texturesSeen.end())
                         {
                             const cgltf_image* image = baseColor.texture->image;
                             if (image->buffer_view) // Case 1: Image is embedded in the buffer view
@@ -223,13 +223,13 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataD
                                 TextureData textureData;
                                 LoadTextureData(textureFilePath, textureData, staticMeshDataData);
                                 meshData.materialData.diffuseData = textureData;
-                                m_texturesSeen.insert(std::pair{image->name, textureData});
+                                m_texturesSeen.insert(std::pair{image->uri, textureData});
                             }
                         }
                         else
                         {
                             Logger::Info("Encountered the same texture twice!");
-                            meshData.materialData.diffuseData = m_texturesSeen.at(baseColor.texture->image->name);
+                            meshData.materialData.diffuseData = m_texturesSeen.at(baseColor.texture->image->uri);
                         }
                     }
                 }
