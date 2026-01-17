@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <cstring>
-#include "Common/Log.h"
+#include "Log.h"
 
 namespace Magic
 {

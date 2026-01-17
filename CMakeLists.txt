@@ -76,7 +76,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/Threading.cpp
         EngineCode/Threading.h
         EngineCode/ResourceManager.cpp
-        EngineCode/BinaryBlob.h
+        EngineCode/Common/BinaryBlob.h
         EngineCode/Editor/Editor.cpp
         EngineCode/Editor/Editor.h
         EngineCode/Platform/WindowsHeader.h

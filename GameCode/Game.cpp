@@ -11,7 +11,7 @@
 #include <vector>
 #include <cassert>
 #include "../EngineCode/Threading.h"
-#include "../EngineCode/BinaryBlob.h"
+#include "../EngineCode/Common/BinaryBlob.h"
 #include "../EngineCode/Timing.h"
 #include <filesystem>
 namespace Magic
