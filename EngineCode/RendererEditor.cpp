@@ -51,7 +51,11 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
                     GEditor->isSceneOutlineSelectedUUIDValid = true;
                 }
                 GEditor->isWorldLoaded = true;
+#if PLATFORM_WINDOWS
                 strncpy_s(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
+#elif PLATFORM_MACOS
+                strlcpy(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
+#endif
             }
             else
             {
@@ -70,7 +74,11 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
                 renderingInfo.meshesToRender.clear(); // Invalidate all queued up items
                 GEditor->isWorldLoaded = false;
                 GEditor->isSceneOutlineSelectedUUIDValid = false;
+#if PLATFORM_WINDOWS
                 strncpy_s(GEditor->loadedWorldNameBuffer, "NONE", 4);
+#elif PLATFORM_MACOS
+                strlcpy(GEditor->loadedWorldNameBuffer, "NONE", 4);
+#endif
             }
         }
         if (ImGui::Button("Save World", ImVec2(150, 30)))
@@ -90,7 +98,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         }
         if (ImGui::Button("Remove Selected Entity", ImVec2(150, 30)))
         {
-            if (GEditor->isSceneOutlineSelectedUUIDValid = true)
+            if (GEditor->isSceneOutlineSelectedUUIDValid == true)
             {
                 world->RemoveEntity(GEditor->sceneOutlineSelectedUUID);
                 const std::unordered_set<UUID>& uuids = world->GetAllUUIDs();
