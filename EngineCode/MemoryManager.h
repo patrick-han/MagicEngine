@@ -33,7 +33,8 @@ public:
         // }
     }
 
-    void Delete(void* ptr)
+    template<typename T>
+    void Delete(T* ptr)
     {
         // if constexpr (std::is_same_v<T, SubMesh>)
         // {
@@ -59,7 +60,8 @@ public:
         return temp;
     }
 
-    void DeleteArr(void* ptr)
+    template<typename T>
+    void DeleteArr(T* ptr)
     {
         m_genericNewDeletePointers.erase(ptr);
         delete[] ptr;

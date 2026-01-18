@@ -17,5 +17,6 @@ namespace Magic
         {
             return max;
         }
+        return x;
     }
 }
