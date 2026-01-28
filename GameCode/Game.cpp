@@ -157,13 +157,13 @@ bool a = true;
     // The World's static mesh entities are looking for certain named resources which the ResourceManager _should_ have
     while(!m_pWorld->m_resourcePendingStaticMeshEntities.empty())
     {
-        auto pendingStaticMeshEntity = m_pWorld->m_resourcePendingStaticMeshEntities.front();
+        ResourcePendingStaticMeshEntity pendingStaticMeshEntity = m_pWorld->m_resourcePendingStaticMeshEntities.front();
         auto it = GResourceManager->m_staticMeshResNameToArrayIndex.find(pendingStaticMeshEntity.resourceName);
         if (it == GResourceManager->m_staticMeshResNameToArrayIndex.end())
         {
             break;
         }
-        m_pWorld->m_resourcePendingStaticMeshEntities.pop();
+        m_pWorld->m_resourcePendingStaticMeshEntities.erase(m_pWorld->m_resourcePendingStaticMeshEntities.begin());
         std::size_t meshEntityArrayIndex = it->second;
         StaticMeshEntity* m = GResourceManager->m_meshEntities.at(meshEntityArrayIndex);
         m_pWorld->m_uuid_to_pMeshEntity.insert({pendingStaticMeshEntity.entityUUID, m});

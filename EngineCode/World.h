@@ -46,7 +46,7 @@ public:
     void RemoveEntity(const char* entityName);
     void RemoveEntity(UUID uuid);
 
-    void AddStaticMeshEntity(const char* entityName);
+    void AddNewStaticMeshEntity(const char* entityName);
     [[nodiscard]] std::optional<UUID> GetStaticMeshEntityResourceUUID(UUID uuid) const;
 
 
@@ -59,7 +59,7 @@ private:
     void UnregisterEntity(UUID uuid);
     void RegisterEntity(UUID uuid,
                             const std::string& name,
-                            const EntityType resType,
+                            const EntityType type,
                             pugi::xml_node node);
     std::unordered_set<UUID> m_uuids;
     std::unordered_map<UUID, std::string> m_uuid_to_name;
@@ -68,7 +68,7 @@ private:
 
 public:
     ////// Static Meshes START //////
-    std::queue<ResourcePendingStaticMeshEntity> m_resourcePendingStaticMeshEntities;
+     std::vector<ResourcePendingStaticMeshEntity> m_resourcePendingStaticMeshEntities;
     // Entity UUID to StaticMeshEntity mapping as retrieved from ResourceManager
     // Entities only appear here once they've found their resources
     std::unordered_map<UUID, StaticMeshEntity*> m_uuid_to_pMeshEntity;
@@ -77,7 +77,7 @@ public:
 
 private:
 
-    [[nodiscard]] pugi::xml_node AddEntityNode(const char* entityName, EntityType type);
+    [[nodiscard]] pugi::xml_node AddEntityNode(const char* entityName);
     int m_entityCount = 0;
 };
 

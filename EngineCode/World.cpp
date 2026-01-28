@@ -63,7 +63,7 @@ void World::Reload()
         EntityType entityType = StrToEntityType(entity.attribute("type").as_string());
 
         UUID uuid;
-        const char* name = entity.attribute("name").as_string();
+        const char* entityName = entity.attribute("name").as_string();
         bool uuidParse = UUID::TryParse(entity.attribute("uuid").as_string(), uuid);
         assert(uuidParse);
 
@@ -78,10 +78,10 @@ void World::Reload()
             assert(resource_staticmesh.attribute("name"));
             assert(resource_staticmesh.attribute("uuid"));
             // EntityUUID, resource name
-            m_resourcePendingStaticMeshEntities.emplace(uuid, resource_staticmesh.attribute("name").as_string());
+            m_resourcePendingStaticMeshEntities.emplace_back(uuid, resource_staticmesh.attribute("name").as_string());
         }
         
-        RegisterEntity(uuid, name, entityType, entity);
+        RegisterEntity(uuid, entityName, entityType, entity);
     }
 }
 
@@ -197,15 +197,21 @@ static void AddEntityTransform(pugi::xml_node node)
     xform.append_child("row3").text().set("0,0,0,1");
 }
 
-void World::AddStaticMeshEntity(const char* entityName)
+void World::AddNewStaticMeshEntity(const char* entityName)
 {
-    pugi::xml_node node = AddEntityNode(entityName, EntityType::StaticMesh);
+    pugi::xml_node node = AddEntityNode(entityName);
+    UUID uuid;
+    bool uuidParse = UUID::TryParse(node.attribute("uuid").as_string(), uuid);
+    assert(uuidParse);
     node.append_attribute("type").set_value("staticmesh");
-    // node.append_attribute("genesis").set_value(true);
     AddEntityTransform(node);
     pugi::xml_node resource_staticmesh = node.append_child("resource_staticmesh");
-    resource_staticmesh.append_attribute("name").set_value("BLANK");
-    resource_staticmesh.append_attribute("uuid").set_value("BLANK");
+    resource_staticmesh.append_attribute("name").set_value("NULL");
+    resource_staticmesh.append_attribute("uuid").set_value("NULL");
+
+    // There is no resource connected to this static mesh entity yet
+    m_resourcePendingStaticMeshEntities.emplace_back(uuid, resource_staticmesh.attribute("name").as_string());
+    RegisterEntity(uuid, entityName, EntityType::StaticMesh, node);
 }
 
 void World::UnregisterEntity(UUID uuid)
@@ -225,7 +231,22 @@ void World::UnregisterEntity(UUID uuid)
         case EntityType::StaticMesh:
         {
             const auto n = m_uuid_to_pMeshEntity.erase(uuid);
-            assert(n > 0);
+            bool wasPending = false;
+            auto it = std::find_if(
+                m_resourcePendingStaticMeshEntities.begin()
+                , m_resourcePendingStaticMeshEntities.end()
+                , [&](const auto& r) 
+                { 
+                    return r.entityUUID == uuid;
+                }
+            );
+
+        if (it != m_resourcePendingStaticMeshEntities.end())
+        {
+            m_resourcePendingStaticMeshEntities.erase(it);
+            wasPending = true;
+        }
+            assert((n > 0) || (wasPending)); // The entity was either ready or still pending a resource
         }
         default:
         {
@@ -234,12 +255,12 @@ void World::UnregisterEntity(UUID uuid)
     }
 }
 
-void World::RegisterEntity(UUID uuid, const std::string &name, const EntityType resType, pugi::xml_node node)
+void World::RegisterEntity(UUID uuid, const std::string &name, const EntityType type, pugi::xml_node node)
 {
     m_entityCount++;
     m_uuids.insert(uuid);
     m_uuid_to_name.insert({uuid, name});
-    m_uuid_to_type.insert({uuid, resType});
+    m_uuid_to_type.insert({uuid, type});
     m_uuid_to_node.insert({uuid, node});
 
     const std::size_t s = m_uuids.size();
@@ -249,7 +270,7 @@ void World::RegisterEntity(UUID uuid, const std::string &name, const EntityType 
         );
 }
 
-pugi::xml_node World::AddEntityNode(const char *entityName, EntityType type)
+pugi::xml_node World::AddEntityNode(const char *entityName)
 {
     if (CheckIfEntityExists(entityName))
     {
@@ -260,7 +281,6 @@ pugi::xml_node World::AddEntityNode(const char *entityName, EntityType type)
     entity.append_attribute("name").set_value(entityName);
     UUID uuid;
     entity.append_attribute("uuid").set_value(uuid.ToString().c_str());
-    RegisterEntity(uuid, entityName, type, entity);
     return entity;
 }
 
@@ -272,8 +292,7 @@ void World::Clear()
     m_uuid_to_type.clear();
     m_uuid_to_node.clear();
     {
-        std::queue<ResourcePendingStaticMeshEntity> empty;
-        std::swap(empty, m_resourcePendingStaticMeshEntities);
+        m_resourcePendingStaticMeshEntities.clear();
     }
     m_uuid_to_pMeshEntity.clear();
 }

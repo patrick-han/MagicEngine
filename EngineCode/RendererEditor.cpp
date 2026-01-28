@@ -75,9 +75,9 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
                 GEditor->isWorldLoaded = false;
                 GEditor->isSceneOutlineSelectedUUIDValid = false;
 #if PLATFORM_WINDOWS
-                strncpy_s(GEditor->loadedWorldNameBuffer, "NONE", 4);
+                strncpy_s(GEditor->loadedWorldNameBuffer, "NULL", 5);
 #elif PLATFORM_MACOS
-                strlcpy(GEditor->loadedWorldNameBuffer, "NONE", 4);
+                strlcpy(GEditor->loadedWorldNameBuffer, "NULL", 5);
 #endif
             }
         }
@@ -94,7 +94,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
             std::mt19937 rng(dev());
             std::uniform_int_distribution<std::mt19937::result_type> dist(1,610293);
             std::string s = std::string("RandomStaticMesh") + std::to_string(dist(rng));
-            world->AddStaticMeshEntity(s.c_str());
+            world->AddNewStaticMeshEntity(s.c_str());
         }
         if (ImGui::Button("Remove Selected Entity", ImVec2(150, 30)))
         {
