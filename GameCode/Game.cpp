@@ -14,6 +14,7 @@
 #include "../CommonCode/BinaryBlob.h"
 #include "../EngineCode/Timing.h"
 #include <filesystem>
+#include <unordered_map>
 namespace Magic
 {
 
@@ -155,18 +156,24 @@ bool a = true;
     GResourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
 
     // The World's static mesh entities are looking for certain named resources which the ResourceManager _should_ have
-    while(!m_pWorld->m_resourcePendingStaticMeshEntities.empty())
+    auto& pending = m_pWorld->m_resourcePendingStaticMeshEntities;
+    for (auto it = pending.begin(); it != pending.end(); )
     {
-        ResourcePendingStaticMeshEntity pendingStaticMeshEntity = m_pWorld->m_resourcePendingStaticMeshEntities.front();
-        auto it = GResourceManager->m_staticMeshResNameToArrayIndex.find(pendingStaticMeshEntity.resourceName);
-        if (it == GResourceManager->m_staticMeshResNameToArrayIndex.end())
+        auto array_index_it = GResourceManager->m_staticMeshResNameToArrayIndex.find(it->resourceName);
+        if (array_index_it == GResourceManager->m_staticMeshResNameToArrayIndex.end())
         {
-            break;
+            ++it; // the iterator does not advance on its own if we hit this
+            continue;
         }
-        m_pWorld->m_resourcePendingStaticMeshEntities.erase(m_pWorld->m_resourcePendingStaticMeshEntities.begin());
-        std::size_t meshEntityArrayIndex = it->second;
-        StaticMeshEntity* m = GResourceManager->m_meshEntities.at(meshEntityArrayIndex);
-        m_pWorld->m_uuid_to_pMeshEntity.insert({pendingStaticMeshEntity.entityUUID, m});
+        std::size_t meshEntityIndex = array_index_it->second;
+        if (meshEntityIndex  >= GResourceManager->m_meshEntities.size() || GResourceManager->m_meshEntities[meshEntityIndex] == nullptr)
+        {
+            ++it;
+            continue;
+        }
+        StaticMeshEntity* staticMeshEntity = GResourceManager->m_meshEntities.at(meshEntityIndex);
+        m_pWorld->m_uuid_to_pMeshEntity.insert_or_assign(it->entityUUID, staticMeshEntity);
+        it = pending.erase(it);
     }
 
     std::vector<SubMesh*> meshesToRender;
