@@ -157,9 +157,21 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     }
     if (GEditor->isSceneOutlineSelectedUUIDValid)
     {
-        UUID selectedUUID = GEditor->sceneOutlineSelectedUUID;
-        const EntityType entityType = world->GetEntityType(selectedUUID);
+        UUID selectedEntityUUID  = GEditor->sceneOutlineSelectedUUID;
+        const EntityType entityType = world->GetEntityType(selectedEntityUUID );
         ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.8f, 1.0f), "%s", World::EntityTypeToStr(entityType));
+        if (entityType == EntityType::StaticMesh)
+        {
+            std::optional<UUID> resourceUUID = world->GetStaticMeshEntityResourceUUID(selectedEntityUUID);
+            if (resourceUUID)
+            {
+                ImGui::TextWrapped( "Res: %s", GResourceDB->GetResPath(*resourceUUID));
+            }
+            else
+            {
+                ImGui::TextColored(ImVec4(1.0f, 0.1f, 0.1f, 1.0f), "Res: NULL");
+            }
+        }
     }
     ImGui::End();
 

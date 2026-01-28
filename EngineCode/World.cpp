@@ -127,7 +127,6 @@ std::optional<UUID> World::GetStaticMeshEntityResourceUUID(UUID uuid) const
     UUID resource_uuid;
     if (!UUID::TryParse(uuid_str, resource_uuid))
     {
-        Logger::Err("GetStaticMeshEntityResourceUUID(): Could not parse UUID string");
         return std::nullopt;
     }
     return resource_uuid;
