@@ -207,6 +207,32 @@ const char * ResourceDatabase::GetResPath(UUID uuid) const
 {
     return m_uuid_to_node.at(uuid).child("path").text().as_string();
 }
+
+const char *ResourceDatabase::GetResPath(const char *resName) const
+{
+    for (pugi::xml_node resource : m_db.children())
+    {
+        if (strcmp(resource.attribute("name").as_string(), resName) == 0)
+        {
+            return resource.child("path").text().as_string();
+        }
+    }
+    return nullptr;
+}
+
+UUID ResourceDatabase::GetResUUID(const char *resName) const
+{
+    pugi::xml_node resource = m_db.find_child_by_attribute("resource", "name", resName);
+    assert(resource);
+    resource.attribute("uuid").as_string();
+    const char* uuidStr = resource.attribute("uuid").as_string();
+    assert((uuidStr != nullptr) && (uuidStr[0] != '\0')); // uuid not nullptr (exists) and not empty
+    UUID uuid;
+    bool parseUUID = UUID::TryParse(uuidStr, uuid);
+    assert(parseUUID);
+    return uuid;
+}
+
 ResourceType ResourceDatabase::GetResType(UUID uuid) const
 {
     return m_uuid_to_type.at(uuid);

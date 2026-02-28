@@ -51,18 +51,38 @@ public:
     /*
      * Loads the StaticMeshData from disk and assigns it the given name
      */
-    // void LoadStaticMeshDataFromDisk(const std::string& filePath, const std::string& name)
-    void LoadStaticMeshDataFromDisk(const char* filePath, const char* name)
+    bool IsStaticMeshDataLoadedFromDisk(const char* name)
     {
         {
             std::scoped_lock lock(m_loadedStaticMeshDataMutex);
             if (m_loadedStaticMeshDatas.find(name) != m_loadedStaticMeshDatas.end())
             {
-                Logger::Warn(std::format("Skipping LoadStaticMeshDataFromDisk({}): WARN (Already loaded in RAM)", name));
-                return;
+                return true;
             }
+            return false;
         }
+    }
 
+    bool IsStaticMeshDataLoadingFromDisk(const char* name)
+    {
+        {
+            std::scoped_lock lock(m_loadingStaticMeshDataMutex);
+            if(m_loadingStaticMeshDatas.find(name) != m_loadingStaticMeshDatas.end())
+            {
+                return true;
+            }
+            return false;
+        }
+    }
+    void SetStaticMeshDataLoadingFromDiskStatus(const char* name)
+    {
+        {
+            std::scoped_lock lock(m_loadingStaticMeshDataMutex);
+            m_loadingStaticMeshDatas.insert(name);
+        }
+    }
+    void LoadStaticMeshDataFromDisk(const char* filePath, const char* name)
+    {
         auto start = std::chrono::steady_clock::now();
         std::optional<StaticMeshData> staticMeshDataOpt = Data::DeserializeStaticMeshDataBlob(filePath);
         if (!staticMeshDataOpt) 
@@ -76,6 +96,11 @@ public:
         {
             std::scoped_lock lock(m_loadedStaticMeshDataMutex);
             m_loadedStaticMeshDatas[name] = pStaticMeshData;
+            {
+                std::scoped_lock lock(m_loadingStaticMeshDataMutex);
+                auto num_erased = m_loadingStaticMeshDatas.erase(name);
+                assert(num_erased != 0);
+            }
         }
     }
 
@@ -108,14 +133,24 @@ public:
     std::queue<BufferUploadJob> m_pendingBufferUploads;
     std::queue<ImageUploadJob> m_pendingImageUploads;
 
-    void EnqueueUploadStaticMeshData(const std::string& name)
+    std::size_t GetGPUResidentStaticMeshDataIndex(const std::string& resName)
     {
-        if (m_staticMeshResNameToArrayIndex.find(name) !=  m_staticMeshResNameToArrayIndex.end())
+        auto array_index_it = m_staticMeshResNameToArrayIndex.find(resName);
+        return array_index_it->second;
+    }
+
+    bool IsStaticMeshDataGPUResident(const std::string& resName)
+    {
+        if (m_staticMeshResNameToArrayIndex.find(resName) !=  m_staticMeshResNameToArrayIndex.end())
         {
-            Logger::Warn(std::format("Skipping EnqueueUploadStaticMeshData({}): WARN (Already uploaded to GPU)", name));
-            return;
+            return true;
         }
-        m_pendingStaticMeshDataUploads.emplace_back(name);
+        return false;
+    }
+
+    void EnqueueUploadStaticMeshData(const std::string& resName)
+    {
+        m_pendingStaticMeshDataUploads.emplace_back(resName);
     }
 
     void ProcessStaticMeshDataUploadJobs()
@@ -302,6 +337,8 @@ public:
 
 private:
     // These data structures may be accessed by multiple threads when loading from disk
+    std::mutex m_loadingStaticMeshDataMutex;
+    std::unordered_set<std::string> m_loadingStaticMeshDatas;
     std::mutex m_loadedStaticMeshDataMutex;
     std::map<std::string, StaticMeshData*> m_loadedStaticMeshDatas;
 
@@ -396,6 +433,7 @@ private:
 
     
 public:
+    int GetDiskLoadingStaticMeshDataCount() { std::scoped_lock lock(m_loadingStaticMeshDataMutex); return m_loadingStaticMeshDatas.size(); }
     int GetRAMResidentStaticMeshDataCount() { std::scoped_lock lock(m_loadedStaticMeshDataMutex); return m_loadedStaticMeshDatas.size(); }
     int GetTextureCount() { return m_renderableImages.size(); }
     int GetPendingStaticMeshDataUploadJobCount() { return m_pendingStaticMeshDataUploads.size(); }

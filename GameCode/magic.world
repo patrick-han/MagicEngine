@@ -7,7 +7,7 @@
 		<row2>0,0,1,0</row2>
 		<row3>0,0,0,1</row3>
 	</transform>
-	<resource_staticmesh name="Player" uuid="e94929b2-a81a-4385-ae7f-72c02ac74232" />
+	<resource_staticmesh name="Player" uuid="E94929B2-A81A-4385-AE7F-72C02AC74232" />
 </entity>
 <entity name="SceneEntity" uuid="B3FFC21D-0932-4DF6-ABE0-81F9B6821F75" type="staticmesh">
 	<transform>

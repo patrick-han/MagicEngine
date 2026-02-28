@@ -9,6 +9,7 @@ struct GameStats
 {
     int entityCount = 0;
     int ramResidentStaticMeshDataCount = 0;
+    int loadingFromDiskStaticMeshCount = 0;
     int meshCount = 0;
     int subMeshCount = 0;
     int textureCount = 0;
@@ -16,6 +17,7 @@ struct GameStats
     int pendingBufferUploadCount = 0;
     int pendingImageUploadCount = 0;
     int pendingStaticMeshEntities = 0;
+    int readyStaticMeshEntities = 0;
 };
 
 

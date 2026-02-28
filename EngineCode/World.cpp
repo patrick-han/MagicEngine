@@ -1,7 +1,7 @@
 #include "World.h"
 #include "MemoryManager.h"
 #include "Renderer.h"
-#include "MemoryManager.h"
+#include "ResourceDatabase.h"
 #include <algorithm>
 #include "../CommonCode/Log.h"
 #include <cassert>
@@ -213,6 +213,41 @@ void World::AddNewStaticMeshEntity(const char* entityName)
     RegisterEntity(uuid, entityName, EntityType::StaticMesh, node);
 }
 
+void World::UpdateStaticMeshEntityResourceEntry(UUID entityUUID, const char *resourceName)
+{
+    UUID resUUID = GResourceDB->GetResUUID(resourceName);
+
+    pugi::xml_node entity = m_uuid_to_node.at(entityUUID);
+    pugi::xml_node resource_staticmesh = entity.child("resource_staticmesh");
+    resource_staticmesh.attribute("name").set_value(resourceName);
+    resource_staticmesh.attribute("uuid").set_value(resUUID.ToString());
+}
+
+bool World::UpdateStaticMeshEntityResource(UUID entityUUID, const char *resourceName)
+{
+    if (!CheckIfEntityExists(entityUUID))
+    {
+        return false;
+    }
+    if (m_uuid_to_pMeshEntity.find(entityUUID) != m_uuid_to_pMeshEntity.end())
+    {
+        auto n = m_uuid_to_pMeshEntity.erase(entityUUID);
+        assert(n > 0);
+        m_resourcePendingStaticMeshEntities.emplace_back(entityUUID, std::string(resourceName));
+    }
+    // I have no idea why I wrote this here...
+    // for (ResourcePendingStaticMeshEntity& pending : m_resourcePendingStaticMeshEntities)
+    // {
+    //     if (pending.entityUUID == entityUUID)
+    //     {
+    //         pending.resourceName = std::string(resourceName);
+    //         return true;
+    //     }
+    // }
+    UpdateStaticMeshEntityResourceEntry(entityUUID, resourceName);
+    return true;
+}
+
 void World::UnregisterEntity(UUID uuid)
 {
     EntityType type = m_uuid_to_type.at(uuid);
@@ -240,11 +275,11 @@ void World::UnregisterEntity(UUID uuid)
                 }
             );
 
-        if (it != m_resourcePendingStaticMeshEntities.end())
-        {
-            m_resourcePendingStaticMeshEntities.erase(it);
-            wasPending = true;
-        }
+            if (it != m_resourcePendingStaticMeshEntities.end())
+            {
+                m_resourcePendingStaticMeshEntities.erase(it);
+                wasPending = true;
+            }
             assert((n > 0) || (wasPending)); // The entity was either ready or still pending a resource
         }
         default:

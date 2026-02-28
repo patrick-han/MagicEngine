@@ -120,10 +120,17 @@ void Game::LoadContent()
         {
             const char* resPath = GResourceDB->GetResPath(*res_uuid);
             const char* resName = GResourceDB->GetResName(*res_uuid);
+            GResourceManager->SetStaticMeshDataLoadingFromDiskStatus(resName);
             Job::Pool.detach_task([=]() {
-                GResourceManager->LoadStaticMeshDataFromDisk(resPath, resName);
+                if (!GResourceManager->IsStaticMeshDataLoadedFromDisk(resName))
+                {
+                    GResourceManager->LoadStaticMeshDataFromDisk(resPath, resName);
+                }
             });
-            GResourceManager->EnqueueUploadStaticMeshData(resName);
+            if (!GResourceManager->IsStaticMeshDataGPUResident(resName))
+            {
+                GResourceManager->EnqueueUploadStaticMeshData(resName);
+            }
         }
     }
 }
@@ -159,21 +166,31 @@ bool a = true;
     auto& pending = m_pWorld->m_resourcePendingStaticMeshEntities;
     for (auto it = pending.begin(); it != pending.end(); )
     {
-        auto array_index_it = GResourceManager->m_staticMeshResNameToArrayIndex.find(it->resourceName);
-        if (array_index_it == GResourceManager->m_staticMeshResNameToArrayIndex.end())
+        if (!GResourceManager->IsStaticMeshDataGPUResident(it->resourceName)) // If the mesh is not gpu resident, it's not ready to be assigned
         {
-            ++it; // the iterator does not advance on its own if we hit this
+            // Maybe the mesh is not yet loaded into the manager, but we need to check to make sure
+            // its also not currently being loaded from disk or already loaded from disk
+            // This path hits when we are reassigning a static mesh entity to a different static mesh resource
+            if (
+                !GResourceManager->IsStaticMeshDataLoadedFromDisk(it->resourceName.c_str())
+                && !GResourceManager->IsStaticMeshDataLoadingFromDisk(it->resourceName.c_str())
+            )
+            {
+                const char* resPath = GResourceDB->GetResPath(it->resourceName.c_str());
+                assert(resPath != nullptr);
+                GResourceManager->SetStaticMeshDataLoadingFromDiskStatus(it->resourceName.c_str());
+                Job::Pool.detach_task([=]() {
+                    GResourceManager->LoadStaticMeshDataFromDisk(resPath, it->resourceName.c_str());
+                });
+                GResourceManager->EnqueueUploadStaticMeshData(it->resourceName);
+            }
+            ++it; // the iterator does not advance on its own if we hit this and continue, so we manually increment
             continue;
         }
-        std::size_t meshEntityIndex = array_index_it->second;
-        if (meshEntityIndex  >= GResourceManager->m_meshEntities.size() || GResourceManager->m_meshEntities[meshEntityIndex] == nullptr)
-        {
-            ++it;
-            continue;
-        }
+        std::size_t meshEntityIndex = GResourceManager->GetGPUResidentStaticMeshDataIndex(it->resourceName);
         StaticMeshEntity* staticMeshEntity = GResourceManager->m_meshEntities.at(meshEntityIndex);
         m_pWorld->m_uuid_to_pMeshEntity.insert_or_assign(it->entityUUID, staticMeshEntity);
-        it = pending.erase(it);
+        it = pending.erase(it); // Remove from m_resourcePendingStaticMeshEntities
     }
 
     std::vector<SubMesh*> meshesToRender;
@@ -260,6 +277,7 @@ bool a = true;
     {
         .entityCount = m_pWorld->GetEntityCount()
         , .ramResidentStaticMeshDataCount = GResourceManager->GetRAMResidentStaticMeshDataCount()
+        , .loadingFromDiskStaticMeshCount = GResourceManager->GetDiskLoadingStaticMeshDataCount()
         , .meshCount = static_cast<int>(GResourceManager->m_meshEntities.size())
         , .subMeshCount = subMeshCount
         , .textureCount = GResourceManager->GetTextureCount()
@@ -267,6 +285,7 @@ bool a = true;
         , .pendingBufferUploadCount = GResourceManager->GetPendingBufferUploadJobCount()
         , .pendingImageUploadCount = GResourceManager->GetPendingImageUploadJobCount()
         , .pendingStaticMeshEntities = static_cast<int>(m_pWorld->m_resourcePendingStaticMeshEntities.size())
+        , .readyStaticMeshEntities = static_cast<int>(m_pWorld->m_uuid_to_pMeshEntity.size())
     };
 
     RenderingInfo renderingInfo = {

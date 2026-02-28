@@ -47,6 +47,8 @@ public:
     void RemoveEntity(UUID uuid);
 
     void AddNewStaticMeshEntity(const char* entityName);
+    void UpdateStaticMeshEntityResourceEntry(UUID entityUUID, const char *resourcePath);
+    [[nodiscard]] bool UpdateStaticMeshEntityResource(UUID entityUUID, const char *resourcePath);
     [[nodiscard]] std::optional<UUID> GetStaticMeshEntityResourceUUID(UUID uuid) const;
 
 

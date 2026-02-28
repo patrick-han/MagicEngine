@@ -17,6 +17,9 @@ struct Editor
     bool isSceneOutlineSelectedUUIDValid = false;
     bool isWorldLoaded = false;
     char loadedWorldNameBuffer[defaultMaxTextLength] = "NONE";
+
+    // Static Mesh
+    char assignStaticMeshResourceNameBuffer[defaultMaxTextLength] = "ResourceName";
 };
 
 

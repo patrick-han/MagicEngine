@@ -19,13 +19,14 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImVec2 displaySize = ImGui::GetIO().DisplaySize;
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     ImGui::SetNextWindowPos(ImVec2(0, 0)); // Top left
-    ImGui::SetNextWindowSize(ImVec2(250, displaySize.y / 2));
+    ImGui::SetNextWindowSize(ImVec2(300, displaySize.y / 2));
 
     ImGui::Begin("Engine Info", nullptr, flags);
     ImGui::Text("Game::Update() (us):"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%lld", renderingInfo.updateLoopTimingUS.count());
     ImGui::Text("Frame #:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", frameNumber);
     ImGui::Text("Entity Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.entityCount);
     ImGui::Text("RAM Resident StaticMeshData Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.ramResidentStaticMeshDataCount);
+    ImGui::Text("Disk Loading StaticMeshData Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.loadingFromDiskStaticMeshCount);
     ImGui::Text("Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.meshCount);
     ImGui::Text("SubMesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.subMeshCount);
     ImGui::Text("Texture Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.textureCount);
@@ -33,6 +34,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::Text("Pending Buffer Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingBufferUploadCount);
     ImGui::Text("Pending Image Upload Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingImageUploadCount);
     ImGui::Text("Pending StaticMesh Entities:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.pendingStaticMeshEntities);
+    ImGui::Text("Ready StaticMesh Entities:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%d", renderingInfo.gameStats.readyStaticMeshEntities);
     ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
     if (!GEditor->isWorldLoaded)
     {
@@ -118,7 +120,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::End();
 
     ImGui::SetNextWindowPos(ImVec2(0, displaySize.y * 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(250.0f, displaySize.y * 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(300.0f, displaySize.y * 0.5f));
 
     if (ImGui::Begin("Scene Outline", nullptr, flags))
     {
@@ -143,8 +145,8 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::End();
 
 
-    ImGui::SetNextWindowPos(ImVec2(displaySize.x - 250.0f, 0.0f));
-    ImGui::SetNextWindowSize(ImVec2(250.0f, displaySize.y));
+    ImGui::SetNextWindowPos(ImVec2(displaySize.x - 300.0f, 0.0f));
+    ImGui::SetNextWindowSize(ImVec2(300.0f, displaySize.y));
     ImGui::Begin("Inspector", nullptr, flags);
     if (!GEditor->isSceneOutlineSelectedUUIDValid) // Sometimes we may start with an empty world, but later add an entity
     {
@@ -159,24 +161,43 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     {
         UUID selectedEntityUUID  = GEditor->sceneOutlineSelectedUUID;
         const EntityType entityType = world->GetEntityType(selectedEntityUUID );
+        // Display entity type
         ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.8f, 1.0f), "%s", World::EntityTypeToStr(entityType));
+
+        // StaticMesh: Display the resource path and name
         if (entityType == EntityType::StaticMesh)
         {
             std::optional<UUID> resourceUUID = world->GetStaticMeshEntityResourceUUID(selectedEntityUUID);
             if (resourceUUID)
             {
-                ImGui::TextWrapped( "Res: %s", GResourceDB->GetResPath(*resourceUUID));
+                ImGui::TextWrapped( "ResName: %s", GResourceDB->GetResName(*resourceUUID));
+                ImGui::TextWrapped( "ResPath: %s", GResourceDB->GetResPath(*resourceUUID));
             }
             else
             {
-                ImGui::TextColored(ImVec4(1.0f, 0.1f, 0.1f, 1.0f), "Res: NULL");
+                ImGui::TextColored(ImVec4(1.0f, 0.1f, 0.1f, 1.0f), "ResName: NULL\nResPath: NULL");
+            }
+            ImGui::InputText("ResName##AssignNewResNameBox", GEditor->assignStaticMeshResourceNameBuffer, IM_ARRAYSIZE(GEditor->assignStaticMeshResourceNameBuffer));
+            if (ImGui::Button("Assign", ImVec2(150, 30)))
+            {
+                if (!GResourceDB->CheckIfResourceExists(GEditor->assignStaticMeshResourceNameBuffer))
+                {
+                    Logger::Err("Trying to assign resource to StaticMesh that doesn't exist!");
+                }
+                else
+                {
+                    if (!world->UpdateStaticMeshEntityResource(selectedEntityUUID, GEditor->assignStaticMeshResourceNameBuffer))
+                    {
+                        Logger::Err("Tried to update static mesh entity resource but could not find entity!");
+                    }
+                }
             }
         }
     }
     ImGui::End();
 
 
-    ImGui::SetNextWindowPos(ImVec2(250, (displaySize.y / 2) + (displaySize.y / 3)));
+    ImGui::SetNextWindowPos(ImVec2(300, (displaySize.y / 2) + (displaySize.y / 3)));
     ImGui::SetNextWindowSize(ImVec2(500, (displaySize.y / 2) - (displaySize.y / 3)));
     ImGui::Begin("Resource Database", nullptr, flags);
 

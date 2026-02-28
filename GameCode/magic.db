@@ -5,3 +5,6 @@
 <resource name="Scene" uuid="2a3e0ad9-f50b-4b0f-83d5-79288256b0f2" type="staticmesh">
 	<path>DataLibCode/scene.bin</path>
 </resource>
+<resource name="Sponza" uuid="7991DDA6-84B0-4E91-A120-A1D4EC07D35A" type="staticmesh">
+	<path>DataLibCode/sponza-cgltf.bin</path>
+</resource>

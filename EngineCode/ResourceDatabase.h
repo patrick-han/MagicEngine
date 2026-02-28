@@ -37,6 +37,8 @@ private:
 public: // temp
     [[nodiscard]] const char* GetResName(UUID uuid) const;
     [[nodiscard]] const char* GetResPath(UUID uuid) const;
+    [[nodiscard]] const char* GetResPath(const char* resName) const;
+    [[nodiscard]] UUID GetResUUID(const char *resName) const;
     [[nodiscard]] ResourceType GetResType(UUID uuid) const;
     [[nodiscard]] const std::unordered_set<UUID>& GetAllUUIDs() const;
 private:
