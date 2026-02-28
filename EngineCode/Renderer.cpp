@@ -631,17 +631,19 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         if (m_renderBoundingBoxes)
         {
             // Render all bounding boxes
+            int subMeshIndex = 0;
             BoundingBoxPushConstants boundingBoxPushConstants;
             boundingBoxPushConstants.viewProjection = viewProjection;
             cmdEncoder.BindGraphicsPipeline(m_debugDrawPipeline);
             for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
             {
                 AABB3f worldSpaceAABB;
-                worldSpaceAABB.Transform(pSubMesh->aabb, pSubMesh->m_transform);
+                worldSpaceAABB.Transform(pSubMesh->aabb, transforms[subMeshIndex]);
                 boundingBoxPushConstants.min = worldSpaceAABB.GetMin();
                 boundingBoxPushConstants.max = worldSpaceAABB.GetMax();
                 vkCmdPushConstants(cmdEncoder.Handle(), m_debugDrawPipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(boundingBoxPushConstants), &boundingBoxPushConstants);
                 cmdEncoder.Draw(24, 1, 0, 0);
+                subMeshIndex++;
             }
         }
 
