@@ -140,12 +140,12 @@ void World::SetStaticMeshEntityTransform(UUID uuid, Matrix4f transform)
         Logger::Err("SetStaticMeshTransform(): Entity doesn't exist");
         return;
     }
-    auto it = m_uuid_to_pMeshEntity.find(uuid);
-    if (it == m_uuid_to_pMeshEntity.end())
+    auto it = m_uuid_to_meshEntity.find(uuid);
+    if (it == m_uuid_to_meshEntity.end())
     {
         assert(false); // This should never happen
     }
-    it->second->m_transform = transform;
+    it->second.m_transform = transform;
 }
 
 std::optional<Matrix4f> World::GetStaticMeshEntityTransform(UUID uuid) const
@@ -155,12 +155,12 @@ std::optional<Matrix4f> World::GetStaticMeshEntityTransform(UUID uuid) const
         Logger::Err("GetStaticMeshTransform(): Entity doesn't exist");
         return std::nullopt;
     }
-    auto it = m_uuid_to_pMeshEntity.find(uuid);
-    if (it == m_uuid_to_pMeshEntity.end())
+    auto it = m_uuid_to_meshEntity.find(uuid);
+    if (it == m_uuid_to_meshEntity.end())
     {
         return std::nullopt; // This path might hit if the static mesh entity is still in the pending list
     }
-    return it->second->m_transform;
+    return it->second.m_transform;
 }
 
 bool World::CheckIfEntityExists(const char *entityName) const
@@ -260,9 +260,9 @@ bool World::UpdateStaticMeshEntityResource(UUID entityUUID, const char *resource
     {
         return false;
     }
-    if (m_uuid_to_pMeshEntity.find(entityUUID) != m_uuid_to_pMeshEntity.end())
+    if (m_uuid_to_meshEntity.find(entityUUID) != m_uuid_to_meshEntity.end())
     {
-        auto n = m_uuid_to_pMeshEntity.erase(entityUUID);
+        auto n = m_uuid_to_meshEntity.erase(entityUUID);
         assert(n > 0);
         m_resourcePendingStaticMeshEntities.emplace_back(entityUUID, std::string(resourceName));
     }
@@ -295,7 +295,7 @@ void World::UnregisterEntity(UUID uuid)
     {
         case EntityType::StaticMesh:
         {
-            const auto n = m_uuid_to_pMeshEntity.erase(uuid);
+            const auto n = m_uuid_to_meshEntity.erase(uuid);
             bool wasPending = false;
             auto it = std::find_if(
                 m_resourcePendingStaticMeshEntities.begin()
@@ -359,6 +359,6 @@ void World::Clear()
     {
         m_resourcePendingStaticMeshEntities.clear();
     }
-    m_uuid_to_pMeshEntity.clear();
+    m_uuid_to_meshEntity.clear();
 }
 }

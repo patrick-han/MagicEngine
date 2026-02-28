@@ -67,6 +67,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/Editor/Editor.h
         EngineCode/Platform/WindowsHeader.h
         EngineCode/RendererEditor.cpp
+        EngineCode/StaticMesh.h
+        EngineCode/StaticMesh.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)

@@ -13,6 +13,7 @@
 #include "World.h"
 #include "DefaultTexture.h"
 #include "Threading.h"
+#include "StaticMesh.h"
 namespace Magic
 {
 
@@ -178,18 +179,18 @@ public:
                 }
             }
 
-            StaticMeshEntity* pMeshEntity = GMemoryManager->New<StaticMeshEntity>();
-            assert(pMeshEntity);
-            m_meshEntities.push_back(pMeshEntity);
-            m_staticMeshResNameToArrayIndex[job.staticMeshDataName] = m_meshEntities.size() - 1;
+            StaticMesh* pStaticMesh = GMemoryManager->New<StaticMesh>();
+            assert(pStaticMesh);
+            m_staticMeshes.push_back(pStaticMesh);
+            m_staticMeshResNameToArrayIndex[job.staticMeshDataName] = m_staticMeshes.size() - 1;
 
             size_t meshCounter = 0;
             for (const SubMeshData& meshData : testStaticMeshData->m_subMeshes)
             {
                 // We can go ahead and fill out some of the data now and wait for buffers later
-                // SubMesh* pSubMesh = pMeshEntity->AddSubMesh();
+                // SubMesh* pSubMesh = pStaticMesh->AddSubMesh();
                 SubMesh* pSubMesh = GMemoryManager->AllocateSubMesh();
-                pMeshEntity->AddSubMesh(pSubMesh);
+                pStaticMesh->AddSubMesh(pSubMesh);
                 pSubMesh->indexCount = static_cast<uint32_t>(meshData.m_indices.size());
                 Matrix4f matrix;
                 pSubMesh->m_transform = testStaticMeshData->m_transforms[meshCounter];
@@ -307,10 +308,10 @@ public:
     {
         uint64_t value = GRenderer->GetCurrentStreamingTimelineValue();
         // TODO: we actually don't need to loop through ALL mesh entities, should maintain a list of ones with pending uploads
-        // for (StaticMeshEntity* pMeshEntity : m_meshEntities)
-        for (StaticMeshEntity* pMeshEntity : m_meshEntities)
+        // for (StaticMesh* pStaticMesh : m_staticMeshes)
+        for (StaticMesh* pStaticMesh : m_staticMeshes)
         {
-            for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
+            for (SubMesh* pSubMesh : pStaticMesh->GetSubMeshes())
             {
                 bool imageFinishedUploading = value >= pSubMesh->diffuseTextureStreamingTimelineReadyValue;
                 bool hasImage = pSubMesh->diffuseImage.image != VK_NULL_HANDLE;
@@ -392,24 +393,24 @@ public:
     {
         // First destroy all GPU resources associated with static meshes
         // And then we can free our CPU side representations        
-        for (StaticMeshEntity* pMeshEntity : m_meshEntities)
+        for (StaticMesh* pStaticMesh : m_staticMeshes)
         {
-            for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
+            for (SubMesh* pSubMesh : pStaticMesh->GetSubMeshes())
             {
                 GRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
                 GRenderer->DestroyBuffer(pSubMesh->indexBuffer);
             }
         }
-        for (StaticMeshEntity* pMeshEntity : m_meshEntities)
+        for (StaticMesh* pStaticMesh : m_staticMeshes)
         {
-            for (SubMesh* pSubMesh : pMeshEntity->GetSubMeshes())
+            for (SubMesh* pSubMesh : pStaticMesh->GetSubMeshes())
             {
                 GMemoryManager->FreeSubMesh(pSubMesh);
             }
-            GMemoryManager->Delete(pMeshEntity);
+            GMemoryManager->Delete(pStaticMesh);
         }
         Logger::Info("ResourceManager: Destroyed all meshes");
-        m_meshEntities.clear();
+        m_staticMeshes.clear();
         m_staticMeshResNameToArrayIndex.clear();
     }
     void DestroyAllGPUResidentTextures()
@@ -427,7 +428,7 @@ public:
     // These data structures should only be accessed by a single render thread
 public:
     std::unordered_map<std::string, std::size_t> m_staticMeshResNameToArrayIndex; // string is slow key, but this lookup should only happen once or twice during the lifetime of an entity
-    std::vector<StaticMeshEntity*> m_meshEntities;
+    std::vector<StaticMesh*> m_staticMeshes;
 private:
     std::vector<AllocatedImage> m_renderableImages;
 

@@ -75,7 +75,7 @@ public:
      std::vector<ResourcePendingStaticMeshEntity> m_resourcePendingStaticMeshEntities;
     // Entity UUID to StaticMeshEntity mapping as retrieved from ResourceManager
     // Entities only appear here once they've found their resources
-    std::unordered_map<UUID, StaticMeshEntity*> m_uuid_to_pMeshEntity;
+    std::unordered_map<UUID, StaticMeshEntity> m_uuid_to_meshEntity;
     ////// Static Meshes END //////
 
 

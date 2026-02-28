@@ -16,5 +16,5 @@
 		<row2>0,0,1,0</row2>
 		<row3>0,0,0,1</row3>
 	</transform>
-	<resource_staticmesh name="Scene" uuid="2a3e0ad9-f50b-4b0f-83d5-79288256b0f2" />
+	<resource_staticmesh name="Scene" uuid="2A3E0AD9-F50B-4B0F-83D5-79288256B0F2" />
 </entity>
