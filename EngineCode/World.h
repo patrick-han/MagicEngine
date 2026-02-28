@@ -50,6 +50,8 @@ public:
     void UpdateStaticMeshEntityResourceEntry(UUID entityUUID, const char *resourcePath);
     [[nodiscard]] bool UpdateStaticMeshEntityResource(UUID entityUUID, const char *resourcePath);
     [[nodiscard]] std::optional<UUID> GetStaticMeshEntityResourceUUID(UUID uuid) const;
+    void SetStaticMeshEntityTransform(UUID uuid, Matrix4f transform);
+    [[nodiscard]] std::optional<Matrix4f> GetStaticMeshEntityTransform(UUID uuid) const;
 
 
     void Clear();

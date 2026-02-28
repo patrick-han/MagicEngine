@@ -145,8 +145,8 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::End();
 
 
-    ImGui::SetNextWindowPos(ImVec2(displaySize.x - 300.0f, 0.0f));
-    ImGui::SetNextWindowSize(ImVec2(300.0f, displaySize.y));
+    ImGui::SetNextWindowPos(ImVec2(displaySize.x - 400.0f, 0.0f));
+    ImGui::SetNextWindowSize(ImVec2(400.0f, displaySize.y));
     ImGui::Begin("Inspector", nullptr, flags);
     if (!GEditor->isSceneOutlineSelectedEntityUUIDValid) // Sometimes we may start with an empty world, but later add an entity
     {
@@ -191,6 +191,29 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
                         Logger::Err("Tried to update static mesh entity resource but could not find entity!");
                     }
                 }
+            }
+        }
+
+        // Entity: Display transform
+        std::optional<Matrix4f> pEntityTransform = world->GetStaticMeshEntityTransform(selectedEntityUUID);
+        if (pEntityTransform)
+        {
+            Matrix4f entityTransform = *pEntityTransform;
+            ImGui::TextWrapped( "Transform Matrix");
+            ImGui::TextWrapped( "[%f, %f, %f, %f]", entityTransform.m00, entityTransform.m01, entityTransform.m02, entityTransform.m03);
+            ImGui::TextWrapped( "[%f, %f, %f, %f]", entityTransform.m10, entityTransform.m11, entityTransform.m12, entityTransform.m13);
+            ImGui::TextWrapped( "[%f, %f, %f, %f]", entityTransform.m20, entityTransform.m21, entityTransform.m22, entityTransform.m23);
+            ImGui::TextWrapped( "[%f, %f, %f, %f]", entityTransform.m30, entityTransform.m31, entityTransform.m32, entityTransform.m33);
+
+            if (ImGui::Button("+X", ImVec2(50, 30)))
+            {
+                Matrix4f translate = Matrix4f::MakeTranslate(Vector3f(1.0f, 0.0f, 0.0f));
+                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * entityTransform);
+            }
+            if (ImGui::Button("-X", ImVec2(50, 30)))
+            {
+                Matrix4f translate = Matrix4f::MakeTranslate(Vector3f(-1.0f, 0.0f, 0.0f));
+                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * entityTransform);
             }
         }
     }

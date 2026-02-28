@@ -132,6 +132,37 @@ std::optional<UUID> World::GetStaticMeshEntityResourceUUID(UUID uuid) const
     return resource_uuid;
 }
 
+
+void World::SetStaticMeshEntityTransform(UUID uuid, Matrix4f transform)
+{
+    if (!CheckIfEntityExists(uuid))
+    {
+        Logger::Err("SetStaticMeshTransform(): Entity doesn't exist");
+        return;
+    }
+    auto it = m_uuid_to_pMeshEntity.find(uuid);
+    if (it == m_uuid_to_pMeshEntity.end())
+    {
+        assert(false); // This should never happen
+    }
+    it->second->m_transform = transform;
+}
+
+std::optional<Matrix4f> World::GetStaticMeshEntityTransform(UUID uuid) const
+{
+    if (!CheckIfEntityExists(uuid))
+    {
+        Logger::Err("GetStaticMeshTransform(): Entity doesn't exist");
+        return std::nullopt;
+    }
+    auto it = m_uuid_to_pMeshEntity.find(uuid);
+    if (it == m_uuid_to_pMeshEntity.end())
+    {
+        return std::nullopt; // This path might hit if the static mesh entity is still in the pending list
+    }
+    return it->second->m_transform;
+}
+
 bool World::CheckIfEntityExists(const char *entityName) const
 {
     for (pugi::xml_node entity : m_world.children())
