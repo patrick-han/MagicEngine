@@ -6,6 +6,7 @@
 #include "VertexDescriptors.h"
 #include "Camera.h"
 #include "Platform/Platform.h"
+#include "MemoryManager.h"
 #include <fstream>
 #include <cassert>
 #include <thread>
@@ -596,7 +597,10 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 
         Matrix4f viewProjection = renderingInfo.pCamera->GetProjectionMatrix(outputWidth, outputHeight, 0.1f, 2000.0f, 70.0f) * renderingInfo.pCamera->GetViewMatrix();
 
+        std::span<Matrix4f const> transforms = GMemoryManager->GetFrameTransforms();
+
         {
+            int subMeshIndex = 0;
             DefaultPushConstants pushConstants;
             pushConstants.viewProjection = viewProjection;
 
@@ -605,7 +609,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                 cmdEncoder.BindVertexBufferSimple(pSubMesh->vertexBuffer);
                 cmdEncoder.BindIndexBufferSimple(pSubMesh->indexBuffer);
                 {
-                    pushConstants.model = pSubMesh->m_worldMatrix;// * Matrix4f::MakeScale(100.0f);
+                    pushConstants.model = transforms[subMeshIndex];
                     if (pSubMesh->hasTexture)
                     {
                         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
@@ -620,6 +624,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                     vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
                 }
                 cmdEncoder.DrawIndexedSimple(pSubMesh->indexCount, 0);
+                subMeshIndex++;
             }
         }
 
@@ -632,7 +637,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
             {
                 AABB3f worldSpaceAABB;
-                worldSpaceAABB.Transform(pSubMesh->aabb, pSubMesh->m_worldMatrix);
+                worldSpaceAABB.Transform(pSubMesh->aabb, pSubMesh->m_transform);
                 boundingBoxPushConstants.min = worldSpaceAABB.GetMin();
                 boundingBoxPushConstants.max = worldSpaceAABB.GetMax();
                 vkCmdPushConstants(cmdEncoder.Handle(), m_debugDrawPipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(boundingBoxPushConstants), &boundingBoxPushConstants);

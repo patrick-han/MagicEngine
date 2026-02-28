@@ -13,8 +13,8 @@ struct Editor
     char loadWorldTextBoxNameBuffer[defaultMaxTextLength] = "GameCode/magic.world";
     char newResourceNameBuffer[defaultMaxTextLength] = "NewResource";
     char newResourcePathBuffer[defaultMaxTextLength*4] = "Path";
-    UUID sceneOutlineSelectedUUID = UUID{};
-    bool isSceneOutlineSelectedUUIDValid = false;
+    UUID sceneOutlineSelectedEntityUUID = UUID{};
+    bool isSceneOutlineSelectedEntityUUIDValid = false;
     bool isWorldLoaded = false;
     char loadedWorldNameBuffer[defaultMaxTextLength] = "NONE";
 

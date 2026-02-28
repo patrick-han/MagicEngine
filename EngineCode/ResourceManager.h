@@ -192,7 +192,7 @@ public:
                 pMeshEntity->AddSubMesh(pSubMesh);
                 pSubMesh->indexCount = static_cast<uint32_t>(meshData.m_indices.size());
                 Matrix4f matrix;
-                pSubMesh->m_worldMatrix = testStaticMeshData->m_transforms[meshCounter];
+                pSubMesh->m_transform = testStaticMeshData->m_transforms[meshCounter];
 
                 // calculate aabb, TODO: this can be spun off into a separate job, or better yet done in the cooker
                 for (const auto& vertex : meshData.m_vertices)

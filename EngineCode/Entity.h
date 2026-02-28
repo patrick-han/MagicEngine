@@ -41,7 +41,8 @@ public:
 protected:
     IEntity* m_parent;
     std::list<IEntity*> m_children;
-    // Matrix4f m_worldMatrix;
+public:
+    Matrix4f m_transform;
 };
 
 }

@@ -49,8 +49,8 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
                 const std::unordered_set<UUID>& uuids = world->GetAllUUIDs();
                 if (!uuids.empty())
                 {
-                    GEditor->sceneOutlineSelectedUUID = *uuids.begin();
-                    GEditor->isSceneOutlineSelectedUUIDValid = true;
+                    GEditor->sceneOutlineSelectedEntityUUID = *uuids.begin();
+                    GEditor->isSceneOutlineSelectedEntityUUIDValid = true;
                 }
                 GEditor->isWorldLoaded = true;
 #if PLATFORM_WINDOWS
@@ -75,7 +75,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
                 pGame->UnloadContent();
                 renderingInfo.meshesToRender.clear(); // Invalidate all queued up items
                 GEditor->isWorldLoaded = false;
-                GEditor->isSceneOutlineSelectedUUIDValid = false;
+                GEditor->isSceneOutlineSelectedEntityUUIDValid = false;
 #if PLATFORM_WINDOWS
                 strncpy_s(GEditor->loadedWorldNameBuffer, "NULL", 5);
 #elif PLATFORM_MACOS
@@ -100,18 +100,18 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         }
         if (ImGui::Button("Remove Selected Entity", ImVec2(150, 30)))
         {
-            if (GEditor->isSceneOutlineSelectedUUIDValid == true)
+            if (GEditor->isSceneOutlineSelectedEntityUUIDValid == true)
             {
-                world->RemoveEntity(GEditor->sceneOutlineSelectedUUID);
+                world->RemoveEntity(GEditor->sceneOutlineSelectedEntityUUID);
                 const std::unordered_set<UUID>& uuids = world->GetAllUUIDs();
                 if (!uuids.empty())
                 {
-                    GEditor->sceneOutlineSelectedUUID = *uuids.begin();
-                    GEditor->isSceneOutlineSelectedUUIDValid = true;
+                    GEditor->sceneOutlineSelectedEntityUUID = *uuids.begin();
+                    GEditor->isSceneOutlineSelectedEntityUUIDValid = true;
                 }
                 else
                 {
-                    GEditor->isSceneOutlineSelectedUUIDValid = false;
+                    GEditor->isSceneOutlineSelectedEntityUUIDValid = false;
                 }
             }
         }
@@ -133,10 +133,10 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
             const std::string& name = world->GetEntityName(uuid);
             const EntityType entityType = world->GetEntityType(uuid);
 
-            bool isSelected = (uuid == GEditor->sceneOutlineSelectedUUID);
+            bool isSelected = (uuid == GEditor->sceneOutlineSelectedEntityUUID);
             if (ImGui::Selectable(name.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
             {
-                GEditor->sceneOutlineSelectedUUID = uuid;
+                GEditor->sceneOutlineSelectedEntityUUID = uuid;
             }
         }
 
@@ -148,18 +148,18 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::SetNextWindowPos(ImVec2(displaySize.x - 300.0f, 0.0f));
     ImGui::SetNextWindowSize(ImVec2(300.0f, displaySize.y));
     ImGui::Begin("Inspector", nullptr, flags);
-    if (!GEditor->isSceneOutlineSelectedUUIDValid) // Sometimes we may start with an empty world, but later add an entity
+    if (!GEditor->isSceneOutlineSelectedEntityUUIDValid) // Sometimes we may start with an empty world, but later add an entity
     {
         const std::unordered_set<UUID>& uuids = world->GetAllUUIDs();
         if (!uuids.empty())
         {
-            GEditor->sceneOutlineSelectedUUID = *uuids.begin();
-            GEditor->isSceneOutlineSelectedUUIDValid = true;
+            GEditor->sceneOutlineSelectedEntityUUID = *uuids.begin();
+            GEditor->isSceneOutlineSelectedEntityUUIDValid = true;
         }
     }
-    if (GEditor->isSceneOutlineSelectedUUIDValid)
+    if (GEditor->isSceneOutlineSelectedEntityUUIDValid)
     {
-        UUID selectedEntityUUID  = GEditor->sceneOutlineSelectedUUID;
+        UUID selectedEntityUUID  = GEditor->sceneOutlineSelectedEntityUUID;
         const EntityType entityType = world->GetEntityType(selectedEntityUUID );
         // Display entity type
         ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.8f, 1.0f), "%s", World::EntityTypeToStr(entityType));

@@ -2,6 +2,7 @@
 #include "Allocators.h"
 #include "SubMesh.h"
 #include "../CommonCode/Log.h"
+#include <span>
 namespace Magic
 {
 
@@ -74,8 +75,13 @@ public:
     [[nodiscard]] SubMesh* AllocateSubMesh();
     void FreeSubMesh(SubMesh*);
 
+    [[nodiscard]] Matrix4f* AllocateFrameTransform();
+    void ResetFrameTransformLinearAllocator();
+    [[nodiscard]] std::span<Matrix4f const> GetFrameTransforms();
+
 private:
     FixedPODTypePoolAllocator<SubMesh>* m_pSubMeshPool;
+    FixedPODTypeLinearAllocator<Matrix4f>* m_pFrameTransformLinearAllocator;
     std::unordered_set<void*> m_genericNewDeletePointers;
     std::unordered_set<void*> m_genericMallocFreePointers;
 };

@@ -11,7 +11,7 @@ struct SubMesh
 {
     bool ReadyToRender() { return vertexBufferReady && indexBufferReady && texturesReady; }
     StaticMeshEntity* m_parentMesh = nullptr;
-    Matrix4f m_worldMatrix;
+    Matrix4f m_transform;
     AllocatedBuffer vertexBuffer;
     AllocatedBuffer indexBuffer;
     uint32_t indexCount = 0;

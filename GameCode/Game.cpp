@@ -193,6 +193,7 @@ bool a = true;
         it = pending.erase(it); // Remove from m_resourcePendingStaticMeshEntities
     }
 
+    GMemoryManager->ResetFrameTransformLinearAllocator();
     std::vector<SubMesh*> meshesToRender;
     {
         for (auto staticMeshEntity : m_pWorld->m_uuid_to_pMeshEntity)
@@ -203,6 +204,9 @@ bool a = true;
                 if (!ShouldCull(pSubMesh))
                 {
                     meshesToRender.push_back(pSubMesh); // We don't necessarily want to wait for the entire static mesh to be ready, submeshes are okay
+                    Matrix4f* allocTransform = GMemoryManager->AllocateFrameTransform();
+                    Matrix4f worldTransform = pMeshEntity->m_transform * pSubMesh->m_transform;
+                    *allocTransform = worldTransform;
                 }
             }
         }

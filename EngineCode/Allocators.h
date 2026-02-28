@@ -14,6 +14,7 @@ class FixedPODTypeLinearAllocator
     T* m_data;
     T* m_allocPointer;
 public:
+    inline static const T DefaultConstructedObject{};
     struct Payload
     {
         T* dataStart = nullptr;
@@ -30,13 +31,14 @@ public:
     {
         delete[] m_data;
     }
-    T* Allocate()
+    T* AllocateDefault()
     {
         if (m_objectsAllocated >= m_maxObjects)
         {
             return nullptr;
         }
         T* result = m_allocPointer;
+        std::memcpy(result, &DefaultConstructedObject, sizeof(T));
         m_allocPointer += 1;
         m_bytesAllocated += sizeof(T);
         m_objectsAllocated += 1;
