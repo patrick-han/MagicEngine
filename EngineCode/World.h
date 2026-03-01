@@ -27,6 +27,7 @@ struct ResourcePendingStaticMeshEntity
 {
     UUID entityUUID;
     std::string resourceName;
+    Matrix4f transform;
 };
 
 class World
@@ -50,7 +51,8 @@ public:
     void UpdateStaticMeshEntityResourceEntry(UUID entityUUID, const char *resourcePath);
     [[nodiscard]] bool UpdateStaticMeshEntityResource(UUID entityUUID, const char *resourcePath);
     [[nodiscard]] std::optional<UUID> GetStaticMeshEntityResourceUUID(UUID uuid) const;
-    void SetStaticMeshEntityTransform(UUID uuid, Matrix4f transform);
+    void UpdateStaticMeshEntityTransformEntry(UUID entityUUID, const Matrix4f& transform);
+    void SetStaticMeshEntityTransform(UUID uuid, const Matrix4f& transform);
     [[nodiscard]] std::optional<Matrix4f> GetStaticMeshEntityTransform(UUID uuid) const;
 
 

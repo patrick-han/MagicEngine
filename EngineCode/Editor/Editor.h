@@ -20,6 +20,9 @@ struct Editor
 
     // Static Mesh
     char assignStaticMeshResourceNameBuffer[defaultMaxTextLength] = "ResourceName";
+
+    // Inspector
+    float transformAmount = 1.0f;
 };
 
 

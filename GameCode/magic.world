@@ -1,20 +1,10 @@
 <?xml version="1.0"?>
 <root />
 <entity name="PlayerEntity" uuid="5ECE79DE-B979-40C9-843F-C024172F7B72" type="staticmesh">
-	<transform>
-		<row0>1,0,0,0</row0>
-		<row1>0,1,0,0</row1>
-		<row2>0,0,1,0</row2>
-		<row3>0,0,0,1</row3>
-	</transform>
+	<transform m="1 0 0 0  0 1 0 0  0 0 1 0  0 0 0 1" />
 	<resource_staticmesh name="Player" uuid="E94929B2-A81A-4385-AE7F-72C02AC74232" />
 </entity>
 <entity name="SceneEntity" uuid="B3FFC21D-0932-4DF6-ABE0-81F9B6821F75" type="staticmesh">
-	<transform>
-		<row0>1,0,0,0</row0>
-		<row1>0,1,0,0</row1>
-		<row2>0,0,1,0</row2>
-		<row3>0,0,0,1</row3>
-	</transform>
+	<transform m="1 0 0 0  0 1 0 0  0 0 1 0  0 0 0 1" />
 	<resource_staticmesh name="Scene" uuid="2A3E0AD9-F50B-4B0F-83D5-79288256B0F2" />
 </entity>

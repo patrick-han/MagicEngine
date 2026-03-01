@@ -51,6 +51,71 @@ const char * World::EntityTypeToStr(EntityType entityType)
     }
 }
 
+// Parse 16 floats from "1 0 0 0, 0 1 ..." (spaces/commas/semicolons allowed)
+static bool ParseFloat16(std::string_view s, float out[16])
+{
+    const char* cur = s.data();
+    const char* end = s.data() + s.size();
+
+    int count = 0;
+
+    while (count < 16)
+    {
+        // Skip separators until we hit the next number
+        while (cur < end)
+        {
+            char c = *cur;
+            if (std::isspace((unsigned char)c) || c == ',' || c == ';')
+                ++cur;
+            else
+                break;
+        }
+
+        if (cur >= end)
+            return false;
+
+        char* next = nullptr;
+        float v = std::strtof(cur, &next);
+
+        // No progress -> parse failure
+        if (next == cur)
+            return false;
+
+        out[count++] = v;
+        cur = next;
+    }
+
+    return true;
+}
+
+static bool ReadMatrix4f(pugi::xml_node transformNode, Matrix4f& outM)
+{
+    pugi::xml_attribute attr = transformNode.attribute("m");
+    assert(attr);
+
+    float tmp[16];
+    if (!ParseFloat16(std::string_view{attr.value()}, tmp))
+        return false;
+
+    outM.m00 = tmp[0];
+    outM.m01 = tmp[1];
+    outM.m02 = tmp[2];
+    outM.m03 = tmp[3];
+    outM.m10 = tmp[4];
+    outM.m11 = tmp[5];
+    outM.m12 = tmp[6];
+    outM.m13 = tmp[7];
+    outM.m20 = tmp[8];
+    outM.m21 = tmp[9];
+    outM.m22 = tmp[10];
+    outM.m23 = tmp[11];
+    outM.m30 = tmp[12];
+    outM.m31 = tmp[13];
+    outM.m32 = tmp[14];
+    outM.m33 = tmp[15];
+    return true;
+}
+
 void World::Reload()
 {
     Clear();
@@ -67,6 +132,12 @@ void World::Reload()
         bool uuidParse = UUID::TryParse(entity.attribute("uuid").as_string(), uuid);
         assert(uuidParse);
 
+        Matrix4f transform;
+        { // Transform
+            pugi::xml_node transformNode = entity.child("transform");
+            assert(ReadMatrix4f(transformNode, transform));
+        }
+
         if (entityType == EntityType::Unknown)
         {
             continue;
@@ -78,7 +149,7 @@ void World::Reload()
             assert(resource_staticmesh.attribute("name"));
             assert(resource_staticmesh.attribute("uuid"));
             // EntityUUID, resource name
-            m_resourcePendingStaticMeshEntities.emplace_back(uuid, resource_staticmesh.attribute("name").as_string());
+            m_resourcePendingStaticMeshEntities.emplace_back(uuid, resource_staticmesh.attribute("name").as_string(), transform);
         }
         
         RegisterEntity(uuid, entityName, entityType, entity);
@@ -132,8 +203,41 @@ std::optional<UUID> World::GetStaticMeshEntityResourceUUID(UUID uuid) const
     return resource_uuid;
 }
 
+static void WriteMatrix4f(pugi::xml_node transformNode, const Matrix4f& M)
+{
+    std::ostringstream oss;
+    oss.precision(9); // enough for stable round-trips for most game transforms
 
-void World::SetStaticMeshEntityTransform(UUID uuid, Matrix4f transform)
+    oss << M.m00 << ' ';
+    oss << M.m01 << ' ';
+    oss << M.m02 << ' ';
+    oss << M.m03 << ' ';
+    oss << M.m10 << ' ';
+    oss << M.m11 << ' ';
+    oss << M.m12 << ' ';
+    oss << M.m13 << ' ';
+    oss << M.m20 << ' ';
+    oss << M.m21 << ' ';
+    oss << M.m22 << ' ';
+    oss << M.m23 << ' ';
+    oss << M.m30 << ' ';
+    oss << M.m31 << ' ';
+    oss << M.m32 << ' ';
+    oss << M.m33 << ' ';
+
+    auto attr = transformNode.attribute("m");
+    if (!attr) attr = transformNode.append_attribute("m");
+    attr.set_value(oss.str().c_str());
+}
+
+void World::UpdateStaticMeshEntityTransformEntry(UUID entityUUID, const Matrix4f& transform)
+{
+    pugi::xml_node entity = m_uuid_to_node.at(entityUUID);
+    pugi::xml_node transform_staticmesh = entity.child("transform");
+    WriteMatrix4f(transform_staticmesh, transform);
+}
+
+void World::SetStaticMeshEntityTransform(UUID uuid, const Matrix4f& transform)
 {
     if (!CheckIfEntityExists(uuid))
     {
@@ -146,6 +250,7 @@ void World::SetStaticMeshEntityTransform(UUID uuid, Matrix4f transform)
         assert(false); // This should never happen
     }
     it->second.m_transform = transform;
+    UpdateStaticMeshEntityTransformEntry(uuid, transform);
 }
 
 std::optional<Matrix4f> World::GetStaticMeshEntityTransform(UUID uuid) const
@@ -221,10 +326,7 @@ void World::RemoveEntity(UUID uuid)
 static void AddEntityTransform(pugi::xml_node node)
 {
     pugi::xml_node xform = node.append_child("transform");
-    xform.append_child("row0").text().set("1,0,0,0");
-    xform.append_child("row1").text().set("0,1,0,0");
-    xform.append_child("row2").text().set("0,0,1,0");
-    xform.append_child("row3").text().set("0,0,0,1");
+    xform.append_attribute("m").set_value("1 0 0 0  0 1 0 0  0 0 1 0  0 0 0 1");
 }
 
 void World::AddNewStaticMeshEntity(const char* entityName)
@@ -266,15 +368,17 @@ bool World::UpdateStaticMeshEntityResource(UUID entityUUID, const char *resource
         assert(n > 0);
         m_resourcePendingStaticMeshEntities.emplace_back(entityUUID, std::string(resourceName));
     }
-    // I have no idea why I wrote this here...
-    // for (ResourcePendingStaticMeshEntity& pending : m_resourcePendingStaticMeshEntities)
-    // {
-    //     if (pending.entityUUID == entityUUID)
-    //     {
-    //         pending.resourceName = std::string(resourceName);
-    //         return true;
-    //     }
-    // }
+    // This path hits when the mesh was not in the map to begin with, i.e. add a new NULL static mesh, so it's been pending since it was created
+    else
+    {
+        for (ResourcePendingStaticMeshEntity& pending : m_resourcePendingStaticMeshEntities)
+        {
+            if (pending.entityUUID == entityUUID)
+            {
+                pending.resourceName = std::string(resourceName);
+            }
+        }
+    }
     UpdateStaticMeshEntityResourceEntry(entityUUID, resourceName);
     return true;
 }

@@ -8,7 +8,7 @@ public:
     StaticMeshEntity();
     ~StaticMeshEntity();
     virtual EntityType GetEntityType() override { return EntityType::StaticMesh; }
-    StaticMesh* m_staticMesh;
+    StaticMesh* m_staticMesh = nullptr;
 };
 
 }

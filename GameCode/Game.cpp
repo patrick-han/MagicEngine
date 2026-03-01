@@ -172,6 +172,11 @@ bool a = true;
     auto& pending = m_pWorld->m_resourcePendingStaticMeshEntities;
     for (auto it = pending.begin(); it != pending.end(); )
     {
+        if (it->resourceName == "NULL")
+        {
+            ++it;
+            continue;
+        }
         if (!GResourceManager->IsStaticMeshDataGPUResident(it->resourceName)) // If the mesh is not gpu resident, it's not ready to be assigned
         {
             // Maybe the mesh is not yet loaded into the manager, but we need to check to make sure
@@ -197,6 +202,7 @@ bool a = true;
         StaticMesh* staticMesh = GResourceManager->m_staticMeshes.at(meshEntityIndex);
         StaticMeshEntity staticMeshEntity;
         staticMeshEntity.m_staticMesh = staticMesh;
+        staticMeshEntity.m_transform = it->transform;
         m_pWorld->m_uuid_to_meshEntity.insert_or_assign(it->entityUUID, staticMeshEntity);
         it = pending.erase(it); // Remove from m_resourcePendingStaticMeshEntities
     }
