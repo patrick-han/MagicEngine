@@ -416,6 +416,7 @@ void World::UnregisterEntity(UUID uuid)
                 wasPending = true;
             }
             assert((n > 0) || (wasPending)); // The entity was either ready or still pending a resource
+            break;
         }
         default:
         {
