@@ -97,22 +97,22 @@ static bool ReadMatrix4f(pugi::xml_node transformNode, Matrix4f& outM)
     if (!ParseFloat16(std::string_view{attr.value()}, tmp))
         return false;
 
-    outM.m00 = tmp[0];
-    outM.m01 = tmp[1];
-    outM.m02 = tmp[2];
-    outM.m03 = tmp[3];
-    outM.m10 = tmp[4];
-    outM.m11 = tmp[5];
-    outM.m12 = tmp[6];
-    outM.m13 = tmp[7];
-    outM.m20 = tmp[8];
-    outM.m21 = tmp[9];
-    outM.m22 = tmp[10];
-    outM.m23 = tmp[11];
-    outM.m30 = tmp[12];
-    outM.m31 = tmp[13];
-    outM.m32 = tmp[14];
-    outM.m33 = tmp[15];
+    outM.m[0] = tmp[0];
+    outM.m[1] = tmp[1];
+    outM.m[2] = tmp[2];
+    outM.m[3] = tmp[3];
+    outM.m[4] = tmp[4];
+    outM.m[5] = tmp[5];
+    outM.m[6] = tmp[6];
+    outM.m[7] = tmp[7];
+    outM.m[8] = tmp[8];
+    outM.m[9] = tmp[9];
+    outM.m[10] = tmp[10];
+    outM.m[11] = tmp[11];
+    outM.m[12] = tmp[12];
+    outM.m[13] = tmp[13];
+    outM.m[14] = tmp[14];
+    outM.m[15] = tmp[15];
     return true;
 }
 
@@ -208,22 +208,22 @@ static void WriteMatrix4f(pugi::xml_node transformNode, const Matrix4f& M)
     std::ostringstream oss;
     oss.precision(9); // enough for stable round-trips for most game transforms
 
-    oss << M.m00 << ' ';
-    oss << M.m01 << ' ';
-    oss << M.m02 << ' ';
-    oss << M.m03 << ' ';
-    oss << M.m10 << ' ';
-    oss << M.m11 << ' ';
-    oss << M.m12 << ' ';
-    oss << M.m13 << ' ';
-    oss << M.m20 << ' ';
-    oss << M.m21 << ' ';
-    oss << M.m22 << ' ';
-    oss << M.m23 << ' ';
-    oss << M.m30 << ' ';
-    oss << M.m31 << ' ';
-    oss << M.m32 << ' ';
-    oss << M.m33 << ' ';
+    oss << M.m[0] << ' ';
+    oss << M.m[1] << ' ';
+    oss << M.m[2] << ' ';
+    oss << M.m[3] << ' ';
+    oss << M.m[4] << ' ';
+    oss << M.m[5] << ' ';
+    oss << M.m[6] << ' ';
+    oss << M.m[7] << ' ';
+    oss << M.m[8] << ' ';
+    oss << M.m[9] << ' ';
+    oss << M.m[10] << ' ';
+    oss << M.m[11] << ' ';
+    oss << M.m[12] << ' ';
+    oss << M.m[13] << ' ';
+    oss << M.m[14] << ' ';
+    oss << M.m[15] << ' ';
 
     auto attr = transformNode.attribute("m");
     if (!attr) attr = transformNode.append_attribute("m");

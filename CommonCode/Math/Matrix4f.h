@@ -8,10 +8,7 @@ struct Vector3f;
 class Matrix4f {
 public:
     // Row major storage
-    float m00, m01, m02, m03
-        , m10, m11, m12, m13
-        , m20, m21, m22, m23
-        , m30, m31, m32, m33;
+    float m[16];
     void Identity();
     Matrix4f();
     Matrix4f(
@@ -30,6 +27,7 @@ public:
 
     static Matrix4f MakeTranslate(float tx, float ty, float tz);
     static Matrix4f MakeTranslate(const Vector3f& translate);
+    [[nodiscard]] Vector3f GetTranslate() const;
 
     // Right handed, CCW is a positive rotation
     static Matrix4f MakeRotateX(float rads);
@@ -42,42 +40,80 @@ public:
     // Mainly this can be used to compute the View matrix (world-to-camera) from the camera's world matrix (camera-to-world)
     Matrix4f InvertedRigid();
 
-    Vector3f GetTranslate() const;
-
     float Trace();
 };
 
 inline Vector4f operator* (const Matrix4f& mat, const Vector4f& v) {
     Vector4f res;
-    res.x = v.x * mat.m00 + v.y * mat.m01 + v.z * mat.m02 + v.w * mat.m03;
-    res.y = v.x * mat.m10 + v.y * mat.m11 + v.z * mat.m12 + v.w * mat.m13;
-    res.z = v.x * mat.m20 + v.y * mat.m21 + v.z * mat.m22 + v.w * mat.m23;
-    res.w = v.x * mat.m30 + v.y * mat.m31 + v.z * mat.m32 + v.w * mat.m33;
+    res.x = v.x * mat.m[0] + v.y * mat.m[1] + v.z * mat.m[2] + v.w * mat.m[3];
+    res.y = v.x * mat.m[4] + v.y * mat.m[5] + v.z * mat.m[6] + v.w * mat.m[7];
+    res.z = v.x * mat.m[8] + v.y * mat.m[9] + v.z * mat.m[10] + v.w * mat.m[11];
+    res.w = v.x * mat.m[12] + v.y * mat.m[13] + v.z * mat.m[14] + v.w * mat.m[15];
     return res;
 }
 
 inline Matrix4f operator* (const Matrix4f& mat1, const Matrix4f& mat2) {
+#ifdef USE_ARM_NEON
+    float32x4_t vm1_row0 = vld1q_f32(&mat1.m[0]);
+    float32x4_t vm1_row1 = vld1q_f32(&mat1.m[4]);
+    float32x4_t vm1_row2 = vld1q_f32(&mat1.m[8]);
+    float32x4_t vm1_row3 = vld1q_f32(&mat1.m[12]);
+
+    float32x4_t vm2_row0 = vld1q_f32(&mat2.m[0]);
+    float32x4_t vm2_row1 = vld1q_f32(&mat2.m[4]);
+    float32x4_t vm2_row2 = vld1q_f32(&mat2.m[8]);
+    float32x4_t vm2_row3 = vld1q_f32(&mat2.m[12]);
+
+    Matrix4f result;
+
+    float32x4_t row0 = vmulq_laneq_f32(vm2_row0, vm1_row0, 0);
+    row0 = vfmaq_laneq_f32(row0, vm2_row1, vm1_row0, 1);
+    row0 = vfmaq_laneq_f32(row0, vm2_row2, vm1_row0, 2);
+    row0 = vfmaq_laneq_f32(row0, vm2_row3, vm1_row0, 3);
+    vst1q_f32(&result.m[0], row0);
+
+    float32x4_t row1 = vmulq_laneq_f32(vm2_row0, vm1_row1, 0);
+    row1 = vfmaq_laneq_f32(row1, vm2_row1, vm1_row1, 1);
+    row1 = vfmaq_laneq_f32(row1, vm2_row2, vm1_row1, 2);
+    row1 = vfmaq_laneq_f32(row1, vm2_row3, vm1_row1, 3);
+    vst1q_f32(&result.m[4], row1);
+
+    float32x4_t row2 = vmulq_laneq_f32(vm2_row0, vm1_row2, 0);
+    row2 = vfmaq_laneq_f32(row2, vm2_row1, vm1_row2, 1);
+    row2 = vfmaq_laneq_f32(row2, vm2_row2, vm1_row2, 2);
+    row2 = vfmaq_laneq_f32(row2, vm2_row3, vm1_row2, 3);
+    vst1q_f32(&result.m[8], row2);
+
+    float32x4_t row3 = vmulq_laneq_f32(vm2_row0, vm1_row3, 0);
+    row3 = vfmaq_laneq_f32(row3, vm2_row1, vm1_row3, 1);
+    row3 = vfmaq_laneq_f32(row3, vm2_row2, vm1_row3, 2);
+    row3 = vfmaq_laneq_f32(row3, vm2_row3, vm1_row3, 3);
+    vst1q_f32(&result.m[12], row3);
+
+    return result;
+#else
     return Matrix4f(
         // Row 0
-        mat1.m00 * mat2.m00 + mat1.m01 * mat2.m10 + mat1.m02 * mat2.m20 + mat1.m03 * mat2.m30,
-        mat1.m00 * mat2.m01 + mat1.m01 * mat2.m11 + mat1.m02 * mat2.m21 + mat1.m03 * mat2.m31,
-        mat1.m00 * mat2.m02 + mat1.m01 * mat2.m12 + mat1.m02 * mat2.m22 + mat1.m03 * mat2.m32,
-        mat1.m00 * mat2.m03 + mat1.m01 * mat2.m13 + mat1.m02 * mat2.m23 + mat1.m03 * mat2.m33,
+        mat1.m[0] * mat2.m[0] + mat1.m[1] * mat2.m[4] + mat1.m[2] * mat2.m[8] + mat1.m[3] * mat2.m[12],
+        mat1.m[0] * mat2.m[1] + mat1.m[1] * mat2.m[5] + mat1.m[2] * mat2.m[9] + mat1.m[3] * mat2.m[13],
+        mat1.m[0] * mat2.m[2] + mat1.m[1] * mat2.m[6] + mat1.m[2] * mat2.m[10] + mat1.m[3] * mat2.m[14],
+        mat1.m[0] * mat2.m[3] + mat1.m[1] * mat2.m[7] + mat1.m[2] * mat2.m[11] + mat1.m[3] * mat2.m[15],
         // Row 1
-        mat1.m10 * mat2.m00 + mat1.m11 * mat2.m10 + mat1.m12 * mat2.m20 + mat1.m13 * mat2.m30,
-        mat1.m10 * mat2.m01 + mat1.m11 * mat2.m11 + mat1.m12 * mat2.m21 + mat1.m13 * mat2.m31,
-        mat1.m10 * mat2.m02 + mat1.m11 * mat2.m12 + mat1.m12 * mat2.m22 + mat1.m13 * mat2.m32,
-        mat1.m10 * mat2.m03 + mat1.m11 * mat2.m13 + mat1.m12 * mat2.m23 + mat1.m13 * mat2.m33,
+        mat1.m[4] * mat2.m[0] + mat1.m[5] * mat2.m[4] + mat1.m[6] * mat2.m[8]  + mat1.m[7] * mat2.m[12],
+        mat1.m[4] * mat2.m[1] + mat1.m[5] * mat2.m[5] + mat1.m[6] * mat2.m[9]  + mat1.m[7] * mat2.m[13],
+        mat1.m[4] * mat2.m[2] + mat1.m[5] * mat2.m[6] + mat1.m[6] * mat2.m[10] + mat1.m[7] * mat2.m[14],
+        mat1.m[4] * mat2.m[3] + mat1.m[5] * mat2.m[7] + mat1.m[6] * mat2.m[11] + mat1.m[7] * mat2.m[15],
         // Row 2
-        mat1.m20 * mat2.m00 + mat1.m21 * mat2.m10 + mat1.m22 * mat2.m20 + mat1.m23 * mat2.m30,
-        mat1.m20 * mat2.m01 + mat1.m21 * mat2.m11 + mat1.m22 * mat2.m21 + mat1.m23 * mat2.m31,
-        mat1.m20 * mat2.m02 + mat1.m21 * mat2.m12 + mat1.m22 * mat2.m22 + mat1.m23 * mat2.m32,
-        mat1.m20 * mat2.m03 + mat1.m21 * mat2.m13 + mat1.m22 * mat2.m23 + mat1.m23 * mat2.m33,
+        mat1.m[8] * mat2.m[0] + mat1.m[9] * mat2.m[4] + mat1.m[10] * mat2.m[8]  + mat1.m[11] * mat2.m[12],
+        mat1.m[8] * mat2.m[1] + mat1.m[9] * mat2.m[5] + mat1.m[10] * mat2.m[9]  + mat1.m[11] * mat2.m[13],
+        mat1.m[8] * mat2.m[2] + mat1.m[9] * mat2.m[6] + mat1.m[10] * mat2.m[10] + mat1.m[11] * mat2.m[14],
+        mat1.m[8] * mat2.m[3] + mat1.m[9] * mat2.m[7] + mat1.m[10] * mat2.m[11] + mat1.m[11] * mat2.m[15],
         // Row 3
-        mat1.m30 * mat2.m00 + mat1.m31 * mat2.m10 + mat1.m32 * mat2.m20 + mat1.m33 * mat2.m30,
-        mat1.m30 * mat2.m01 + mat1.m31 * mat2.m11 + mat1.m32 * mat2.m21 + mat1.m33 * mat2.m31,
-        mat1.m30 * mat2.m02 + mat1.m31 * mat2.m12 + mat1.m32 * mat2.m22 + mat1.m33 * mat2.m32,
-        mat1.m30 * mat2.m03 + mat1.m31 * mat2.m13 + mat1.m32 * mat2.m23 + mat1.m33 * mat2.m33
+        mat1.m[12] * mat2.m[0] + mat1.m[13] * mat2.m[4] + mat1.m[14] * mat2.m[8]  + mat1.m[15] * mat2.m[12],
+        mat1.m[12] * mat2.m[1] + mat1.m[13] * mat2.m[5] + mat1.m[14] * mat2.m[9]  + mat1.m[15] * mat2.m[13],
+        mat1.m[12] * mat2.m[2] + mat1.m[13] * mat2.m[6] + mat1.m[14] * mat2.m[10] + mat1.m[15] * mat2.m[14],
+        mat1.m[12] * mat2.m[3] + mat1.m[13] * mat2.m[7] + mat1.m[14] * mat2.m[11] + mat1.m[15] * mat2.m[15]
     );
+#endif
 }
 }

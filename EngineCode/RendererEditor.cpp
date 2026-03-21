@@ -198,43 +198,43 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         std::optional<Matrix4f> pEntityTransform = world->GetStaticMeshEntityTransform(selectedEntityUUID);
         if (pEntityTransform)
         {
-            Matrix4f entityTransform = *pEntityTransform;
-            ImGui::TextWrapped( "Transform Matrix");
-            ImGui::TextWrapped( "[%f, %f, %f, %f]", entityTransform.m00, entityTransform.m01, entityTransform.m02, entityTransform.m03);
-            ImGui::TextWrapped( "[%f, %f, %f, %f]", entityTransform.m10, entityTransform.m11, entityTransform.m12, entityTransform.m13);
-            ImGui::TextWrapped( "[%f, %f, %f, %f]", entityTransform.m20, entityTransform.m21, entityTransform.m22, entityTransform.m23);
-            ImGui::TextWrapped( "[%f, %f, %f, %f]", entityTransform.m30, entityTransform.m31, entityTransform.m32, entityTransform.m33);
+            const Matrix4f& t = *pEntityTransform;
+            ImGui::TextWrapped("Transform Matrix");
+            ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[0], t.m[1], t.m[2], t.m[3]);
+            ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[4], t.m[5], t.m[6], t.m[7]);
+            ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[8], t.m[9], t.m[10], t.m[11]);
+            ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[12], t.m[13], t.m[14], t.m[15]);
 
             ImGui::InputFloat("Transform Amount", &GEditor->transformAmount, 0.01f, 1.0f, "%.3f");
             if (ImGui::Button("+X", ImVec2(50, 30)))
             {
                 Matrix4f translate = Matrix4f::MakeTranslate(Vector3f(1.0f, 0.0f, 0.0f) * GEditor->transformAmount);
-                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * entityTransform);
+                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * t);
             }
             if (ImGui::Button("-X", ImVec2(50, 30)))
             {
                 Matrix4f translate = Matrix4f::MakeTranslate(Vector3f(-1.0f, 0.0f, 0.0f) * GEditor->transformAmount);
-                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * entityTransform);
+                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * t);
             }
             if (ImGui::Button("+Y", ImVec2(50, 30)))
             {
                 Matrix4f translate = Matrix4f::MakeTranslate(Vector3f(0.0f, 1.0f, 0.0f) * GEditor->transformAmount);
-                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * entityTransform);
+                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * t);
             }
             if (ImGui::Button("-Y", ImVec2(50, 30)))
             {
                 Matrix4f translate = Matrix4f::MakeTranslate(Vector3f(0.0f, -1.0f, 0.0f) * GEditor->transformAmount);
-                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * entityTransform);
+                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * t);
             }
             if (ImGui::Button("+Z", ImVec2(50, 30)))
             {
                 Matrix4f translate = Matrix4f::MakeTranslate(Vector3f(0.0f, 0.0f, 1.0f) * GEditor->transformAmount);
-                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * entityTransform);
+                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * t);
             }
             if (ImGui::Button("-Z", ImVec2(50, 30)))
             {
                 Matrix4f translate = Matrix4f::MakeTranslate(Vector3f(0.0f, 0.0f, -1.0f) * GEditor->transformAmount);
-                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * entityTransform);
+                world->SetStaticMeshEntityTransform(selectedEntityUUID, translate * t);
             }
         }
     }

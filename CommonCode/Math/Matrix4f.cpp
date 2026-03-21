@@ -6,10 +6,10 @@
 namespace Magic
 {
 void Matrix4f::Identity() {
-    m00 = 1.0f; m01 = 0.0f; m02 = 0.0f; m03 = 0.0f;
-    m10 = 0.0f; m11 = 1.0f; m12 = 0.0f; m13 = 0.0f;
-    m20 = 0.0f; m21 = 0.0f; m22 = 1.0f; m23 = 0.0f;
-    m30 = 0.0f; m31 = 0.0f; m32 = 0.0f; m33 = 1.0f;
+    m[0] = 1.0f; m[1] = 0.0f; m[2] = 0.0f; m[3] = 0.0f;
+    m[4] = 0.0f; m[5] = 1.0f; m[6] = 0.0f; m[7] = 0.0f;
+    m[8] = 0.0f; m[9] = 0.0f; m[10] = 1.0f; m[11] = 0.0f;
+    m[12] = 0.0f; m[13] = 0.0f; m[14] = 0.0f; m[15] = 1.0f;
 }
 Matrix4f::Matrix4f() {
     Identity();
@@ -19,10 +19,10 @@ Matrix4f::Matrix4f(
     , float _m10, float _m11, float _m12, float _m13
     , float _m20, float _m21, float _m22, float _m23
     , float _m30, float _m31, float _m32, float _m33)
-    : m00(_m00), m01(_m01), m02(_m02), m03(_m03)
-    , m10(_m10), m11(_m11), m12(_m12), m13(_m13)
-    , m20(_m20), m21(_m21), m22(_m22), m23(_m23)
-    , m30(_m30), m31(_m31), m32(_m32), m33(_m33)
+    : m { _m00, _m01, _m02, _m03
+        , _m10, _m11, _m12, _m13
+        , _m20, _m21, _m22, _m23
+        , _m30, _m31, _m32, _m33}
 {}
 
 Matrix4f Matrix4f::FromColumns(const Vector4f& c1, const Vector4f& c2, const Vector4f& c3, const Vector4f& c4) {
@@ -109,7 +109,7 @@ Matrix4f Matrix4f::MakeRotateY(float rads) {
         , 0.0f, 1.0f, 0.0f, 0.0f
         , -s,   0.0f, c,    0.0f
         , 0.0f, 0.0f, 0.0f, 1.0f
-    ); 
+    );
 }
 Matrix4f Matrix4f::MakeRotateZ(float rads) {
     float c = std::cos(rads);
@@ -125,10 +125,10 @@ Matrix4f Matrix4f::MakeRotateZ(float rads) {
 
 Matrix4f Matrix4f::Transposed() {
     return Matrix4f(
-          m00, m10, m20, m30
-        , m01, m11, m21, m31
-        , m02, m12, m22, m32
-        , m03, m13, m23, m33
+          m[0], m[4], m[8], m[12]
+          , m[1], m[5], m[9], m[13]
+          , m[2], m[6], m[10], m[14]
+          , m[3], m[7], m[11], m[15]
     );
 }
 
@@ -136,31 +136,31 @@ Matrix4f Matrix4f::Transposed() {
 // Mainly this can be used to compute the View matrix (world-to-camera) from the camera's world matrix (camera-to-world)
 Matrix4f Matrix4f::InvertedRigid() {
     // Transpose the rotation matrix (upper-left 3×3 part)
-    float r00 = m00, r01 = m10, r02 = m20;
-    float r10 = m01, r11 = m11, r12 = m21;
-    float r20 = m02, r21 = m12, r22 = m22;
+    float r00 = m[0], r01 = m[4], r02 = m[8];
+    float r10 = m[1], r11 = m[5], r12 = m[9];
+    float r20 = m[2], r21 = m[6], r22 = m[10];
 
     // Compute new translation: -R^T * t
-    float t0 = -(r00 * m03 + r01 * m13 + r02 * m23);
-    float t1 = -(r10 * m03 + r11 * m13 + r12 * m23);
-    float t2 = -(r20 * m03 + r21 * m13 + r22 * m23);
+    float t0 = -(r00 * m[3] + r01 * m[7] + r02 * m[11]);
+    float t1 = -(r10 * m[3] + r11 * m[7] + r12 * m[11]);
+    float t2 = -(r20 * m[3] + r21 * m[7] + r22 * m[11]);
 
-    Matrix4f m;
+    Matrix4f res;
 
     // Assign transposed rotation
-    m.m00 = r00; m.m01 = r01; m.m02 = r02; m.m03 = t0;
-    m.m10 = r10; m.m11 = r11; m.m12 = r12; m.m13 = t1;
-    m.m20 = r20; m.m21 = r21; m.m22 = r22; m.m23 = t2;
-    m.m30 = 0.0f; m.m31 = 0.0f; m.m32 = 0.0f; m.m33 = 1.0f;
-    return m;
+    res.m[0] = r00; res.m[1] = r01; res.m[2] = r02; res.m[3] = t0;
+    res.m[4] = r10; res.m[5] = r11; res.m[6] = r12; res.m[7] = t1;
+    res.m[8] = r20; res.m[9] = r21; res.m[10] = r22; res.m[11] = t2;
+    res.m[12] = 0.0f; res.m[13] = 0.0f; res.m[14] = 0.0f; res.m[15] = 1.0f;
+    return res;
 }
 
 Vector3f Matrix4f::GetTranslate() const
 {
-    return Vector3f(m03, m13, m23);
+    return Vector3f(m[3], m[7], m[11]);
 }
 
 float Matrix4f::Trace() {
-    return m00 + m11 + m22 + m33;
+    return m[0] + m[5] + m[10] + m[15];
 }
 }
