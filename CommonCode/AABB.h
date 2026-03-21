@@ -48,99 +48,99 @@ public:
         // First row, transforming some corner [x y z]: 
         // x'min = m00 * x + m01 * y + m02 * z
         // Minimize each term, m00*x is smallest for x = xmin if m00 > 0, otherwise for m00 < 0, x should be xmax (most negative)
-        if (m.m[0] > 0.0f)
+        if (m(0, 0) > 0.0f)
         {
-            min.x += m.m[0] * box.min.x;
-            max.x += m.m[0] * box.max.x;
+            min.x += m(0, 0) * box.min.x;
+            max.x += m(0, 0) * box.max.x;
         }
         else
         {
-            min.x += m.m[0] * box.max.x;
-            max.x += m.m[0] * box.min.x;
+            min.x += m(0, 0) * box.max.x;
+            max.x += m(0, 0) * box.min.x;
         }
-        if (m.m[1] > 0.0f)
+        if (m(0, 1) > 0.0f)
         {
-            min.y += m.m[1] * box.min.y;
-            max.y += m.m[1] * box.max.y;
-        }
-        else
-        {
-            min.y += m.m[1] * box.max.y;
-            max.y += m.m[1] * box.min.y;
-        }
-        if (m.m[2] > 0.0f)
-        {
-            min.z += m.m[2] * box.min.z;
-            max.z += m.m[2] * box.max.z;
+            min.y += m(0, 1) * box.min.y;
+            max.y += m(0, 1) * box.max.y;
         }
         else
         {
-            min.z += m.m[2] * box.max.z;
-            max.z += m.m[2] * box.min.z;
+            min.y += m(0, 1) * box.max.y;
+            max.y += m(0, 1) * box.min.y;
+        }
+        if (m(0, 2) > 0.0f)
+        {
+            min.z += m(0, 2) * box.min.z;
+            max.z += m(0, 2) * box.max.z;
+        }
+        else
+        {
+            min.z += m(0, 2) * box.max.z;
+            max.z += m(0, 2) * box.min.z;
         }
 
         // Second row
-        if (m.m[4] > 0.0f)
+        if (m(1, 0) > 0.0f)
         {
-            min.x += m.m[4] * box.min.x;
-            max.x += m.m[4] * box.max.x;
+            min.x += m(1, 0) * box.min.x;
+            max.x += m(1, 0) * box.max.x;
         }
         else
         {
-            min.x += m.m[4] * box.max.x;
-            max.x += m.m[4] * box.min.x;
+            min.x += m(1, 0) * box.max.x;
+            max.x += m(1, 0) * box.min.x;
         }
-        if (m.m[5] > 0.0f)
+        if (m(1, 1) > 0.0f)
         {
-            min.y += m.m[5] * box.min.y;
-            max.y += m.m[5] * box.max.y;
-        }
-        else
-        {
-            min.y += m.m[5] * box.max.y;
-            max.y += m.m[5] * box.min.y;
-        }
-        if (m.m[6] > 0.0f)
-        {
-            min.z += m.m[6] * box.min.z;
-            max.z += m.m[6] * box.max.z;
+            min.y += m(1, 1) * box.min.y;
+            max.y += m(1, 1) * box.max.y;
         }
         else
         {
-            min.z += m.m[6] * box.max.z;
-            max.z += m.m[6] * box.min.z;
+            min.y += m(1, 1) * box.max.y;
+            max.y += m(1, 1) * box.min.y;
+        }
+        if (m(1, 2) > 0.0f)
+        {
+            min.z += m(1, 2) * box.min.z;
+            max.z += m(1, 2) * box.max.z;
+        }
+        else
+        {
+            min.z += m(1, 2) * box.max.z;
+            max.z += m(1, 2) * box.min.z;
         }
 
         // Third row
-        if (m.m[8] > 0.0f)
+        if (m(2, 0) > 0.0f)
         {
-            min.x += m.m[8] * box.min.x;
-            max.x += m.m[8] * box.max.x;
+            min.x += m(2, 0) * box.min.x;
+            max.x += m(2, 0) * box.max.x;
         }
         else
         {
-            min.x += m.m[8] * box.max.x;
-            max.x += m.m[8] * box.min.x;
+            min.x += m(2, 0) * box.max.x;
+            max.x += m(2, 0) * box.min.x;
         }
-        if (m.m[9] > 0.0f)
+        if (m(2, 1) > 0.0f)
         {
-            min.y += m.m[9] * box.min.y;
-            max.y += m.m[9] * box.max.y;
-        }
-        else
-        {
-            min.y += m.m[9] * box.max.y;
-            max.y += m.m[9] * box.min.y;
-        }
-        if (m.m[10] > 0.0f)
-        {
-            min.z += m.m[10] * box.min.z;
-            max.z += m.m[10] * box.max.z;
+            min.y += m(2, 1) * box.min.y;
+            max.y += m(2, 1) * box.max.y;
         }
         else
         {
-            min.z += m.m[10] * box.max.z;
-            max.z += m.m[10] * box.min.z;
+            min.y += m(2, 1) * box.max.y;
+            max.y += m(2, 1) * box.min.y;
+        }
+        if (m(2, 2) > 0.0f)
+        {
+            min.z += m(2, 2) * box.min.z;
+            max.z += m(2, 2) * box.max.z;
+        }
+        else
+        {
+            min.z += m(2, 2) * box.max.z;
+            max.z += m(2, 2) * box.min.z;
         }
     }
 
