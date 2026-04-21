@@ -77,9 +77,6 @@ target_link_libraries(MagicEngine PRIVATE ThirdPartyLibraries)
 add_subdirectory(CommonCode)
 target_link_libraries(MagicEngine PRIVATE CommonLibrary)
 
-# DataLib and DataCooker
-add_subdirectory(DataLibCode)
-
 # Get an absolute path to the root directory
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/root.magic.in

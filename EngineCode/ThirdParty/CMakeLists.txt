@@ -42,8 +42,8 @@ target_link_libraries(ThirdPartyLibraries INTERFACE IMGUI)
 
 
 #pugixml
-add_library(PUGIXML STATIC)
-target_sources(PUGIXML PRIVATE
+add_library(PUGIXML INTERFACE)
+target_sources(PUGIXML INTERFACE
         pugixml/src/pugixml.hpp
         pugixml/src/pugixml.cpp
         pugixml/src/pugiconfig.hpp
