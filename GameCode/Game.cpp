@@ -95,7 +95,7 @@ void Game::Initialize(Renderer* pRenderer)
     // exit(1);
 
     GResourceDB = GMemoryManager->New<ResourceDatabase>();
-    GResourceDB->Init("GameCode/magic.db");
+    GResourceDB->Init("GameCode/db.json");
     m_pWorld = GMemoryManager->New<World>();
     GResourceManager = GMemoryManager->New<ResourceManager>();
 

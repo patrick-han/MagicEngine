@@ -56,7 +56,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/StaticMeshEntity.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
-        EngineCode/pugixml.h
         EngineCode/ResourceDatabase.cpp
         EngineCode/ResourceDatabase.h
         EngineCode/UUID.h

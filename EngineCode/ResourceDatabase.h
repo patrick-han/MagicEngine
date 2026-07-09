@@ -1,7 +1,8 @@
 #pragma once
-#include <string>
-#include "pugixml.h"
+#include "vjson_header.h"
 #include "UUID.h"
+#include <cstddef>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 namespace Magic
@@ -27,12 +28,10 @@ public:
     bool CheckIfResourceExists(UUID uuid);
 
     void AddStaticMeshResource(const char* resourceName, const char* path);
-    void RemoveResource(const char* resourceName);
-    void RemoveResource(UUID uuid);
 private:
     void Reload();
-    [[nodiscard]] pugi::xml_node AddResource(const char* resourceName, ResourceType resourceType);
-    pugi::xml_document m_db;
+    [[nodiscard]] vjson::Value* AddResource(const char* resourceName, ResourceType resourceType);
+    vjson::Object m_db;
     std::string m_filePath;
 public: // temp
     [[nodiscard]] const char* GetResName(UUID uuid) const;
@@ -46,11 +45,11 @@ private:
     void RegisterResource(UUID uuid,
                             const std::string& name,
                             const ResourceType resType,
-                            pugi::xml_node node);
+                            std::size_t resource_i);
     std::unordered_set<UUID> m_uuids;
     std::unordered_map<UUID, std::string> m_uuid_to_name;
     std::unordered_map<UUID, ResourceType> m_uuid_to_type;
-    std::unordered_map<UUID, pugi::xml_node> m_uuid_to_node;
+    std::unordered_map<UUID, std::size_t> m_uuid_to_resource_node_index;
 };
 
 extern ResourceDatabase* GResourceDB;

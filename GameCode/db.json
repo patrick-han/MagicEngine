@@ -1,0 +1,22 @@
+{
+	"resources": [
+		{
+			"name": "Player",
+			"path": "DataLibCode/beautiful-game-cgltf.bin",
+			"type": "staticmesh",
+			"uuid": "e94929b2-a81a-4385-ae7f-72c02ac74232"
+		},
+		{
+			"name": "Scene",
+			"path": "DataLibCode/scene.bin",
+			"type": "staticmesh",
+			"uuid": "2a3e0ad9-f50b-4b0f-83d5-79288256b0f2"
+		},
+		{
+			"name": "Sponza",
+			"path": "DataLibCode/sponza-cgltf.bin",
+			"type": "staticmesh",
+			"uuid": "7991DDA6-84B0-4E91-A120-A1D4EC07D35A"
+		}
+	]
+}

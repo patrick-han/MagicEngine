@@ -4,7 +4,6 @@
 #include <vector>
 #include <unordered_set>
 #include <queue>
-#include "pugixml.h"
 #include "StaticMeshEntity.h"
 #include "UUID.h"
 #include "vjson_header.h"

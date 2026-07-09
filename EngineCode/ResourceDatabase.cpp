@@ -1,9 +1,26 @@
 #include "ResourceDatabase.h"
 #include "../CommonCode/Log.h"
+#include <algorithm>
 #include <cassert>
+#include <cstdlib>
+#include <format>
+#include <string_view>
 
 namespace Magic
 {
+
+namespace
+{
+vjson::Array* GetResourcesArray(vjson::Object& db)
+{
+    return db.ArrayPtrAtKey("resources");
+}
+
+const vjson::Array* GetResourcesArray(const vjson::Object& db)
+{
+    return db.ArrayPtrAtKey("resources");
+}
+}
 
 ResourceDatabase* GResourceDB = nullptr;
 
@@ -26,11 +43,11 @@ const char * ResourceDatabase::ResourceTypeToStr(ResourceType resType)
     {
         case ResourceType::StaticMesh:
         {
-            return "StaticMesh";
+            return "staticmesh";
         }
         default:
         {
-            return "Unknown";
+            return "unknown";
         }
     }
 }
@@ -40,24 +57,29 @@ void ResourceDatabase::UnregisterResource(UUID uuid)
     m_uuids.erase(uuid);
     m_uuid_to_name.erase(uuid);
     m_uuid_to_type.erase(uuid);
-    m_uuid_to_node.erase(uuid);
-    assert(m_uuids.size() == m_uuid_to_name.size() == m_uuid_to_type.size() == m_uuid_to_node.size());
+    m_uuid_to_resource_node_index.erase(uuid);
+
+    const std::size_t s = m_uuids.size();
+    assert(s == m_uuid_to_name.size()
+        && s == m_uuid_to_type.size()
+        && s == m_uuid_to_resource_node_index.size()
+        );
 }
 
 void ResourceDatabase::RegisterResource(UUID uuid,
                                         const std::string &name,
                                         const ResourceType resType,
-                                        pugi::xml_node node)
+                                        std::size_t resource_i)
 {
     m_uuids.insert(uuid);
     m_uuid_to_name.insert({uuid, name});
     m_uuid_to_type.insert({uuid, resType});
-    m_uuid_to_node.insert({uuid, node});
+    m_uuid_to_resource_node_index.insert({uuid, resource_i});
 
     const std::size_t s = m_uuids.size();
     assert(s == m_uuid_to_name.size()
         && s == m_uuid_to_type.size()
-        && s == m_uuid_to_node.size()
+        && s == m_uuid_to_resource_node_index.size()
         );
 }
 
@@ -66,23 +88,27 @@ void ResourceDatabase::Reload()
     m_uuids.clear();
     m_uuid_to_name.clear();
     m_uuid_to_type.clear();
-    m_uuid_to_node.clear();
+    m_uuid_to_resource_node_index.clear();
 
-    for (pugi::xml_node resource : m_db.children("resource"))
+    const vjson::Array* resources = GetResourcesArray(m_db);
+
+    for (std::size_t resource_i = 0; resource_i < resources->size(); ++resource_i)
     {
-        assert(resource.attribute("name"));
-        assert(resource.attribute("uuid"));
-        assert(resource.attribute("type"));
-        ResourceType resType = StrToResourceType(resource.attribute("type").as_string());
+        const vjson::Value* resource = resources->ValuePtrAtIndex(resource_i);
+        assert(resource);
+
+        const char* name = resource->AtKey("name").AsCString(nullptr);
+        const char* uuidString = resource->AtKey("uuid").AsCString(nullptr);
+        const char* typeString = resource->AtKey("type").AsCString(nullptr);
+        ResourceType resType = StrToResourceType(typeString);
         if (resType == ResourceType::Unknown)
         {
             continue;
         }
         UUID uuid;
-        const char* name = resource.attribute("name").as_string();
-        bool parseUUID = UUID::TryParse(resource.attribute("uuid").as_string(), uuid);
+        bool parseUUID = UUID::TryParse(uuidString, uuid);
         assert(parseUUID);
-        RegisterResource(uuid, name, resType, resource);
+        RegisterResource(uuid, name, resType, resource_i);
     }
     Logger::Info(std::format("Resource Database Reload() finished with {} resources: ", m_uuids.size()));
     for (auto it = m_uuid_to_name.begin(); it != m_uuid_to_name.end(); ++it)
@@ -94,19 +120,25 @@ void ResourceDatabase::Reload()
 void ResourceDatabase::Init(const char* dbPath)
 {
     m_filePath = dbPath;
-    auto result = m_db.load_file(dbPath);
-    if (result.status != pugi::status_ok)
+    vjson::ParseContext ctx;
+    std::string sjson;
+    if (!LoadJsonToString(dbPath, sjson))
     {
         Logger::Err("Could not open resource database");
-        Logger::Err(std::format("{}", result.description()));
-        exit(1);
+        std::exit(1);
+    }
+    if (!m_db.ParseJSON(sjson, &ctx))
+    {
+        Logger::Err(std::format("Resource database parse failed line {}: {}", ctx.error_line, ctx.error_message));
+        std::exit(1);
     }
     Reload();
 }
 
 void ResourceDatabase::Save()
 {
-    if(m_db.save_file(m_filePath.c_str()))
+    std::string p = m_db.PrintJSON();
+    if(SaveJsonToFile(m_filePath, p))
     {
         Logger::Info("Saved resource database successfully");
     }
@@ -118,9 +150,10 @@ void ResourceDatabase::Save()
 
 bool ResourceDatabase::CheckIfResourceExists(const char *resourceName)
 {
-    for (pugi::xml_node resource : m_db.children())
+    for (const auto& resourceNameEntry : m_uuid_to_name)
     {
-        if (strcmp(resource.attribute("name").as_string(), resourceName) == 0)
+        const std::string& name = resourceNameEntry.second;
+        if (name == resourceName)
         {
             return true;
         }
@@ -139,63 +172,45 @@ bool ResourceDatabase::CheckIfResourceExists(UUID uuid)
 
 void ResourceDatabase::AddStaticMeshResource(const char *resourceName, const char *resourcePath)
 {
-    pugi::xml_node node = AddResource(resourceName, ResourceType::StaticMesh);
-    if (node.empty())
-    {
-        return;
-    }
-    node.append_attribute("type").set_value("staticmesh");
-    node.append_child("path").text().set(resourcePath);
-    assert(m_uuid_to_name.size() == m_uuid_to_type.size());
-}
-
-void ResourceDatabase::RemoveResource(const char* resourceName)
-{
-    pugi::xml_node resource = m_db.find_child_by_attribute("resource", "name", resourceName);
-
+    vjson::Value* resource = AddResource(resourceName, ResourceType::StaticMesh);
     if (!resource)
     {
-        Logger::Err(std::format("Tried to remove resource \"{}\" that doesn't exist", resourceName));
-    }
-
-    const char* uuidStr = resource.attribute("uuid").as_string();
-    assert((uuidStr != nullptr) && (uuidStr[0] != '\0')); // uuid not nullptr (exists) and not empty
-    UUID uuid;
-    bool parseUUID = UUID::TryParse(uuidStr, uuid);
-    assert(parseUUID);
-
-
-    resource.parent().remove_child(resource); // this must happen only here lest uuidStr become invalid!!!
-    UnregisterResource(uuid);
-}
-
-void ResourceDatabase::RemoveResource(UUID uuid)
-{
-    if (!CheckIfResourceExists(uuid))
-    {
-        Logger::Err(std::format("Tried to remove resource \"{}\" that doesn't exist", uuid.ToString()));
         return;
     }
-    {
-        pugi::xml_node resource = m_uuid_to_node.find(uuid)->second;
-        resource.parent().remove_child(resource);
-    }
-    UnregisterResource(uuid);
+    resource->SetAtKey("path", resourcePath);
+
+    const std::size_t s = m_uuid_to_name.size();
+    assert(s == m_uuid_to_type.size()
+        && s == m_uuid_to_resource_node_index.size()
+        );
 }
 
-pugi::xml_node ResourceDatabase::AddResource(const char *resourceName, ResourceType resourceType)
+vjson::Value* ResourceDatabase::AddResource(const char *resourceName, ResourceType resourceType)
 {
     if (CheckIfResourceExists(resourceName))
     {
         Logger::Err(std::format("Resource \"{}\" already exists", resourceName));
-        return {};
+        return nullptr;
     }
-    pugi::xml_node resource = m_db.append_child("resource");
-    resource.append_attribute("name").set_value(resourceName);
+
+    vjson::Array* resources = GetResourcesArray(m_db);
+    if (!resources)
+    {
+        m_db.SetAtKey("resources", vjson::Array{});
+        resources = GetResourcesArray(m_db);
+    }
+    assert(resources);
+
+    const std::size_t resourceIndex = resources->size();
+    vjson::Value& resource = resources->push_back(vjson::Object{});
+
+    resource.SetAtKey("name", resourceName);
     UUID uuid;
-    resource.append_attribute("uuid").set_value(uuid.ToString().c_str());
-    RegisterResource(uuid, resourceName, resourceType, resource);
-    return resource;
+    resource.SetAtKey("uuid", uuid.ToString());
+    resource.SetAtKey("type", ResourceTypeToStr(resourceType));
+
+    RegisterResource(uuid, resourceName, resourceType, resourceIndex);
+    return &resource;
 }
 
 const std::unordered_set<UUID> &ResourceDatabase::GetAllUUIDs() const
@@ -205,16 +220,21 @@ const std::unordered_set<UUID> &ResourceDatabase::GetAllUUIDs() const
 
 const char * ResourceDatabase::GetResPath(UUID uuid) const
 {
-    return m_uuid_to_node.at(uuid).child("path").text().as_string();
+    const vjson::Array* resources = GetResourcesArray(m_db);
+    const std::size_t resourceIndex = m_uuid_to_resource_node_index.at(uuid);
+
+    return (*resources)[resourceIndex].AtKey("path").AsCString(nullptr);
 }
 
 const char *ResourceDatabase::GetResPath(const char *resName) const
 {
-    for (pugi::xml_node resource : m_db.children())
+    for (const auto& resourceNameEntry : m_uuid_to_name)
     {
-        if (strcmp(resource.attribute("name").as_string(), resName) == 0)
+        const UUID& uuid = resourceNameEntry.first;
+        const std::string& name = resourceNameEntry.second;
+        if (name == resName)
         {
-            return resource.child("path").text().as_string();
+            return GetResPath(uuid);
         }
     }
     return nullptr;
@@ -222,15 +242,22 @@ const char *ResourceDatabase::GetResPath(const char *resName) const
 
 UUID ResourceDatabase::GetResUUID(const char *resName) const
 {
-    pugi::xml_node resource = m_db.find_child_by_attribute("resource", "name", resName);
-    assert(resource);
-    resource.attribute("uuid").as_string();
-    const char* uuidStr = resource.attribute("uuid").as_string();
-    assert((uuidStr != nullptr) && (uuidStr[0] != '\0')); // uuid not nullptr (exists) and not empty
-    UUID uuid;
-    bool parseUUID = UUID::TryParse(uuidStr, uuid);
-    assert(parseUUID);
-    return uuid;
+    const auto it = std::find_if(
+        m_uuid_to_name.begin()
+        , m_uuid_to_name.end()
+        , [&](const auto& r)
+        {
+            return r.second == resName;
+        });
+
+    if (it == m_uuid_to_name.end())
+    {
+        Logger::Err(std::format("Tried to get UUID for resource \"{}\" that doesn't exist", resName));
+        assert(false);
+        std::abort();
+    }
+
+    return it->first;
 }
 
 ResourceType ResourceDatabase::GetResType(UUID uuid) const

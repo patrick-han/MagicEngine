@@ -40,16 +40,6 @@ target_compile_definitions(IMGUI PRIVATE IMGUI_IMPL_VULKAN_USE_VOLK)
 target_include_directories(IMGUI PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/SDL/include/" "${Vulkan_INCLUDE_DIR}")
 target_link_libraries(ThirdPartyLibraries INTERFACE IMGUI)
 
-
-#pugixml
-add_library(PUGIXML INTERFACE)
-target_sources(PUGIXML INTERFACE
-        pugixml/src/pugixml.hpp
-        pugixml/src/pugixml.cpp
-        pugixml/src/pugiconfig.hpp
-)
-target_link_libraries(ThirdPartyLibraries INTERFACE PUGIXML)
-
 add_library(VJSON INTERFACE)
 target_sources(VJSON INTERFACE
         vjson/vjson.h
