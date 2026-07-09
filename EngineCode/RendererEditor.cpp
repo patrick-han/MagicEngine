@@ -98,23 +98,23 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
             std::string s = std::string("RandomStaticMesh") + std::to_string(dist(rng));
             world->AddNewStaticMeshEntity(s.c_str());
         }
-        if (ImGui::Button("Remove Selected Entity", ImVec2(150, 30)))
-        {
-            if (GEditor->isSceneOutlineSelectedEntityUUIDValid == true)
-            {
-                world->RemoveEntity(GEditor->sceneOutlineSelectedEntityUUID);
-                const std::unordered_set<UUID>& uuids = world->GetAllUUIDs();
-                if (!uuids.empty())
-                {
-                    GEditor->sceneOutlineSelectedEntityUUID = *uuids.begin();
-                    GEditor->isSceneOutlineSelectedEntityUUIDValid = true;
-                }
-                else
-                {
-                    GEditor->isSceneOutlineSelectedEntityUUIDValid = false;
-                }
-            }
-        }
+        // if (ImGui::Button("Remove Selected Entity", ImVec2(150, 30)))
+        // {
+        //     if (GEditor->isSceneOutlineSelectedEntityUUIDValid == true)
+        //     {
+        //         world->RemoveEntity(GEditor->sceneOutlineSelectedEntityUUID);
+        //         const std::unordered_set<UUID>& uuids = world->GetAllUUIDs();
+        //         if (!uuids.empty())
+        //         {
+        //             GEditor->sceneOutlineSelectedEntityUUID = *uuids.begin();
+        //             GEditor->isSceneOutlineSelectedEntityUUIDValid = true;
+        //         }
+        //         else
+        //         {
+        //             GEditor->isSceneOutlineSelectedEntityUUIDValid = false;
+        //         }
+        //     }
+        // }
     }
     ImGui::Text("World Loaded:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%s", GEditor->loadedWorldNameBuffer);
     ImGui::End();
@@ -162,7 +162,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         UUID selectedEntityUUID  = GEditor->sceneOutlineSelectedEntityUUID;
         const EntityType entityType = world->GetEntityType(selectedEntityUUID );
         // Display entity type
-        ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.8f, 1.0f), "%s", World::EntityTypeToStr(entityType));
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.8f, 1.0f), "%s", Entity::EntityTypeToStr(entityType));
 
         // StaticMesh: Display the resource path and name
         if (entityType == EntityType::StaticMesh)

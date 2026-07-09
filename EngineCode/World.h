@@ -7,6 +7,7 @@
 #include "pugixml.h"
 #include "StaticMeshEntity.h"
 #include "UUID.h"
+#include "vjson_header.h"
 
 namespace Magic
 {
@@ -30,13 +31,12 @@ struct ResourcePendingStaticMeshEntity
     Matrix4f transform;
 };
 
+
 class World
 {
 public:
     World() = default;
     ~World() = default;
-    static EntityType StrToEntityType(const char* name);
-    static const char* EntityTypeToStr(EntityType entityType);
     void Init(const char* worldPath);
     void Save(const char* filePath);
     [[nodiscard]] const char* GetEntityName(UUID uuid) const;
@@ -44,14 +44,10 @@ public:
     [[nodiscard]] const std::unordered_set<UUID>& GetAllUUIDs() const;
     bool CheckIfEntityExists(const char* entityName) const;
     bool CheckIfEntityExists(UUID uuid) const;
-    void RemoveEntity(const char* entityName);
-    void RemoveEntity(UUID uuid);
 
     void AddNewStaticMeshEntity(const char* entityName);
-    void UpdateStaticMeshEntityResourceEntry(UUID entityUUID, const char *resourcePath);
     [[nodiscard]] bool UpdateStaticMeshEntityResource(UUID entityUUID, const char *resourcePath);
     [[nodiscard]] std::optional<UUID> GetStaticMeshEntityResourceUUID(UUID uuid) const;
-    void UpdateStaticMeshEntityTransformEntry(UUID entityUUID, const Matrix4f& transform);
     void SetStaticMeshEntityTransform(UUID uuid, const Matrix4f& transform);
     [[nodiscard]] std::optional<Matrix4f> GetStaticMeshEntityTransform(UUID uuid) const;
 
@@ -61,16 +57,16 @@ public:
 public:
     [[nodiscard]] int GetEntityCount() const { return m_entityCount; }
 private:
-    pugi::xml_document m_world;
+    vjson::Object jsonWorld;
     void UnregisterEntity(UUID uuid);
     void RegisterEntity(UUID uuid,
                             const std::string& name,
                             const EntityType type,
-                            pugi::xml_node node);
+                            std::size_t entity_i);
     std::unordered_set<UUID> m_uuids;
     std::unordered_map<UUID, std::string> m_uuid_to_name;
     std::unordered_map<UUID, EntityType> m_uuid_to_type;
-    std::unordered_map<UUID, pugi::xml_node> m_uuid_to_node;
+    std::unordered_map<UUID, std::size_t> m_uuid_to_entity_node_index;
 
 public:
     ////// Static Meshes START //////
@@ -82,8 +78,6 @@ public:
 
 
 private:
-
-    [[nodiscard]] pugi::xml_node AddEntityNode(const char* entityName);
     int m_entityCount = 0;
 };
 

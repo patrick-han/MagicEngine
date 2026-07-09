@@ -1,6 +1,8 @@
 #pragma once
 
 #include <list>
+#include <unordered_map>
+#include <string>
 #include "../CommonCode/Math/Matrix4f.h"
 
 namespace Magic
@@ -11,6 +13,40 @@ enum class EntityType
     StaticMesh
     , Unknown
 };
+
+namespace Entity
+{
+
+inline EntityType StrToEntityType(const char* name)
+{
+    static const std::unordered_map<std::string_view, EntityType> table = 
+    {
+        { "staticmesh", EntityType::StaticMesh }
+    };
+    if (auto it = table.find(name); it != table.end())
+    {
+        return it->second;
+    }
+    return EntityType::Unknown;
+}
+
+inline const char * EntityTypeToStr(EntityType entityType)
+{
+    switch (entityType)
+    {
+        case EntityType::StaticMesh:
+        {
+            return "StaticMesh";
+        }
+        default:
+        {
+            return "Unknown";
+        }
+    }
+}
+
+}
+
 
 class IEntity
 {

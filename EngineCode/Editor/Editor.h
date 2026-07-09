@@ -10,7 +10,7 @@ struct Editor
 {
     static constexpr int defaultMaxTextLength = 128;
 
-    char loadWorldTextBoxNameBuffer[defaultMaxTextLength] = "GameCode/magic.world";
+    char loadWorldTextBoxNameBuffer[defaultMaxTextLength] = "GameCode/world.json";
     char newResourceNameBuffer[defaultMaxTextLength] = "NewResource";
     char newResourcePathBuffer[defaultMaxTextLength*4] = "Path";
     UUID sceneOutlineSelectedEntityUUID = UUID{};

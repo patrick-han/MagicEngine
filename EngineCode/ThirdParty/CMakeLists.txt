@@ -50,6 +50,13 @@ target_sources(PUGIXML INTERFACE
 )
 target_link_libraries(ThirdPartyLibraries INTERFACE PUGIXML)
 
+add_library(VJSON INTERFACE)
+target_sources(VJSON INTERFACE
+        vjson/vjson.h
+        vjson/vjson.cpp
+)
+target_link_libraries(ThirdPartyLibraries INTERFACE VJSON)
+
 #bs-thread-pool
 add_library(BSTHREADPOOL INTERFACE)
 target_include_directories(BSTHREADPOOL INTERFACE

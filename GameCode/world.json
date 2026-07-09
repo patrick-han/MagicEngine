@@ -1,0 +1,84 @@
+{
+	"root": {
+		"entities": [
+			{
+				"name": "PlayerEntity",
+				"resources": {
+					"staticmesh": {
+						"name": "Player",
+						"uuid": "E94929B2-A81A-4385-AE7F-72C02AC74232"
+					}
+				},
+				"transform": {
+					"matrix": [
+						[
+							1,
+							0,
+							0,
+							0
+						],
+						[
+							0,
+							1,
+							0,
+							0
+						],
+						[
+							0,
+							0,
+							1,
+							0
+						],
+						[
+							0,
+							0,
+							0,
+							1
+						]
+					]
+				},
+				"type": "staticmesh",
+				"uuid": "5ECE79DE-B979-40C9-843F-C024172F7B72"
+			},
+			{
+				"name": "SceneEntity",
+				"resources": {
+					"staticmesh": {
+						"name": "Scene",
+						"uuid": "2A3E0AD9-F50B-4B0F-83D5-79288256B0F2"
+					}
+				},
+				"transform": {
+					"matrix": [
+						[
+							1,
+							0,
+							0,
+							0
+						],
+						[
+							0,
+							1,
+							0,
+							0
+						],
+						[
+							0,
+							0,
+							1,
+							0
+						],
+						[
+							0,
+							0,
+							0,
+							1
+						]
+					]
+				},
+				"type": "staticmesh",
+				"uuid": "B3FFC21D-0932-4DF6-ABE0-81F9B6821F75"
+			}
+		]
+	}
+}

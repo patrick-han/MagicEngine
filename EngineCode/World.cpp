@@ -23,119 +23,51 @@ const char *World::GetEntityName(UUID uuid) const
     return m_uuid_to_name.at(uuid).c_str();
 }
 
-EntityType World::StrToEntityType(const char* name)
-{
-    static const std::unordered_map<std::string_view, EntityType> table = 
-    {
-        { "staticmesh", EntityType::StaticMesh }
-    };
-    if (auto it = table.find(name); it != table.end())
-    {
-        return it->second;
-    }
-    return EntityType::Unknown;
-}
-
-const char * World::EntityTypeToStr(EntityType entityType)
-{
-    switch (entityType)
-    {
-        case EntityType::StaticMesh:
-        {
-            return "StaticMesh";
-        }
-        default:
-        {
-            return "Unknown";
-        }
-    }
-}
-
-// Parse 16 floats from "1 0 0 0, 0 1 ..." (spaces/commas/semicolons allowed)
-static bool ParseFloat16(std::string_view s, float out[16])
-{
-    const char* cur = s.data();
-    const char* end = s.data() + s.size();
-
-    int count = 0;
-
-    while (count < 16)
-    {
-        // Skip separators until we hit the next number
-        while (cur < end)
-        {
-            char c = *cur;
-            if (std::isspace((unsigned char)c) || c == ',' || c == ';')
-                ++cur;
-            else
-                break;
-        }
-
-        if (cur >= end)
-            return false;
-
-        char* next = nullptr;
-        float v = std::strtof(cur, &next);
-
-        // No progress -> parse failure
-        if (next == cur)
-            return false;
-
-        out[count++] = v;
-        cur = next;
-    }
-
-    return true;
-}
-
-static bool ReadMatrix4f(pugi::xml_node transformNode, Matrix4f& outM)
-{
-    pugi::xml_attribute attr = transformNode.attribute("m");
-    assert(attr);
-
-    float tmp[16];
-    if (!ParseFloat16(std::string_view{attr.value()}, tmp))
-        return false;
-
-    outM.m[0] = tmp[0];
-    outM.m[1] = tmp[1];
-    outM.m[2] = tmp[2];
-    outM.m[3] = tmp[3];
-    outM.m[4] = tmp[4];
-    outM.m[5] = tmp[5];
-    outM.m[6] = tmp[6];
-    outM.m[7] = tmp[7];
-    outM.m[8] = tmp[8];
-    outM.m[9] = tmp[9];
-    outM.m[10] = tmp[10];
-    outM.m[11] = tmp[11];
-    outM.m[12] = tmp[12];
-    outM.m[13] = tmp[13];
-    outM.m[14] = tmp[14];
-    outM.m[15] = tmp[15];
-    return true;
-}
 
 void World::Reload()
 {
     Clear();
 
-    for (pugi::xml_node entity : m_world.children("entity"))
+    const vjson::Value* entities = jsonWorld.ValuePtrAtKey("root")->ValuePtrAtKey("entities");
+    std::size_t entityCount = entities->GetArray().size();
+    Logger::Info(std::format("Entity count: {}", entityCount));
+    Logger::Info(entities->AtIndex(0).AtKey("name").AsCString("NOTASTRING"));
+    for (std::size_t entity_i = 0; entity_i < entityCount; entity_i++)
     {
-        assert(entity.attribute("name"));
-        assert(entity.attribute("uuid"));
-        assert(entity.attribute("type"));
-        EntityType entityType = StrToEntityType(entity.attribute("type").as_string());
+        const vjson::Value* entity = entities->ValuePtrAtIndex(entity_i);
+        EntityType entityType = Entity::StrToEntityType(entity->AtKey("type").AsCString("NOTASTRING"));
 
         UUID uuid;
-        const char* entityName = entity.attribute("name").as_string();
-        bool uuidParse = UUID::TryParse(entity.attribute("uuid").as_string(), uuid);
+        const char* entityName = entity->AtKey("name").AsCString("NOTASTRING");
+        bool uuidParse = UUID::TryParse(entity->AtKey("uuid").AsCString("NOTASTRING"), uuid);
+        Logger::Info("UUID parse json: " + std::string(entity->AtKey("uuid").AsCString("NOTASTRING")));
         assert(uuidParse);
 
         Matrix4f transform;
         { // Transform
-            pugi::xml_node transformNode = entity.child("transform");
-            assert(ReadMatrix4f(transformNode, transform));
+            auto transformMatrix = entity->AtKey("transform").AtKey("matrix");
+            auto ReadMatrix4fJson = [](vjson::Value transformMatrix) -> Matrix4f {
+                auto transformMatrixRows = transformMatrix.GetArray();
+                // auto row0 = transformMatrixRows.ArrayAtIndexOrEmpty(0);
+
+                Matrix4f result;
+
+                auto ReadJsonMatrixRow = [&transformMatrixRows, &result](std::size_t row_i){
+                    auto rowi = transformMatrixRows.ArrayAtIndexOrEmpty(row_i);
+                    result.m[row_i * 4 + 0] = rowi.AtIndex(0).InterpretAsDouble(1337.0);
+                    result.m[row_i * 4 + 1] = rowi.AtIndex(1).InterpretAsDouble(1337.0);
+                    result.m[row_i * 4 + 2] = rowi.AtIndex(2).InterpretAsDouble(1337.0);
+                    result.m[row_i * 4 + 3] = rowi.AtIndex(3).InterpretAsDouble(1337.0);
+                };
+
+                ReadJsonMatrixRow(0);
+                ReadJsonMatrixRow(1);
+                ReadJsonMatrixRow(2);
+                ReadJsonMatrixRow(3);
+
+                return result;
+            };
+            transform = ReadMatrix4fJson(transformMatrix);
         }
 
         if (entityType == EntityType::Unknown)
@@ -144,33 +76,37 @@ void World::Reload()
         }
         else if (entityType == EntityType::StaticMesh)
         {
-            auto resource_staticmesh = entity.child("resource_staticmesh");
-            assert(resource_staticmesh);
-            assert(resource_staticmesh.attribute("name"));
-            assert(resource_staticmesh.attribute("uuid"));
+            auto resources = entity->AtKey("resources");
+            auto staticmesh = resources.AtKey("staticmesh");
+
             // EntityUUID, resource name
-            m_resourcePendingStaticMeshEntities.emplace_back(uuid, resource_staticmesh.attribute("name").as_string(), transform);
+            m_resourcePendingStaticMeshEntities.emplace_back(uuid, staticmesh.AtKey("name").AsCString("NOTASTRING"), transform);
         }
-        
-        RegisterEntity(uuid, entityName, entityType, entity);
+
+        RegisterEntity(uuid, entityName, entityType, entity_i);
     }
 }
 
 void World::Init(const char* worldPath)
 {
-    m_world.reset();
-    auto result = m_world.load_file(worldPath);
-    if (result.status != pugi::status_ok)
+    vjson::ParseContext ctx;
+    std::string sjson;
+    assert(LoadJsonToString(worldPath, sjson));
+    if ( !jsonWorld.ParseJSON( sjson, &ctx ) )
     {
+        fprintf( stderr, "Parse failed line %d: %s\n",
+            ctx.error_line, ctx.error_message.c_str() );
+
         Logger::Err("Could not open world file");
-        Logger::Err(std::format("{}", result.description()));
     }
+
     Reload();
 }
 
 void World::Save(const char* filePath)
 {
-    if(m_world.save_file(filePath))
+    std::string p = jsonWorld.PrintJSON();
+    if(SaveJsonToFile("GameCode/world.json", p))
     {
         Logger::Info("Saved world successfully");
     }
@@ -193,8 +129,10 @@ std::optional<UUID> World::GetStaticMeshEntityResourceUUID(UUID uuid) const
         Logger::Err("GetStaticMeshEntityResourceUUID(): Not a StaticMesh Entity");
         return std::nullopt;
     }
-    pugi::xml_node entity = m_uuid_to_node.at(uuid);
-    const char* uuid_str = entity.child("resource_staticmesh").attribute("uuid").as_string();
+
+    const vjson::Array& entities = jsonWorld.ValuePtrAtKey("root")->ValuePtrAtKey("entities")->GetArray();
+    const vjson::Value& entity = entities[m_uuid_to_entity_node_index.at(uuid)];    
+    const char* uuid_str = entity.AtKey("resources").AtKey("staticmesh").AtKey("uuid").AsCString("NOTASTRING");
     UUID resource_uuid;
     if (!UUID::TryParse(uuid_str, resource_uuid))
     {
@@ -203,39 +141,25 @@ std::optional<UUID> World::GetStaticMeshEntityResourceUUID(UUID uuid) const
     return resource_uuid;
 }
 
-static void WriteMatrix4f(pugi::xml_node transformNode, const Matrix4f& M)
+static auto SetMatrixRows = [](vjson::Value* matrixRows, const Matrix4f& matrix)
 {
-    std::ostringstream oss;
-    oss.precision(9); // enough for stable round-trips for most game transforms
+    matrixRows->SetEmptyArray();
 
-    oss << M.m[0] << ' ';
-    oss << M.m[1] << ' ';
-    oss << M.m[2] << ' ';
-    oss << M.m[3] << ' ';
-    oss << M.m[4] << ' ';
-    oss << M.m[5] << ' ';
-    oss << M.m[6] << ' ';
-    oss << M.m[7] << ' ';
-    oss << M.m[8] << ' ';
-    oss << M.m[9] << ' ';
-    oss << M.m[10] << ' ';
-    oss << M.m[11] << ' ';
-    oss << M.m[12] << ' ';
-    oss << M.m[13] << ' ';
-    oss << M.m[14] << ' ';
-    oss << M.m[15] << ' ';
+    vjson::Array& rows = matrixRows->GetArray();
 
-    auto attr = transformNode.attribute("m");
-    if (!attr) attr = transformNode.append_attribute("m");
-    attr.set_value(oss.str().c_str());
-}
+    for (int rowIndex = 0; rowIndex < 4; ++rowIndex)
+    {
+        vjson::Array row;
 
-void World::UpdateStaticMeshEntityTransformEntry(UUID entityUUID, const Matrix4f& transform)
-{
-    pugi::xml_node entity = m_uuid_to_node.at(entityUUID);
-    pugi::xml_node transform_staticmesh = entity.child("transform");
-    WriteMatrix4f(transform_staticmesh, transform);
-}
+        for (int colIndex = 0; colIndex < 4; ++colIndex)
+        {
+            const int matrixIndex = rowIndex * 4 + colIndex;
+            row.push_back(matrix.m[matrixIndex]);
+        }
+
+        rows.push_back(row);
+    }
+};
 
 void World::SetStaticMeshEntityTransform(UUID uuid, const Matrix4f& transform)
 {
@@ -250,7 +174,13 @@ void World::SetStaticMeshEntityTransform(UUID uuid, const Matrix4f& transform)
         assert(false); // This should never happen
     }
     it->second.m_transform = transform;
-    UpdateStaticMeshEntityTransformEntry(uuid, transform);
+
+    // Update the json side transofrm
+    vjson::Array& entities = jsonWorld.ValuePtrAtKey("root")->ValuePtrAtKey("entities")->GetArray();
+    vjson::Value& entity = entities[m_uuid_to_entity_node_index.at(uuid)];
+    vjson::Value* entity_transform_matrix = entity.ValuePtrAtKey("transform")->ValuePtrAtKey("matrix");
+
+    SetMatrixRows(entity_transform_matrix, transform);
 }
 
 std::optional<Matrix4f> World::GetStaticMeshEntityTransform(UUID uuid) const
@@ -270,9 +200,14 @@ std::optional<Matrix4f> World::GetStaticMeshEntityTransform(UUID uuid) const
 
 bool World::CheckIfEntityExists(const char *entityName) const
 {
-    for (pugi::xml_node entity : m_world.children())
+    const vjson::Array& entities = jsonWorld.ValuePtrAtKey("root")->ValuePtrAtKey("entities")->GetArray();
+    const std::size_t entity_count = entities.size();
+
+    for (std::size_t i = 0; i < entity_count; i++)
     {
-        if (strcmp(entity.attribute("name").as_string(), entityName) == 0)
+        const vjson::Value* entity = entities.ValuePtrAtIndex(i);
+        const char* entityNameTest = entity->AtKey("name").AsCString("NOTASTRING");
+        if (strcmp(entityNameTest, entityName) == 0)
         {
             return true;
         }
@@ -289,71 +224,45 @@ bool World::CheckIfEntityExists(UUID uuid) const
     return false;
 }
 
-void World::RemoveEntity(const char *entityName)
-{
-    pugi::xml_node entity = m_world.find_child_by_attribute("entity", "name", entityName);
-
-    if (!entity)
-    {
-        Logger::Err(std::format("Tried to remove entity \"{}\" that doesn't exist", entityName));
-    }
-
-    const char* uuidStr = entity.attribute("uuid").as_string();
-    assert((uuidStr != nullptr) && (uuidStr[0] != '\0')); // uuid not nullptr (exists) and not empty
-    UUID uuid;
-    bool parseUUID = UUID::TryParse(uuidStr, uuid);
-    assert(parseUUID);
-
-
-    entity.parent().remove_child(entity); // this must happen only here lest uuidStr become invalid!!!
-    UnregisterEntity(uuid);
-}
-
-void World::RemoveEntity(UUID uuid)
-{
-    if (!CheckIfEntityExists(uuid))
-    {
-        Logger::Err(std::format("Tried to remove entity \"{}\" that doesn't exist", uuid.ToString()));
-        return;
-    }
-    {
-        pugi::xml_node entity = m_uuid_to_node.find(uuid)->second;
-        entity.parent().remove_child(entity);
-    }
-    UnregisterEntity(uuid);
-}
-
-static void AddEntityTransform(pugi::xml_node node)
-{
-    pugi::xml_node xform = node.append_child("transform");
-    xform.append_attribute("m").set_value("1 0 0 0  0 1 0 0  0 0 1 0  0 0 0 1");
-}
 
 void World::AddNewStaticMeshEntity(const char* entityName)
 {
-    pugi::xml_node node = AddEntityNode(entityName);
+    if (CheckIfEntityExists(entityName))
+    {
+        Logger::Err(std::format("Entity \"{}\" already exists", entityName));
+        return;
+    }
+    
+
+    vjson::Array* entities = jsonWorld.ValuePtrAtKey("root")->ArrayPtrAtKey("entities");
+    const std::size_t newEntityIndex = entities->size();
+    vjson::Value& newEntity = entities->push_back(vjson::Object{});
+    newEntity.SetAtKey("name", entityName);
     UUID uuid;
-    bool uuidParse = UUID::TryParse(node.attribute("uuid").as_string(), uuid);
-    assert(uuidParse);
-    node.append_attribute("type").set_value("staticmesh");
-    AddEntityTransform(node);
-    pugi::xml_node resource_staticmesh = node.append_child("resource_staticmesh");
-    resource_staticmesh.append_attribute("name").set_value("NULL");
-    resource_staticmesh.append_attribute("uuid").set_value("NULL");
+    newEntity.SetAtKey("uuid", uuid.ToString());
+    newEntity.SetAtKey("type", "staticmesh");
+
+
+    newEntity.SetAtKey("resources", vjson::Object{});
+    vjson::Value* resources = newEntity.ValuePtrAtKey("resources");
+
+    resources->SetAtKey("staticmesh", vjson::Object{});
+    vjson::Value* staticmesh = resources->ValuePtrAtKey("staticmesh");
+
+    staticmesh->SetAtKey("name", "NULL");
+    staticmesh->SetAtKey("uuid", "NULL");
+
+    newEntity.SetAtKey("transform", vjson::Object{});
+    vjson::Value* transform = newEntity.ValuePtrAtKey("transform");
+    transform->SetAtKey("matrix", vjson::Object{});
+    vjson::Value* matrix = transform->ValuePtrAtKey("matrix");
+    Matrix4f defaultMat;
+
+    SetMatrixRows(matrix, defaultMat);
 
     // There is no resource connected to this static mesh entity yet
-    m_resourcePendingStaticMeshEntities.emplace_back(uuid, resource_staticmesh.attribute("name").as_string());
-    RegisterEntity(uuid, entityName, EntityType::StaticMesh, node);
-}
-
-void World::UpdateStaticMeshEntityResourceEntry(UUID entityUUID, const char *resourceName)
-{
-    UUID resUUID = GResourceDB->GetResUUID(resourceName);
-
-    pugi::xml_node entity = m_uuid_to_node.at(entityUUID);
-    pugi::xml_node resource_staticmesh = entity.child("resource_staticmesh");
-    resource_staticmesh.attribute("name").set_value(resourceName);
-    resource_staticmesh.attribute("uuid").set_value(resUUID.ToString());
+    m_resourcePendingStaticMeshEntities.emplace_back(uuid, staticmesh->AtKey("name").AsString("NOTASTRING"));
+    RegisterEntity(uuid, entityName, EntityType::StaticMesh, newEntityIndex);
 }
 
 bool World::UpdateStaticMeshEntityResource(UUID entityUUID, const char *resourceName)
@@ -379,7 +288,14 @@ bool World::UpdateStaticMeshEntityResource(UUID entityUUID, const char *resource
             }
         }
     }
-    UpdateStaticMeshEntityResourceEntry(entityUUID, resourceName);
+
+    // Update the entry in the json
+    UUID resUUID = GResourceDB->GetResUUID(resourceName);
+    vjson::Array& entities = jsonWorld.ValuePtrAtKey("root")->ValuePtrAtKey("entities")->GetArray();
+    vjson::Value* staticmesh = entities[m_uuid_to_entity_node_index.at(entityUUID)].ValuePtrAtKey("resources")->ValuePtrAtKey("staticmesh");
+    staticmesh->SetAtKey("name", resourceName);
+    staticmesh->SetAtKey("uuid", resUUID.ToString());
+
     return true;
 }
 
@@ -389,11 +305,11 @@ void World::UnregisterEntity(UUID uuid)
     m_uuids.erase(uuid);
     m_uuid_to_name.erase(uuid);
     m_uuid_to_type.erase(uuid);
-    m_uuid_to_node.erase(uuid);
+    m_uuid_to_entity_node_index.erase(uuid);
     const std::size_t s = m_uuids.size();
     assert(s == m_uuid_to_name.size()
         && s == m_uuid_to_type.size()
-        && s == m_uuid_to_node.size()
+        && s == m_uuid_to_entity_node_index.size()
         );
     switch (type)
     {
@@ -425,33 +341,19 @@ void World::UnregisterEntity(UUID uuid)
     }
 }
 
-void World::RegisterEntity(UUID uuid, const std::string &name, const EntityType type, pugi::xml_node node)
+void World::RegisterEntity(UUID uuid, const std::string &name, const EntityType type, std::size_t entity_i)
 {
     m_entityCount++;
     m_uuids.insert(uuid);
     m_uuid_to_name.insert({uuid, name});
     m_uuid_to_type.insert({uuid, type});
-    m_uuid_to_node.insert({uuid, node});
+    m_uuid_to_entity_node_index.insert({uuid, entity_i});
 
     const std::size_t s = m_uuids.size();
     assert(s == m_uuid_to_name.size()
         && s == m_uuid_to_type.size()
-        && s == m_uuid_to_node.size()
+        && s == m_uuid_to_entity_node_index.size()
         );
-}
-
-pugi::xml_node World::AddEntityNode(const char *entityName)
-{
-    if (CheckIfEntityExists(entityName))
-    {
-        Logger::Err(std::format("Entity \"{}\" already exists", entityName));
-        return {};
-    }
-    pugi::xml_node entity = m_world.append_child("entity");
-    entity.append_attribute("name").set_value(entityName);
-    UUID uuid;
-    entity.append_attribute("uuid").set_value(uuid.ToString().c_str());
-    return entity;
 }
 
 void World::Clear()
@@ -460,7 +362,7 @@ void World::Clear()
     m_uuids.clear();
     m_uuid_to_name.clear();
     m_uuid_to_type.clear();
-    m_uuid_to_node.clear();
+    m_uuid_to_entity_node_index.clear();
     {
         m_resourcePendingStaticMeshEntities.clear();
     }

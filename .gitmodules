@@ -16,3 +16,6 @@
 [submodule "CommonCode/Math"]
 	path = CommonCode/Math
 	url = https://github.com/patrick-han/Math
+[submodule "EngineCode/ThirdParty/vjson"]
+	path = EngineCode/ThirdParty/vjson
+	url = https://github.com/zpostfacto/vjson.git

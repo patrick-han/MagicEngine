@@ -69,6 +69,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/RendererEditor.cpp
         EngineCode/StaticMesh.h
         EngineCode/StaticMesh.cpp
+        EngineCode/vjson_header.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

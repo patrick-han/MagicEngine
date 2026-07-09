@@ -88,6 +88,12 @@ void Game::Initialize(Renderer* pRenderer)
     blob.Clear();
     */
 
+    // vjson::Object doc;
+    // doc["key"] = 3;
+    // std::string p = doc.PrintJSON();
+    // assert(SaveJsonToFile("output.json", p));
+    // exit(1);
+
     GResourceDB = GMemoryManager->New<ResourceDatabase>();
     GResourceDB->Init("GameCode/magic.db");
     m_pWorld = GMemoryManager->New<World>();
