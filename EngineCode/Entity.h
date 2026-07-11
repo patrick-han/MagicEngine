@@ -73,6 +73,7 @@ public:
         // TODO: do anything with matrices? specifically world matrix
         m_children.remove(pEntity);
     }
+    [[nodiscard]] bool HasChildren() const { return m_children.size() != 0; }
 
     void SetUUID(UUID uuid) { m_uuid = uuid; }
     [[nodiscard]] UUID GetUUID() const { return m_uuid; }
