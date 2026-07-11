@@ -49,6 +49,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/Allocators.h
         EngineCode/Limits.h
         EngineCode/World.h
+        EngineCode/World2.h
         EngineCode/World.cpp
         EngineCode/Entity.h
         EngineCode/SubMesh.h

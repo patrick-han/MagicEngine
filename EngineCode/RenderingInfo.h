@@ -22,14 +22,14 @@ struct GameStats
 
 
 class Camera;
-class World;
+class World2;
 class Game;
 struct RenderingInfo
 {
     const Camera* const pCamera;
     std::vector<SubMesh*> meshesToRender;
     GameStats gameStats;
-    World* pWorld;
+    World2* pWorld;
     Game* pGame;
     std::chrono::microseconds updateLoopTimingUS;
 };

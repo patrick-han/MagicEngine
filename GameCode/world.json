@@ -6,7 +6,7 @@
 				"resources": {
 					"staticmesh": {
 						"name": "Player",
-						"uuid": "E94929B2-A81A-4385-AE7F-72C02AC74232"
+						"path": "DataLibCode/beautiful-game-cgltf.bin"
 					}
 				},
 				"transform": {
@@ -45,7 +45,7 @@
 				"resources": {
 					"staticmesh": {
 						"name": "Scene",
-						"uuid": "2A3E0AD9-F50B-4B0F-83D5-79288256B0F2"
+						"path": "DataLibCode/scene.bin"
 					}
 				},
 				"transform": {

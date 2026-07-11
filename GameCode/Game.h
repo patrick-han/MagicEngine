@@ -11,9 +11,9 @@ class Registry;
 
 class Camera;
 class ResourceDatabase;
-class ResourceManager;
+// class ResourceManager;
 struct InputState;
-class World;
+class World2;
 class Game
 {
 public:
@@ -34,7 +34,7 @@ protected:
     [[nodiscard]] RenderingInfo Update(const InputState& inputState, float deltaTime);
 private:
     std::unique_ptr<Camera> m_camera;
-    World* m_pWorld;
+    World2* m_pWorld;
 };
 
 }
