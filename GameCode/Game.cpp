@@ -3,7 +3,8 @@
 #include "../EngineCode/Camera.h"
 #include "../EngineCode/Input.h"
 #include "../EngineCode/World.h"
-
+#include "../EngineCode/StaticMesh.h"
+#include "../EngineCode/Renderer.h"
 #include <SDL3/SDL_scancode.h> // Only for SCANCODES, TODO: Make a translation layer thingy
 #include "../EngineCode/MemoryManager.h"
 #include <vector>
@@ -133,15 +134,17 @@ bool a = true;
     GMemoryManager->ResetFrameTransformLinearAllocator();
     std::vector<SubMesh*> meshesToRender;
     {
-        for (const StaticMeshEntity& staticMeshEntity : m_pWorld->m_entities)
+        std::vector<const IEntity*> staticMeshEntities = m_pWorld->GetEntitiesOfType(EntityType::StaticMesh);
+        for (const IEntity* entity : staticMeshEntities)
         {
-            for (SubMesh* pSubMesh : staticMeshEntity.m_staticMesh->GetSubMeshes())
+            const StaticMeshEntity* staticMeshEntity = static_cast<const StaticMeshEntity*>(entity);
+            for (SubMesh* pSubMesh : staticMeshEntity->m_staticMesh->GetSubMeshes())
             {
                 if (!ShouldCull(pSubMesh))
                 {
                     meshesToRender.push_back(pSubMesh); // We don't necessarily want to wait for the entire static mesh to be ready, submeshes are okay
                     Matrix4f* allocTransform = GMemoryManager->AllocateFrameTransform();
-                    Matrix4f worldTransform = staticMeshEntity.m_transform * pSubMesh->m_transform;
+                    Matrix4f worldTransform = staticMeshEntity->m_transform * pSubMesh->m_transform;
                     *allocTransform = worldTransform;
                 }
             }

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstring>
 #include "Log.h"
+#include "Vertex.h"
 
 namespace Magic
 {

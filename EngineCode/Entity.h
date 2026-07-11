@@ -5,6 +5,12 @@
 #include <string>
 #include "../CommonCode/Math/Matrix4f.h"
 #include "UUID.h"
+
+namespace vjson
+{
+class Value;
+}
+
 namespace Magic
 {
 
@@ -55,11 +61,13 @@ public:
     {
 
     }
-    ~IEntity()
+    virtual ~IEntity()
     {
 
     }
-    virtual EntityType GetEntityType() const = 0;
+    [[nodiscard]] virtual bool Load(vjson::Value* entity) = 0;
+    [[nodiscard]] virtual bool Unload() = 0;
+    [[nodiscard]] virtual EntityType GetEntityType() const = 0;
     IEntity* GetParent() const { return m_parent; }
     void AddChild(IEntity* pEntity)
     {
