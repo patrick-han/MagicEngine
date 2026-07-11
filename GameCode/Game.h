@@ -10,8 +10,6 @@ class Registry;
 }
 
 class Camera;
-class ResourceDatabase;
-class ResourceManager;
 struct InputState;
 class World;
 class Game

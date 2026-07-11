@@ -145,7 +145,6 @@ void Application::Run(Game& game)
     GEditor = GMemoryManager->New<Editor>();
 #endif
     game.Initialize(GRenderer);
-    game.LoadContent();
     while (true)
     {
         // Update delta time
@@ -170,7 +169,10 @@ void Application::Run(Game& game)
         GRenderer->DoWork(m_frameNumber, renderingInfo);
         m_frameNumber++;
     }
-    game.UnloadContent();
+    if (GEditor->isWorldLoaded)
+    {
+        game.UnloadContent();
+    }
     game.Shutdown();
     GRenderer->DestroyResources();
 #if EDITOR

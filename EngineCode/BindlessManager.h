@@ -14,6 +14,7 @@ public:
     ~BindlessManager();
     void Initialize(GPUContext* gpuctx);
     void Shutdown();
+    [[nodiscard]] std::size_t GetNumberOfGPUTextures() const { return m_numberOfBindlessTexturesAddedSoFar; }
     void Reset()
     {
         m_numberOfBindlessTexturesAddedSoFar = 0;
@@ -29,7 +30,7 @@ private:
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
     VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-    int m_numberOfBindlessTexturesAddedSoFar = 0;
+    std::size_t m_numberOfBindlessTexturesAddedSoFar = 0;
 };
 
 } // namespace Magic

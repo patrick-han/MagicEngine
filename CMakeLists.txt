@@ -42,7 +42,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/Camera.h
         EngineCode/Input.h
         EngineCode/RenderingInfo.h
-        EngineCode/ResourceManager.h
         EngineCode/BindlessManager.cpp
         EngineCode/BindlessManager.h
         EngineCode/Timing.h
@@ -56,12 +55,9 @@ add_executable(MagicEngine main.cpp
         EngineCode/StaticMeshEntity.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
-        EngineCode/ResourceDatabase.cpp
-        EngineCode/ResourceDatabase.h
         EngineCode/UUID.h
         EngineCode/Threading.cpp
         EngineCode/Threading.h
-        EngineCode/ResourceManager.cpp
         EngineCode/Editor/Editor.cpp
         EngineCode/Editor/Editor.h
         EngineCode/Platform/WindowsHeader.h

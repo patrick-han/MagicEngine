@@ -7,6 +7,7 @@
 #include "Camera.h"
 #include "Platform/Platform.h"
 #include "MemoryManager.h"
+#include "DefaultTexture.h"
 #include <fstream>
 #include <cassert>
 #include <thread>
@@ -610,7 +611,8 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                 cmdEncoder.BindIndexBufferSimple(pSubMesh->indexBuffer);
                 {
                     pushConstants.model = transforms[subMeshIndex];
-                    if (pSubMesh->hasTexture)
+
+                    if (pSubMesh->diffuseTextureBindlessArraySlot != DefaultTexture::g_defaultTextureImageBindlessSlot)
                     {
                         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
                         pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;
@@ -618,9 +620,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                     else
                     {
                         cmdEncoder.BindGraphicsPipeline(m_simplePipelineVertexColors);
-                        // pushConstants.diffuseTextureBindlessTextureArraySlot = 0; // TODO: actually have default texture
                     }
-                    
                     vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
                 }
                 cmdEncoder.DrawIndexedSimple(pSubMesh->indexCount, 0);
