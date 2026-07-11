@@ -10,6 +10,7 @@
 #include "DefaultTexture.h"
 #include <fstream>
 #include <cassert>
+#include <limits>
 #include <thread>
 
 #ifdef NDEBUG
@@ -249,39 +250,30 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
 
     // TODO: Immediate resources
     {
-        VkCommandPoolCreateInfo commandPoolCreateInfo {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
-            , .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-            , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
-        };
-        vkCreateCommandPool(m_gpuctx->GetDevice(), &commandPoolCreateInfo, nullptr, &m_immediateCommandPool);
-        VkCommandBufferAllocateInfo immCmdBufferAllocInfo {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
-            , .commandPool = m_immediateCommandPool
-            , .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
-            , .commandBufferCount = 1
-        };
-        vkAllocateCommandBuffers(m_gpuctx->GetDevice(), &immCmdBufferAllocInfo, &m_immediateCommandBuffer);
-        VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
-        vkCreateFence(m_gpuctx->GetDevice(), &fenceCreateInfo, nullptr, &m_immediateFence);
-    }
+        m_availableImmediateSubmitContexts = std::queue<uint32_t>();
+        for (uint32_t i = 0; i < m_immediateCommandBufferCount; i++)
+        {
+            ImmediateSubmitContext& context = m_immediateSubmitContexts[i];
+            VkCommandPoolCreateInfo commandPoolCreateInfo {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
+                , .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+                , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
+            };
+            VK_CHECK(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &context.commandPool));
 
-    // Streaming resources
-    for (StreamingCommandBuffer& sbuf : m_streamingCommandBuffers)
-    {
-        VkCommandPoolCreateInfo commandPoolCreateInfo {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
-            , .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-            , .queueFamilyIndex = m_gpuctx->GetGraphicsQueueFamilyIndex()
-        };
-        VK_CHECK(vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &sbuf.pool));
-        VkCommandBufferAllocateInfo cmdBufferAllocInfo {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
-            , .commandPool = sbuf.pool
-            , .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
-            , .commandBufferCount = 1
-        };
-        VK_CHECK(vkAllocateCommandBuffers(m_gpuctx->GetDevice(), &cmdBufferAllocInfo, &sbuf.cmd));
+            VkCommandBufferAllocateInfo immCmdBufferAllocInfo {
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
+                , .commandPool = context.commandPool
+                , .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY
+                , .commandBufferCount = 1
+            };
+            VK_CHECK(vkAllocateCommandBuffers(device, &immCmdBufferAllocInfo, &context.commandBuffer));
+
+            VkFenceCreateInfo fenceCreateInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT};
+            VK_CHECK(vkCreateFence(device, &fenceCreateInfo, nullptr, &context.fence));
+
+            m_availableImmediateSubmitContexts.push(i);
+        }
     }
 
     // Imgui resources
@@ -505,16 +497,6 @@ void Renderer::BuildResources() {
 
         VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &m_timelineSemaphore));
     }
-
-    // Timeline semaphore for resource streaming system image uploads
-    {
-        VkSemaphoreCreateInfo        createInfo = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
-        VkSemaphoreTypeCreateInfoKHR type_create_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO_KHR, .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE, .initialValue = 0 };
-        createInfo.pNext              = &type_create_info;
-
-        VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &m_streamingTimelineSemaphore));
-    }
-
 }
 
 void Renderer::DestroyResources()
@@ -735,7 +717,10 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             .signalSemaphoreCount = 2,
             .pSignalSemaphores = semaphores
         };
-        vkQueueSubmit(m_gpuctx->GetGraphicsQueue(), 1, &submitInfo, nullptr);
+        {
+            std::scoped_lock lock(m_graphicsQueueMutex);
+            vkQueueSubmit(m_gpuctx->GetGraphicsQueue(), 1, &submitInfo, nullptr);
+        }
     }
 
     VkSwapchainKHR s = m_swapchain->GetSwapchainHandle();
@@ -748,7 +733,10 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         .pImageIndices = &swapchainImageData.imageIndex,
         .pResults = nullptr
     };
-    vkQueuePresentKHR(m_gpuctx->GetGraphicsQueue(), &presentInfo);
+    {
+        std::scoped_lock lock(m_graphicsQueueMutex);
+        vkQueuePresentKHR(m_gpuctx->GetGraphicsQueue(), &presentInfo);
+    }
 }
 
 void Renderer::WaitIdle()
@@ -775,14 +763,15 @@ void Renderer::Shutdown()
     VkDevice device = m_gpuctx->GetDevice();
     vkDestroyDescriptorPool(device, m_imguiDescriptorPool, nullptr);
 
-    vkDestroySemaphore(device, m_streamingTimelineSemaphore, nullptr);
-    for (StreamingCommandBuffer& s : m_streamingCommandBuffers)
+    for (ImmediateSubmitContext& context : m_immediateSubmitContexts)
     {
-        vkDestroyCommandPool(device, s.pool, nullptr);
+        vkDestroyFence(device, context.fence, nullptr);
+        context.fence = VK_NULL_HANDLE;
+        vkDestroyCommandPool(device, context.commandPool, nullptr);
+        context.commandPool = VK_NULL_HANDLE;
+        context.commandBuffer = VK_NULL_HANDLE;
     }
-
-    vkDestroyCommandPool(m_gpuctx->GetDevice(), m_immediateCommandPool, nullptr);
-    vkDestroyFence(m_gpuctx->GetDevice(), m_immediateFence, nullptr);
+    m_availableImmediateSubmitContexts = std::queue<uint32_t>();
 
     for (auto & p : m_perFrameInFlightData)
     {
@@ -794,8 +783,19 @@ void Renderer::Shutdown()
 void Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)> &&function)
 {
     VkDevice device = m_gpuctx->GetDevice();
-    vkResetFences(device, 1, &m_immediateFence);
-    vkResetCommandBuffer(m_immediateCommandBuffer, {});
+    uint32_t contextIndex = 0;
+    {
+        std::unique_lock lock(m_immediateMutex);
+        m_immediateCondition.wait(lock, [this]() { // m_immediateCondition.wait(lock, predicate) : Sleep until predicate is true
+            return !m_availableImmediateSubmitContexts.empty();
+        });
+        contextIndex = m_availableImmediateSubmitContexts.front();
+        m_availableImmediateSubmitContexts.pop();
+    }
+
+    ImmediateSubmitContext& context = m_immediateSubmitContexts[contextIndex];
+    VK_CHECK(vkResetFences(device, 1, &context.fence));
+    VK_CHECK(vkResetCommandBuffer(context.commandBuffer, {}));
 
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -803,11 +803,11 @@ void Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)> &&functi
         .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         .pInheritanceInfo = {}
     };
-    vkBeginCommandBuffer(m_immediateCommandBuffer, &beginInfo);
+    VK_CHECK(vkBeginCommandBuffer(context.commandBuffer, &beginInfo));
 
-    function(m_immediateCommandBuffer);
+    function(context.commandBuffer);
 
-    vkEndCommandBuffer(m_immediateCommandBuffer);
+    VK_CHECK(vkEndCommandBuffer(context.commandBuffer));
 
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -815,13 +815,22 @@ void Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)> &&functi
         .pWaitSemaphores = nullptr,
         .pWaitDstStageMask = nullptr,
         .commandBufferCount = 1,
-        .pCommandBuffers = &m_immediateCommandBuffer,
+        .pCommandBuffers = &context.commandBuffer,
         .signalSemaphoreCount = 0,
         .pSignalSemaphores = nullptr
     };
-    vkQueueSubmit(m_gpuctx->GetGraphicsQueue(), 1, &submitInfo, m_immediateFence);
+    {
+        std::scoped_lock lock(m_graphicsQueueMutex);
+        VK_CHECK(vkQueueSubmit(m_gpuctx->GetGraphicsQueue(), 1, &submitInfo, context.fence));
+    }
 
-    vkWaitForFences(device, 1, &m_immediateFence, true, (std::numeric_limits<uint64_t>::max)());
+    VK_CHECK(vkWaitForFences(device, 1, &context.fence, VK_TRUE, (std::numeric_limits<uint64_t>::max)()));
+
+    {
+        std::scoped_lock lock(m_immediateMutex);
+        m_availableImmediateSubmitContexts.push(contextIndex);
+    }
+    m_immediateCondition.notify_one();
 }
 
 

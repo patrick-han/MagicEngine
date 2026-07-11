@@ -2,6 +2,7 @@
 #include "Vulkan/Include.h"
 #include "GPUContext.h"
 #include <vector>
+#include <mutex>
 
 namespace Magic
 {
@@ -14,9 +15,14 @@ public:
     ~BindlessManager();
     void Initialize(GPUContext* gpuctx);
     void Shutdown();
-    [[nodiscard]] std::size_t GetNumberOfGPUTextures() const { return m_numberOfBindlessTexturesAddedSoFar; }
+    [[nodiscard]] std::size_t GetNumberOfGPUTextures()
+    { 
+        std::lock_guard lock(m_bindlessMutex);
+        return m_numberOfBindlessTexturesAddedSoFar; 
+    }
     void Reset()
     {
+        std::lock_guard lock(m_bindlessMutex);
         m_numberOfBindlessTexturesAddedSoFar = 0;
     }
 
@@ -24,9 +30,10 @@ public:
     void UpdateBindlessSamplers(VkSampler linearSampler, VkSampler pointSampler) const;
 
 private:
-    void UpdateBindlessTextureArrayAtIndex(const AllocatedImage &texture, uint32_t index);
     friend class Renderer;
     GPUContext* m_gpuctx = nullptr;
+
+    std::mutex m_bindlessMutex;
     VkDescriptorSet m_descriptorSet = VK_NULL_HANDLE;
     VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;

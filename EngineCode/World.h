@@ -6,8 +6,7 @@
 #include "MemoryManager.h"
 #include "UUID.h"
 
-#include <optional>
-#include <format>
+#include <mutex>
 #include "DefaultTexture.h"
 
 namespace Magic
@@ -29,6 +28,10 @@ public:
 
     [[nodiscard]] std::size_t GetEntityCount(EntityType entityType) const;
     [[nodiscard]] std::vector<const IEntity*> GetEntitiesOfType(EntityType entityType) const;
+    [[nodiscard]] std::vector<IEntity*> GetAllEntities()
+    {
+        return m_entities;
+    }
 
     std::vector<IEntity*> m_entities;
 };

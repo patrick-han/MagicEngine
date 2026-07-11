@@ -1,6 +1,12 @@
 #pragma once
-#include <memory>
 #include <array>
+#include <condition_variable>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <vector>
 #include "Vulkan/Include.h"
 #include "CompileTimeConstants.h"
 #include "CommandEncoder.h"
@@ -8,7 +14,6 @@
 #include "Image.h"
 #include "Buffer.h"
 #include "RenderingInfo.h"
-#include <functional>
 #include "GPUContext.h"
 #include "BindlessManager.h"
 
@@ -103,102 +108,8 @@ private:
     std::array<PerFrameInFlightData, g_kMaxFramesInFlight> m_perFrameInFlightData;
     VkSemaphore m_timelineSemaphore = VK_NULL_HANDLE;
     uint64_t m_timelineValue = 0;
+    std::mutex m_graphicsQueueMutex; // This is needed since both ImmediateSubmit and the main frame work share the same VkQueue
 
-    // Resource streaming
-public:
-    struct StreamingCommandBuffer
-    {
-        VkCommandPool pool;
-        VkCommandBuffer cmd;
-        uint64_t timelineFinished = 0;
-    };
-private:
-    VkSemaphore m_streamingTimelineSemaphore = VK_NULL_HANDLE;
-    // VkCommandPool m_streamingCommandPool;
-    // VkCommandBuffer m_streamingCommandBuffer;
-    static constexpr size_t g_numberOfStreamingCommandBuffers = 5;
-    std::array<StreamingCommandBuffer, g_numberOfStreamingCommandBuffers> m_streamingCommandBuffers;
-    uint64_t m_streamingTimelineValue = 0;
-public:
-    [[nodiscard]] StreamingCommandBuffer* ResetAndBeginStreamingCommandBuffer()
-    {
-        const uint64_t currentTimelineValue = GetCurrentStreamingTimelineValue();
-
-        StreamingCommandBuffer* pBuf = nullptr;
-        for (StreamingCommandBuffer& sbuf : m_streamingCommandBuffers)
-        {
-            if (currentTimelineValue >= sbuf.timelineFinished)
-            {
-                pBuf = &sbuf;
-                break;
-            }
-        }
-        if (pBuf == nullptr)
-        {
-            return nullptr; // No available command buffers
-        }
-        VkCommandBuffer streamingCommandBuffer = pBuf->cmd;
-
-        vkResetCommandBuffer(streamingCommandBuffer, {});
-        VkCommandBufferBeginInfo beginInfo = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        };
-        vkBeginCommandBuffer(streamingCommandBuffer, &beginInfo);
-        return pBuf;
-    }
-    [[nodiscard]] uint64_t EnqueueImageUploadJob(StreamingCommandBuffer* sbuf, AllocatedImage image, AllocatedBuffer stagingBuffer, VkExtent3D extent)
-    {
-        VkCommandBuffer cmd = sbuf->cmd;
-        TransitionImage(cmd, image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        VkBufferImageCopy copyRegion = {};
-        copyRegion.bufferOffset = 0;
-        copyRegion.bufferRowLength = 0;
-        copyRegion.bufferImageHeight = 0;
-        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copyRegion.imageSubresource.mipLevel = 0;
-        copyRegion.imageSubresource.baseArrayLayer = 0;
-        copyRegion.imageSubresource.layerCount = 1;
-        copyRegion.imageExtent = extent;
-        vkCmdCopyBufferToImage(cmd, stagingBuffer.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
-        TransitionImage(cmd, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        m_streamingTimelineValue++;
-        return m_streamingTimelineValue;
-    }
-    void EndAndSubmitStreamingCommandBuffer(StreamingCommandBuffer* sbuf)
-    {
-        vkEndCommandBuffer(sbuf->cmd);
-        uint64_t valueToSignal = m_streamingTimelineValue;
-        sbuf->timelineFinished = valueToSignal;
-        VkTimelineSemaphoreSubmitInfo timelineInfo {
-            .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
-            .waitSemaphoreValueCount = 0,
-            .pWaitSemaphoreValues = nullptr,
-            .signalSemaphoreValueCount = 1,
-            .pSignalSemaphoreValues = &valueToSignal
-        };
-        VkSemaphore semaphoresToSignal[] = { m_streamingTimelineSemaphore };
-        VkSubmitInfo submitInfo = {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .pNext = &timelineInfo,
-            .waitSemaphoreCount = 0,
-            .pWaitSemaphores = nullptr,
-            .pWaitDstStageMask = nullptr,
-            .commandBufferCount = 1,
-            .pCommandBuffers = &sbuf->cmd,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores = semaphoresToSignal
-        };
-        vkQueueSubmit(m_gpuctx->GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-    }
-    uint64_t GetCurrentStreamingTimelineValue()
-    {
-        uint64_t value;
-        vkGetSemaphoreCounterValue(m_gpuctx->GetDevice(), m_streamingTimelineSemaphore, &value);
-        return value;
-    }
-private:
 
     // TODO:
     std::vector<VkPushConstantRange> m_pushConstantRanges;
@@ -215,16 +126,22 @@ private:
     GraphicsPipeline m_debugDrawPipeline; // bounding box
     bool m_renderBoundingBoxes = false;
 
-private:
-
-    /// TODO:
     // Immediate rendering resources
     void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function); // Lambda should take a command buffer and return nothing
-    VkFence m_immediateFence;
-    VkCommandBuffer m_immediateCommandBuffer;
-    VkCommandPool m_immediateCommandPool;
-    ///
-public: // TODO: make an interface for this?
+
+    struct ImmediateSubmitContext
+    {
+        VkCommandPool commandPool = VK_NULL_HANDLE;
+        VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+        VkFence fence = VK_NULL_HANDLE;
+    };
+
+    std::mutex m_immediateMutex;
+    std::condition_variable m_immediateCondition;
+    static constexpr uint32_t m_immediateCommandBufferCount = 10;
+    std::array<ImmediateSubmitContext, m_immediateCommandBufferCount> m_immediateSubmitContexts;
+    std::queue<uint32_t> m_availableImmediateSubmitContexts;
+public:
     BindlessManager m_bindlessManager;
 
 

@@ -23,7 +23,6 @@ void MemoryManager::Shutdown()
 {
     this->Delete(m_pFrameTransformLinearAllocator);
     assert(m_genericNewDeletePointers.size() == 0 && "Not all MemoryManager allocations were freed");
-    assert(m_genericMallocFreePointers.size() == 0 && "Not all MemoryManager allocations were freed");
 }
 
 Matrix4f *MemoryManager::AllocateFrameTransform()

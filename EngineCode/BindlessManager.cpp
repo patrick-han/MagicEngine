@@ -107,20 +107,7 @@ void BindlessManager::Shutdown()
     vkDestroyDescriptorPool(m_gpuctx->GetDevice(), m_descriptorPool, nullptr);
 }
 
-int BindlessManager::AddToBindlessTextureArray(const AllocatedImage &texture)
-{
-    if (m_numberOfBindlessTexturesAddedSoFar == g_maxBindlessResourceCount)
-    {
-        Logger::Err("Ran out of bindless slots!"); // TODO:
-        return -1;
-    }
-    int freeIndex = m_numberOfBindlessTexturesAddedSoFar;
-    UpdateBindlessTextureArrayAtIndex(texture, freeIndex);
-    m_numberOfBindlessTexturesAddedSoFar++;
-    return freeIndex;
-}
-
-void BindlessManager::UpdateBindlessTextureArrayAtIndex(const AllocatedImage &texture, uint32_t index)
+static void UpdateBindlessTextureArrayAtIndex(const AllocatedImage &texture, uint32_t index, GPUContext* gpuctx, VkDescriptorSet descriptorSet)
 {
     constexpr uint32_t textureArrayBindingSlot = 1;
     std::vector<VkDescriptorImageInfo> descriptorImageInfos;
@@ -137,7 +124,7 @@ void BindlessManager::UpdateBindlessTextureArrayAtIndex(const AllocatedImage &te
         VkWriteDescriptorSet write {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
             , .pNext = nullptr
-            , .dstSet = m_descriptorSet
+            , .dstSet = descriptorSet
             , .dstBinding = textureArrayBindingSlot
             , .dstArrayElement = index
             , .descriptorCount = 1
@@ -149,7 +136,21 @@ void BindlessManager::UpdateBindlessTextureArrayAtIndex(const AllocatedImage &te
         descriptorWrites.push_back(write);
     }
 
-    vkUpdateDescriptorSets(m_gpuctx->GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+    vkUpdateDescriptorSets(gpuctx->GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+}
+
+int BindlessManager::AddToBindlessTextureArray(const AllocatedImage &texture)
+{
+    std::lock_guard lock(m_bindlessMutex);
+    if (m_numberOfBindlessTexturesAddedSoFar == g_maxBindlessResourceCount)
+    {
+        Logger::Err("Ran out of bindless slots!"); // TODO:
+        return -1;
+    }
+    int freeIndex = m_numberOfBindlessTexturesAddedSoFar;
+    UpdateBindlessTextureArrayAtIndex(texture, freeIndex, m_gpuctx, m_descriptorSet);
+    m_numberOfBindlessTexturesAddedSoFar++;
+    return freeIndex;
 }
 
 void BindlessManager::UpdateBindlessSamplers(VkSampler linearSampler, VkSampler pointSampler) const

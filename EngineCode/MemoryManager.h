@@ -3,6 +3,7 @@
 #include "../CommonCode/Log.h"
 #include "../CommonCode/Math/Matrix4f.h"
 #include <span>
+#include <mutex>
 namespace Magic
 {
 
@@ -23,14 +24,20 @@ public:
             Logger::Err("MemoryManager::New() failed");
             std::exit(1);
         }
-        m_genericNewDeletePointers.insert((void*)temp);
+        {
+            std::lock_guard lock(m_pointerPoolLock);
+            m_genericNewDeletePointers.insert((void*)temp);
+        }
         return temp;
     }
 
     template<typename T>
     void Delete(T* ptr)
     {
-        m_genericNewDeletePointers.erase(ptr);
+        {
+            std::lock_guard lock(m_pointerPoolLock);
+            m_genericNewDeletePointers.erase(ptr);
+        }
         delete ptr;
     }
 
@@ -43,14 +50,20 @@ public:
             Logger::Err("MemoryManager::NewArr() failed");
             std::exit(1);
         }
-        m_genericNewDeletePointers.insert((void*)temp);
+        {
+            std::lock_guard lock(m_pointerPoolLock);
+            m_genericNewDeletePointers.insert((void*)temp);
+        }
         return temp;
     }
 
     template<typename T>
     void DeleteArr(T* ptr)
     {
-        m_genericNewDeletePointers.erase(ptr);
+        {
+            std::lock_guard lock(m_pointerPoolLock);
+            m_genericNewDeletePointers.erase(ptr);
+        }
         delete[] ptr;
     }
 
@@ -60,8 +73,8 @@ public:
 
 private:
     FixedPODTypeLinearAllocator<Matrix4f>* m_pFrameTransformLinearAllocator;
+    std::mutex m_pointerPoolLock;
     std::unordered_set<void*> m_genericNewDeletePointers;
-    std::unordered_set<void*> m_genericMallocFreePointers;
 };
 
 

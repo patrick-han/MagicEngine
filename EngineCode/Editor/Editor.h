@@ -1,6 +1,5 @@
 #pragma once
-#include "../UUID.h"
-
+#include "../Entity.h"
 
 namespace Magic
 {
@@ -13,8 +12,7 @@ struct Editor
     char loadWorldTextBoxNameBuffer[defaultMaxTextLength] = "GameCode/world.json";
     char newResourceNameBuffer[defaultMaxTextLength] = "NewResource";
     char newResourcePathBuffer[defaultMaxTextLength*4] = "Path";
-    UUID sceneOutlineSelectedEntityUUID = UUID{};
-    bool isSceneOutlineSelectedEntityUUIDValid = false;
+    IEntity* sceneOutlineSelectedEntity = nullptr;
     bool isWorldLoaded = false;
     char loadedWorldNameBuffer[defaultMaxTextLength] = "NONE";
 

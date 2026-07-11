@@ -1,8 +1,20 @@
 #include "World.h"
 #include "Renderer.h"
+#include "Threading.h"
 
 namespace Magic
 {
+
+namespace
+{
+
+struct EntityLoadPayload
+{
+    vjson::Value* entity = nullptr;
+    EntityType entityType = EntityType::Unknown;
+};
+
+}
 
 void World::Load(const char* worldPath)
 {
@@ -38,19 +50,39 @@ void World::Load(const char* worldPath)
     vjson::Array& entities = root->ValuePtrAtKey("entities")->GetArray();
     const std::size_t entityCount = entities.size();
 
+
+    std::vector<EntityLoadPayload> pendingEntities;
+
     for (std::size_t entity_i = 0; entity_i < entityCount; entity_i++)
     {
         vjson::Value* entity = entities.ValuePtrAtIndex(entity_i);
         const char* entityTypeString = entity->AtKey("type").AsCString("Unknown");
         EntityType entityType = Entity::StrToEntityType(entityTypeString);
-        switch(entityType)
+
+        if (entityType != EntityType::Unknown)
+        {
+            EntityLoadPayload payload = {
+                .entity = entity
+                , .entityType = entityType
+            };
+            pendingEntities.push_back(payload);
+        }
+    }
+
+    std::mutex loadingMutex;
+    std::vector<IEntity*> loadedEntities;
+
+    auto pendingEntityLoad = [&pendingEntities, &loadingMutex, &loadedEntities](std::size_t i){
+        EntityLoadPayload payload = pendingEntities.at(i);
+        switch(payload.entityType)
         {
             case EntityType::StaticMesh:
             {
                 StaticMeshEntity* staticMeshEntity = GMemoryManager->New<StaticMeshEntity>();
-                if (staticMeshEntity->Load(entity))
+                if (staticMeshEntity->Load(payload.entity))
                 {
-                    m_entities.push_back(staticMeshEntity);
+                    std::lock_guard lock(loadingMutex);
+                    loadedEntities.push_back(staticMeshEntity);
                 }
                 else
                 {
@@ -63,7 +95,13 @@ void World::Load(const char* worldPath)
                 Logger::Err("Tried to load unknown entity type");
             }
         }
-    }
+    };
+
+    auto start = std::chrono::steady_clock::now();
+    auto futures = Job::Pool.submit_loop(0, pendingEntities.size(), pendingEntityLoad, 0);
+    futures.wait();
+    m_entities = std::move(loadedEntities);
+    Logger::Info(std::format("Entity loading took: {}", Timing::SinceMS(start)));
 }
 
 void World::Destroy()
