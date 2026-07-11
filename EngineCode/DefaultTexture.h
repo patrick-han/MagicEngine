@@ -1,11 +1,17 @@
 #pragma once
 #include <array>
 #include <cstdint>
+namespace Magic
+{
 
-constexpr int TEX_WIDTH  = 128;
-constexpr int TEX_HEIGHT = 128;
-constexpr int TILE_SIZE  = 16;
-constexpr int CHANNELS   = 4;
+namespace DefaultTexture
+{
+    inline int g_defaultTextureImageBindlessSlot = -1;
+    inline AllocatedImage g_defaultTextureImage;
+    inline constexpr int TEX_WIDTH  = 128;
+    inline constexpr int TEX_HEIGHT = 128;
+    inline constexpr int TILE_SIZE  = 16;
+    inline constexpr int CHANNELS   = 4;
 
 using TextureArray = std::array<unsigned char, TEX_WIDTH * TEX_HEIGHT * CHANNELS>;
 
@@ -33,5 +39,7 @@ constexpr TextureArray GenerateCheckerboard()
     return data;
 }
 
-constexpr TextureArray g_DefaultTexture = GenerateCheckerboard();
+inline constexpr TextureArray g_DefaultTexture = GenerateCheckerboard();
+}
 
+}

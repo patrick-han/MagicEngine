@@ -9,7 +9,6 @@ namespace Magic
 class StaticMesh;
 struct SubMesh
 {
-    bool ReadyToRender() { return vertexBufferReady && indexBufferReady && texturesReady; }
     StaticMesh* m_parentMesh = nullptr;
     Matrix4f m_transform;
     AllocatedBuffer vertexBuffer;
@@ -17,11 +16,6 @@ struct SubMesh
     uint32_t indexCount = 0;
     AllocatedImage diffuseImage;
     int diffuseTextureBindlessArraySlot = -1;
-    uint64_t diffuseTextureStreamingTimelineReadyValue = 0;
-    bool vertexBufferReady = false;
-    bool indexBufferReady = false;
-    bool texturesReady = false;
-    bool hasTexture = true;
     AABB3f aabb;
 };
 

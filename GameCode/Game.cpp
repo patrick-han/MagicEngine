@@ -121,10 +121,6 @@ void Game::UnloadContent()
 // TEMP
 bool ShouldCull(SubMesh* subMesh)
 {
-    if (!subMesh->vertexBufferReady || !subMesh->indexBufferReady || !subMesh->texturesReady)
-    {
-        return true;
-    }
     return false;
 }
 
