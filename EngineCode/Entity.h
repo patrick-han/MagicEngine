@@ -59,7 +59,7 @@ public:
     {
 
     }
-    virtual EntityType GetEntityType() = 0;
+    virtual EntityType GetEntityType() const = 0;
     IEntity* GetParent() const { return m_parent; }
     void AddChild(IEntity* pEntity)
     {

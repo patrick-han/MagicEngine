@@ -2,11 +2,9 @@
 #include "../CommonCode/Log.h"
 #include "../EngineCode/Camera.h"
 #include "../EngineCode/Input.h"
-#include "../EngineCode/World2.h"
+#include "../EngineCode/World.h"
 
 #include <SDL3/SDL_scancode.h> // Only for SCANCODES, TODO: Make a translation layer thingy
-#include "../EngineCode/ResourceDatabase.h"
-// #include "../EngineCode/ResourceManager.h"
 #include "../EngineCode/MemoryManager.h"
 #include <vector>
 #include <cassert>
@@ -94,13 +92,9 @@ void Game::Initialize(Renderer* pRenderer)
     // assert(SaveJsonToFile("output.json", p));
     // exit(1);
 
-    GResourceDB = GMemoryManager->New<ResourceDatabase>();
-    GResourceDB->Init("GameCode/db.json");
-    m_pWorld = GMemoryManager->New<World2>();
-    // GResourceManager = GMemoryManager->New<ResourceManager>();
+    m_pWorld = GMemoryManager->New<World>();
 
     Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
-    // GResourceManager->UploadDefaultTexture();
 
     // Make a free camera pointing down +Z with +X left and +Y up
     m_camera = std::make_unique<Camera>(Vector3f(0.0f, 1.0f, -5.0f), Vector3f(0.0f, 0.0f, 1.0f));
@@ -108,51 +102,19 @@ void Game::Initialize(Renderer* pRenderer)
 
 void Game::Shutdown()
 {
-    GResourceDB->Save();
-    GMemoryManager->Delete(GResourceDB);
     GMemoryManager->Delete(m_pWorld);
-    // GResourceManager->Shutdown();
-    // GMemoryManager->Delete(GResourceManager);
 }
 
 void Game::LoadContent()
 {
     Logger::Info("Load MyGame content");
     m_pWorld->Load("GameCode/world.json");
-    // const std::unordered_set<UUID>& uuids = m_pWorld->GetAllUUIDs();
-    // for (const UUID& uuid : uuids)
-    // {
-    //     std::optional<UUID> res_uuid = m_pWorld->GetStaticMeshEntityResourceUUID(uuid);
-    //     if (res_uuid)
-    //     {
-    //         const char* resPath = GResourceDB->GetResPath(*res_uuid);
-    //         const char* resName = GResourceDB->GetResName(*res_uuid);
-    //         if ( // If mutiple static mesh entities point to the same static mesh
-    //             !GResourceManager->IsStaticMeshDataLoadingFromDisk(resName)
-    //             && !GResourceManager->IsStaticMeshDataLoadedFromDisk(resName)
-    //         )
-    //         {
-    //             GResourceManager->SetStaticMeshDataLoadingFromDiskStatus(resName);
-    //             Job::Pool.detach_task([=]() {
-    //                 if (!GResourceManager->IsStaticMeshDataLoadedFromDisk(resName))
-    //                 {
-    //                     GResourceManager->LoadStaticMeshDataFromDisk(resPath, resName);
-    //                 }
-    //             });
-    //             if (!GResourceManager->IsStaticMeshDataGPUResident(resName))
-    //             {
-    //                 GResourceManager->EnqueueUploadStaticMeshData(resName);
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 void Game::UnloadContent()
 {
     Logger::Info("Unload MyGame content");
     m_pWorld->Destroy();
-    // GResourceManager->DestroyAllAssets();
 }
 
 
@@ -171,49 +133,6 @@ bool a = true;
 [[nodiscard]] RenderingInfo Game::Update(const InputState& inputState, float deltaTime)
 {
     auto start = std::chrono::steady_clock::now();
-    // GResourceManager->ProcessStaticMeshDataUploadJobs();
-    // GResourceManager->ProcessBufferUploadJobs();
-    // GResourceManager->ProcessImageUploadJobs();
-    // GResourceManager->PollImageUploadJobsFinishedAndUpdateRenderables();
-
-    // The World's static mesh entities are looking for certain named resources which the ResourceManager _should_ have
-    // auto& pending = m_pWorld->m_resourcePendingStaticMeshEntities;
-    // for (auto it = pending.begin(); it != pending.end(); )
-    // {
-    //     if (it->resourceName == "NULL")
-    //     {
-    //         ++it;
-    //         continue;
-    //     }
-    //     if (!GResourceManager->IsStaticMeshDataGPUResident(it->resourceName)) // If the mesh is not gpu resident, it's not ready to be assigned
-    //     {
-    //         // Maybe the mesh is not yet loaded into the manager, but we need to check to make sure
-    //         // its also not currently being loaded from disk or already loaded from disk
-    //         // This path hits when we are reassigning a static mesh entity to a different static mesh resource
-    //         if (
-    //             !GResourceManager->IsStaticMeshDataLoadedFromDisk(it->resourceName.c_str())
-    //             && !GResourceManager->IsStaticMeshDataLoadingFromDisk(it->resourceName.c_str())
-    //         )
-    //         {
-    //             const char* resPath = GResourceDB->GetResPath(it->resourceName.c_str());
-    //             assert(resPath != nullptr);
-    //             GResourceManager->SetStaticMeshDataLoadingFromDiskStatus(it->resourceName.c_str());
-    //             Job::Pool.detach_task([=]() {
-    //                 GResourceManager->LoadStaticMeshDataFromDisk(resPath, it->resourceName.c_str());
-    //             });
-    //             GResourceManager->EnqueueUploadStaticMeshData(it->resourceName);
-    //         }
-    //         ++it; // the iterator does not advance on its own if we hit this and continue, so we manually increment
-    //         continue;
-    //     }
-    //     std::size_t meshEntityIndex = GResourceManager->GetGPUResidentStaticMeshDataIndex(it->resourceName);
-    //     StaticMesh* staticMesh = GResourceManager->m_staticMeshes.at(meshEntityIndex);
-    //     StaticMeshEntity staticMeshEntity;
-    //     staticMeshEntity.m_staticMesh = staticMesh;
-    //     staticMeshEntity.m_transform = it->transform;
-    //     m_pWorld->m_uuid_to_meshEntity.insert_or_assign(it->entityUUID, staticMeshEntity);
-    //     it = pending.erase(it); // Remove from m_resourcePendingStaticMeshEntities
-    // }
 
     GMemoryManager->ResetFrameTransformLinearAllocator();
     std::vector<SubMesh*> meshesToRender;
@@ -292,25 +211,19 @@ bool a = true;
     }
 
 
-    // TEMP: count submeshes
-    // int subMeshCount = 0;
-    // for (StaticMesh* pStaticMesh : m_pWorld->m_entities.m_staticMeshes)
-    // {
-    //     subMeshCount += pStaticMesh->GetSubMeshes().size();
-    // }
+    std::size_t subMeshCount = 0;
+    std::vector<const IEntity*> staticMeshEntities = m_pWorld->GetEntitiesOfType(EntityType::StaticMesh);
+    for (const IEntity* pStaticMesh : staticMeshEntities)
+    {
+        subMeshCount += ((const StaticMeshEntity*)pStaticMesh)->m_staticMesh->GetSubMeshCount();
+    }
     GameStats stats = 
     {
-        .entityCount = static_cast<int>(m_pWorld->m_entities.size())
-        , .ramResidentStaticMeshDataCount = 1337//GResourceManager->GetRAMResidentStaticMeshDataCount()
-        , .loadingFromDiskStaticMeshCount = 1337//GResourceManager->GetDiskLoadingStaticMeshDataCount()
-        , .meshCount = 1337
-        , .subMeshCount = 1337
-        , .textureCount = 1337 //GResourceManager->GetTextureCount()
-        , .pendingStaticMeshDataUploadCount = 1337//GResourceManager->GetPendingStaticMeshDataUploadJobCount()
-        , .pendingBufferUploadCount = 1337//GResourceManager->GetPendingBufferUploadJobCount()
-        , .pendingImageUploadCount = 1337//GResourceManager->GetPendingImageUploadJobCount()
-        , .pendingStaticMeshEntities = 1337//static_cast<int>(m_pWorld->m_resourcePendingStaticMeshEntities.size())
-        , .readyStaticMeshEntities = 1337//static_cast<int>(m_pWorld->m_uuid_to_meshEntity.size())
+        .entityCount = m_pWorld->m_entities.size()
+        , .meshCount = staticMeshEntities.size()
+        , .subMeshCount = subMeshCount
+        , .textureCount = GRenderer->m_bindlessManager.GetNumberOfGPUTextures()
+
     };
 
     RenderingInfo renderingInfo = {

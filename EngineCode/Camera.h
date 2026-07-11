@@ -35,6 +35,10 @@ public:
     void PrintDebug(bool pos, bool vecs, bool yawpitch) const;
     void Freeze() { m_frozen = true; }
     void UnFreeze() { m_frozen = false; }
+
+    [[nodiscard]] Vector3f GetForward() const { return m_forward; }
+    [[nodiscard]] Vector3f GetLeft() const { return m_left; }
+    [[nodiscard]] Vector3f GetUp() const { return m_up; }
 private:
     // Matrix4f m_toWorld;
     Vector3f m_position;
