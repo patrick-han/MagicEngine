@@ -594,7 +594,10 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                 {
                     pushConstants.model = transforms[subMeshIndex];
 
-                    if (pSubMesh->diffuseTextureBindlessArraySlot != DefaultTexture::g_defaultTextureImageBindlessSlot)
+                    if (
+                        (pSubMesh->diffuseTextureBindlessArraySlot != DefaultTexture::g_defaultTextureImageBindlessSlot)
+                        || pSubMesh->hasTexture
+                    )
                     {
                         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
                         pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;

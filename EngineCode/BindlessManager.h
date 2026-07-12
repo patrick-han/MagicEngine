@@ -25,7 +25,7 @@ public:
         std::lock_guard lock(m_bindlessMutex);
         m_numberOfBindlessTexturesAddedSoFar = 0;
     }
-
+    [[nodiscard]] bool IsBindlessArrayFull();
     [[nodiscard]] int AddToBindlessTextureArray(const AllocatedImage &texture);
     void UpdateBindlessSamplers(VkSampler linearSampler, VkSampler pointSampler) const;
 

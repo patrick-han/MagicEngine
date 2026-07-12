@@ -139,6 +139,16 @@ static void UpdateBindlessTextureArrayAtIndex(const AllocatedImage &texture, uin
     vkUpdateDescriptorSets(gpuctx->GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 }
 
+bool BindlessManager::IsBindlessArrayFull()
+{
+    std::lock_guard lock(m_bindlessMutex);
+    if (m_numberOfBindlessTexturesAddedSoFar == g_maxBindlessResourceCount)
+    {
+        return true;
+    }
+    return false;
+}
+
 int BindlessManager::AddToBindlessTextureArray(const AllocatedImage &texture)
 {
     std::lock_guard lock(m_bindlessMutex);

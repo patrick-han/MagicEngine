@@ -20,6 +20,7 @@ struct SubMesh
     uint32_t indexCount = 0;
     AllocatedImage diffuseImage;
     int diffuseTextureBindlessArraySlot = -1;
+    bool hasTexture = false; // To distinguish from meshes that only have vertex colors
     AABB3f aabb;
 };
 
