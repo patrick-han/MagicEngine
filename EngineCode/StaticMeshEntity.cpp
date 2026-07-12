@@ -5,6 +5,8 @@
 #include "Renderer.h"
 #include "DefaultTexture.h"
 #include "../DataLibCode/DataSerialization.h"
+#include "../DataLibCode/ImportGLTF.h"
+#include <filesystem>
 namespace Magic
 {
 StaticMeshEntity::StaticMeshEntity() 
@@ -62,16 +64,25 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
     std::string resourceFilePath = resources->ValuePtrAtKey("staticmesh")->ValuePtrAtKey("path")->AsString(not_a_string);
     std::string resourceName = resources->ValuePtrAtKey("staticmesh")->ValuePtrAtKey("name")->AsString(not_a_string);
 
-    StaticMeshData* m_staticMeshData = nullptr;
+    StaticMeshData* staticMeshData = nullptr;
+
+
+    if (std::filesystem::path(resourceFilePath).extension() == ".gltf")
     {
-        std::optional<StaticMeshData> staticMeshData = Data::DeserializeStaticMeshDataBlob(resourceFilePath);
-        m_staticMeshData = GMemoryManager->New<StaticMeshData>(std::move(*staticMeshData));
+        GLTFImporter ctx;
+        staticMeshData = GMemoryManager->New<StaticMeshData>();
+        ctx.ImportGLTF(resourceFilePath, *staticMeshData);
+    }
+    else
+    {
+        std::optional<StaticMeshData> staticMeshDataOpt = Data::DeserializeStaticMeshDataBlob(resourceFilePath);
+        staticMeshData = GMemoryManager->New<StaticMeshData>(std::move(*staticMeshDataOpt));
 
         if (!staticMeshData)
         {
             Logger::Err(std::format("DeserializeStaticMeshDataBlob({}): FAILED (could not load '{}')", resourceFilePath, resourceName));
             Logger::Err(std::format("Skipping loading entity: {}", entityName));
-            GMemoryManager->Delete(m_staticMeshData);
+            GMemoryManager->Delete(staticMeshData);
             return false;
         }
     }
@@ -79,11 +90,11 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
     std::unordered_map<int, int> m_diffuseBaseTextureDataOffsetToBindlessIndex; // Used to deduplicate textures
 
     std::size_t subMesh_i = 0;
-    for (const SubMeshData& subMeshData : m_staticMeshData->m_subMeshes)
+    for (const SubMeshData& subMeshData : staticMeshData->m_subMeshes)
     {
         SubMesh* pSubMesh = GMemoryManager->New<SubMesh>();
         pSubMesh->indexCount = static_cast<uint32_t>(subMeshData.m_indices.size());
-        pSubMesh->m_transform = m_staticMeshData->m_transforms[subMesh_i];
+        pSubMesh->m_transform = staticMeshData->m_transforms[subMesh_i];
         // calculate aabb, TODO: this can be spun off into a separate job, or better yet done in the cooker
         for (const auto& vertex : subMeshData.m_vertices)
         {
@@ -156,7 +167,7 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
 
 
         // Textures
-        tryUploadTexture(subMeshData.materialData.diffuseData, pSubMesh, m_staticMeshData);
+        tryUploadTexture(subMeshData.materialData.diffuseData, pSubMesh, staticMeshData);
 
 
         // Finalize
@@ -164,7 +175,7 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
         subMesh_i++;
     }
     
-    GMemoryManager->Delete(m_staticMeshData);
+    GMemoryManager->Delete(staticMeshData);
     return true;
 }
 bool StaticMeshEntity::Unload()
