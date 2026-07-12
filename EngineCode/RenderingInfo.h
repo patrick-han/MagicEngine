@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "SubMesh.h"
+#include "StaticMeshEntity.h"
 #include "Timing.h"
 namespace Magic
 {

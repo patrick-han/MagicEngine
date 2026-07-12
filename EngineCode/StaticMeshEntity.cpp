@@ -2,8 +2,6 @@
 #include "vjson_header.h"
 #include "MemoryManager.h"
 #include "../CommonCode/StaticMeshData.h"
-#include "StaticMesh.h"
-#include "SubMesh.h"
 #include "Renderer.h"
 #include "DefaultTexture.h"
 #include "../DataLibCode/DataSerialization.h"
@@ -58,7 +56,6 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
     SetName(entityName);
     SetUUID(entityUUID);
     m_transform = mtx;
-    m_staticMesh = GMemoryManager->New<StaticMesh>();
 
 
     vjson::Value* resources = entity->ValuePtrAtKey("resources");
@@ -75,7 +72,6 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
             Logger::Err(std::format("DeserializeStaticMeshDataBlob({}): FAILED (could not load '{}')", resourceFilePath, resourceName));
             Logger::Err(std::format("Skipping loading entity: {}", entityName));
             GMemoryManager->Delete(m_staticMeshData);
-            GMemoryManager->Delete(m_staticMesh);
             return false;
         }
     }
@@ -141,7 +137,7 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
         }
 
         // Finalize
-        m_staticMesh->AddSubMesh(pSubMesh);
+        m_subMeshes.push_back(pSubMesh);
         subMesh_i++;
     }
     
@@ -150,14 +146,19 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
 }
 bool StaticMeshEntity::Unload()
 {
-    for (SubMesh* pSubMesh : m_staticMesh->GetSubMeshes())
+    for (SubMesh* pSubMesh : m_subMeshes)
     {
         GRenderer->DestroyBuffer(pSubMesh->vertexBuffer);
         GRenderer->DestroyBuffer(pSubMesh->indexBuffer);
         GRenderer->DestroyImage(pSubMesh->diffuseImage);
         GMemoryManager->Delete<SubMesh>(pSubMesh);
     }
-    GMemoryManager->Delete<StaticMesh>(m_staticMesh);
     return true;
 }
+
+std::span<SubMesh* const> StaticMeshEntity::GetSubMeshes() const
+{
+    return std::span<SubMesh* const>(m_subMeshes);
+}
+
 }

@@ -1,4 +1,9 @@
+#pragma once
 #include "Entity.h"
+#include "Buffer.h"
+#include "Image.h"
+#include "../CommonCode/AABB.h"
+#include <span>
 
 namespace vjson
 {
@@ -6,7 +11,18 @@ class Value;
 }
 namespace Magic
 {
-class StaticMesh;
+
+struct SubMesh
+{
+    Matrix4f m_transform;
+    AllocatedBuffer vertexBuffer;
+    AllocatedBuffer indexBuffer;
+    uint32_t indexCount = 0;
+    AllocatedImage diffuseImage;
+    int diffuseTextureBindlessArraySlot = -1;
+    AABB3f aabb;
+};
+
 class StaticMeshEntity final : public IEntity
 {
 public:
@@ -15,7 +31,10 @@ public:
     [[nodiscard]] virtual EntityType GetEntityType() const override { return EntityType::StaticMesh; }
     [[nodiscard]] virtual bool Load(vjson::Value* entity) override;
     [[nodiscard]] virtual bool Unload() override;
-    StaticMesh* m_staticMesh = nullptr;
+    [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;
+    [[nodiscard]] std::size_t GetSubMeshCount() const { return m_subMeshes.size(); }
+private:
+    std::vector<SubMesh*> m_subMeshes;
 };
 
 }

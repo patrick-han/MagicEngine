@@ -50,7 +50,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/World.h
         EngineCode/World.cpp
         EngineCode/Entity.h
-        EngineCode/SubMesh.h
         EngineCode/StaticMeshEntity.h
         EngineCode/StaticMeshEntity.cpp
         EngineCode/MemoryManager.h
@@ -62,8 +61,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/Editor/Editor.h
         EngineCode/Platform/WindowsHeader.h
         EngineCode/RendererEditor.cpp
-        EngineCode/StaticMesh.h
-        EngineCode/StaticMesh.cpp
         EngineCode/vjson_header.h
 )
 

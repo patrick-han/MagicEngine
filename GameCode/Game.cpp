@@ -3,7 +3,6 @@
 #include "../EngineCode/Camera.h"
 #include "../EngineCode/Input.h"
 #include "../EngineCode/World.h"
-#include "../EngineCode/StaticMesh.h"
 #include "../EngineCode/Renderer.h"
 #include <SDL3/SDL_scancode.h> // Only for SCANCODES, TODO: Make a translation layer thingy
 #include "../EngineCode/MemoryManager.h"
@@ -138,7 +137,7 @@ bool a = true;
         for (const IEntity* entity : staticMeshEntities)
         {
             const StaticMeshEntity* staticMeshEntity = static_cast<const StaticMeshEntity*>(entity);
-            for (SubMesh* pSubMesh : staticMeshEntity->m_staticMesh->GetSubMeshes())
+            for (SubMesh* pSubMesh : staticMeshEntity->GetSubMeshes())
             {
                 if (!ShouldCull(pSubMesh))
                 {
@@ -214,7 +213,7 @@ bool a = true;
     std::vector<const IEntity*> staticMeshEntities = m_pWorld->GetEntitiesOfType(EntityType::StaticMesh);
     for (const IEntity* pStaticMesh : staticMeshEntities)
     {
-        subMeshCount += ((const StaticMeshEntity*)pStaticMesh)->m_staticMesh->GetSubMeshCount();
+        subMeshCount += ((const StaticMeshEntity*)pStaticMesh)->GetSubMeshCount();
     }
     GameStats stats = 
     {
