@@ -76,6 +76,8 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
         }
     }
 
+    std::unordered_map<int, int> m_diffuseBaseTextureDataOffsetToBindlessIndex; // Used to deduplicate textures
+
     std::size_t subMesh_i = 0;
     for (const SubMeshData& subMeshData : m_staticMeshData->m_subMeshes)
     {
@@ -106,29 +108,41 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
         const bool hasDiffuseTexture = subMeshData.materialData.diffuseData.width != 0;
         if (hasDiffuseTexture)
         {
-            VkExtent3D extent
+            const bool textureAlreadyLoaded = m_diffuseBaseTextureDataOffsetToBindlessIndex.find(subMeshData.materialData.diffuseData.baseTextureDataOffset) != m_diffuseBaseTextureDataOffsetToBindlessIndex.end();
+            if (textureAlreadyLoaded)
             {
-                .width = static_cast<uint32_t>(subMeshData.materialData.diffuseData.width)
-                , .height = static_cast<uint32_t>(subMeshData.materialData.diffuseData.height)
-                , .depth = 1
-            };
-            const VkImageCreateInfo imci = DefaultImageCreateInfo(g_defaultTextureFormat, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
-
-            pSubMesh->diffuseImage = GRenderer->UploadImage(
-                m_staticMeshData->textureData.data() + subMeshData.materialData.diffuseData.baseTextureDataOffset
-                , subMeshData.materialData.diffuseData.numChannels
-                , imci
-            );
-            auto imageViewCreateInfo = DefaultImageViewCreateInfo(pSubMesh->diffuseImage.image, g_defaultTextureFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
-            pSubMesh->diffuseImage.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
-            int bindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(pSubMesh->diffuseImage);
-            if (bindlessSlot < 0) // If we run out of bindless slots
-            {
-                pSubMesh->diffuseTextureBindlessArraySlot = DefaultTexture::g_defaultTextureImageBindlessSlot;
+                pSubMesh->diffuseTextureBindlessArraySlot = m_diffuseBaseTextureDataOffsetToBindlessIndex.at(subMeshData.materialData.diffuseData.baseTextureDataOffset);
+                Logger::Info("Found duplicate texture, skipping upload");
             }
             else
             {
-                pSubMesh->diffuseTextureBindlessArraySlot = bindlessSlot;
+                VkExtent3D extent
+                {
+                    .width = static_cast<uint32_t>(subMeshData.materialData.diffuseData.width)
+                    , .height = static_cast<uint32_t>(subMeshData.materialData.diffuseData.height)
+                    , .depth = 1
+                };
+                const VkImageCreateInfo imci = DefaultImageCreateInfo(g_defaultTextureFormat, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
+
+                pSubMesh->diffuseImage = GRenderer->UploadImage(
+                    m_staticMeshData->textureData.data() + subMeshData.materialData.diffuseData.baseTextureDataOffset
+                    , subMeshData.materialData.diffuseData.numChannels
+                    , imci
+                );
+                auto imageViewCreateInfo = DefaultImageViewCreateInfo(pSubMesh->diffuseImage.image, g_defaultTextureFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
+                pSubMesh->diffuseImage.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
+                int bindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(pSubMesh->diffuseImage);
+                if (bindlessSlot < 0) // If we run out of bindless slots
+                {
+                    pSubMesh->diffuseTextureBindlessArraySlot = DefaultTexture::g_defaultTextureImageBindlessSlot;
+                    GRenderer->DestroyImage(pSubMesh->diffuseImage); // TODO: Better to check before we even create
+                    pSubMesh->diffuseImage = {};
+                }
+                else
+                {
+                    pSubMesh->diffuseTextureBindlessArraySlot = bindlessSlot;
+                    m_diffuseBaseTextureDataOffsetToBindlessIndex[subMeshData.materialData.diffuseData.baseTextureDataOffset] = bindlessSlot;
+                }
             }
         }
         else
