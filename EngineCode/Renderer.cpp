@@ -557,7 +557,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 
         VkClearValue clearValue = {{{0.5f, 0.5f, 0.7f, 1.0f}}};
         auto rai_color = TEMP_rendering_attachment_info(m_rtColorImage.view, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, &clearValue);
-        VkClearValue depthClearValue = {.depthStencil = 1.0f};
+        VkClearValue depthClearValue = {.depthStencil = {1.0f}};
         auto rai_depth = TEMP_rendering_attachment_info(m_rtDepthImage.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue);
         auto ri = TEMP_rendering_info_fullscreen(1, &rai_color, &rai_depth, outputWidth, outputHeight);
         cmdEncoder.BeginRendering(ri);
