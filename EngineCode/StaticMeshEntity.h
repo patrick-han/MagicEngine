@@ -3,6 +3,9 @@
 #include "Buffer.h"
 #include "Image.h"
 #include "../CommonCode/AABB.h"
+
+#include <pxr/usd/usd/prim.h>
+
 #include <span>
 
 namespace vjson
@@ -31,6 +34,7 @@ public:
     ~StaticMeshEntity();
     [[nodiscard]] virtual EntityType GetEntityType() const override { return EntityType::StaticMesh; }
     [[nodiscard]] virtual bool Load(vjson::Value* entity) override;
+    [[nodiscard]] bool Load(const pxr::UsdPrim& entityPrim);
     [[nodiscard]] virtual bool Unload() override;
     [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;
     [[nodiscard]] std::size_t GetSubMeshCount() const { return m_subMeshes.size(); }

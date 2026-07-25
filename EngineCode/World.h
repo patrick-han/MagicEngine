@@ -6,7 +6,7 @@
 #include "MemoryManager.h"
 #include "UUID.h"
 
-#include <mutex>
+
 #include "DefaultTexture.h"
 
 namespace Magic

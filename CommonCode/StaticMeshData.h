@@ -32,7 +32,7 @@ struct SubMeshData
 struct StaticMeshData
 {
     std::vector<SubMeshData> m_subMeshes;
-    std::vector<Matrix4f> m_transforms;
+    std::vector<Matrix4f> m_transforms; // per submesh
     std::vector<unsigned char> textureData;
 };
 

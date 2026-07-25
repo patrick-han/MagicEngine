@@ -1,4 +1,5 @@
 #include "StaticMeshEntity.h"
+#include "USDImporter.h"
 #include "vjson_header.h"
 #include "MemoryManager.h"
 #include "../CommonCode/StaticMeshData.h"
@@ -6,7 +7,12 @@
 #include "DefaultTexture.h"
 #include "../DataLibCode/DataSerialization.h"
 #include "../DataLibCode/ImportGLTF.h"
+
+#include <pxr/usd/usdGeom/xformCache.h>
+
 #include <filesystem>
+#include <optional>
+#include <unordered_map>
 namespace Magic
 {
 StaticMeshEntity::StaticMeshEntity() 
@@ -110,7 +116,7 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
             sizeof(uint32_t) * subMeshData.m_indices.size()
             , static_cast<const void*>(subMeshData.m_indices.data())
             , VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-        
+
         pSubMesh->vertexBuffer = vertexBuffer;
         pSubMesh->indexBuffer = indexBuffer;
 
@@ -174,8 +180,131 @@ bool StaticMeshEntity::Load(vjson::Value *entity)
         m_subMeshes.push_back(pSubMesh);
         subMesh_i++;
     }
-    
+
     GMemoryManager->Delete(staticMeshData);
+    return true;
+}
+bool StaticMeshEntity::Load(const pxr::UsdPrim &entityPrim)
+{
+    // Top level properties
+    const std::string entityName = entityPrim.GetName().GetString();
+    UUID entityUUID; // TODO: embed entities in Blender via a plugin? this is just a random runtime entity for now
+
+    pxr::UsdGeomXformCache cache;
+    const pxr::GfMatrix4d worldTransform = cache.GetLocalToWorldTransform(entityPrim);
+
+    auto GfMatrix4dToMatrix4f = [](const pxr::GfMatrix4d& usdMatrix) -> Matrix4f {
+        Matrix4f result;
+        for (int row = 0; row < 4; ++row)
+        {
+            for (int column = 0; column < 4; ++column)
+            {
+                // USD uses row vectors; MagicEngine uses column vectors.
+                result(row, column) = static_cast<float>(usdMatrix[column][row]);
+            }
+        }
+        return result;
+    };
+
+    SetName(entityName.c_str());
+    SetUUID(entityUUID);
+    m_transform = GfMatrix4dToMatrix4f(worldTransform);
+
+    StaticMeshData staticMeshData;
+    USDImporter importer;
+    importer.ImportUSDPrim(entityPrim, staticMeshData);
+    if (staticMeshData.m_subMeshes.empty())
+    {
+        return false;
+    }
+
+    std::unordered_map<int, int> m_diffuseBaseTextureDataOffsetToBindlessIndex; // Used to deduplicate textures
+
+    std::size_t subMesh_i = 0;
+    for (const SubMeshData& subMeshData : staticMeshData.m_subMeshes)
+    {
+        SubMesh* pSubMesh = GMemoryManager->New<SubMesh>();
+        pSubMesh->indexCount = static_cast<uint32_t>(subMeshData.m_indices.size());
+        pSubMesh->m_transform = staticMeshData.m_transforms[subMesh_i];
+        // calculate aabb, TODO: this can be spun off into a separate job, or better yet done in the cooker
+        for (const auto& vertex : subMeshData.m_vertices)
+        {
+            pSubMesh->aabb.Update(vertex.position);
+        }
+        // Vertex and Index buffers
+        AllocatedBuffer vertexBuffer = GRenderer->UploadBuffer(
+            sizeof(SimpleVertex) * subMeshData.m_vertices.size()
+            , static_cast<const void*>(subMeshData.m_vertices.data())
+            , VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+
+        AllocatedBuffer indexBuffer = GRenderer->UploadBuffer(
+            sizeof(uint32_t) * subMeshData.m_indices.size()
+            , static_cast<const void*>(subMeshData.m_indices.data())
+            , VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+
+        pSubMesh->vertexBuffer = vertexBuffer;
+        pSubMesh->indexBuffer = indexBuffer;
+
+        auto tryUploadTexture = [&m_diffuseBaseTextureDataOffsetToBindlessIndex](
+            TextureData subMeshTextureData
+            , SubMesh* pSubMesh
+            , StaticMeshData& pStaticMeshData)
+        {
+            const bool validTexture = subMeshTextureData.width != 0;
+            pSubMesh->hasTexture = validTexture; // TODO: this assumes only a single texture!
+            if (validTexture)
+            {
+                const bool textureAlreadyLoaded = m_diffuseBaseTextureDataOffsetToBindlessIndex.find(subMeshTextureData.baseTextureDataOffset) != m_diffuseBaseTextureDataOffsetToBindlessIndex.end();
+                if (textureAlreadyLoaded)
+                {
+                    pSubMesh->diffuseTextureBindlessArraySlot = m_diffuseBaseTextureDataOffsetToBindlessIndex.at(subMeshTextureData.baseTextureDataOffset);
+                    Logger::Info("Found duplicate texture, skipping upload");
+                }
+                else
+                {
+                    VkExtent3D extent
+                    {
+                        .width = static_cast<uint32_t>(subMeshTextureData.width)
+                        , .height = static_cast<uint32_t>(subMeshTextureData.height)
+                        , .depth = 1
+                    };
+                    const VkImageCreateInfo imci = DefaultImageCreateInfo(g_defaultTextureFormat, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
+
+                    if (!GRenderer->m_bindlessManager.IsBindlessArrayFull())
+                    {
+                        pSubMesh->diffuseImage = GRenderer->UploadImage(
+                            pStaticMeshData.textureData.data() + subMeshTextureData.baseTextureDataOffset
+                            , subMeshTextureData.numChannels
+                            , imci
+                        );
+                        auto imageViewCreateInfo = DefaultImageViewCreateInfo(pSubMesh->diffuseImage.image, g_defaultTextureFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
+                        pSubMesh->diffuseImage.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
+                        int bindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(pSubMesh->diffuseImage);
+                        pSubMesh->diffuseTextureBindlessArraySlot = bindlessSlot;
+                        m_diffuseBaseTextureDataOffsetToBindlessIndex[subMeshTextureData.baseTextureDataOffset] = bindlessSlot;
+                    }
+                    else
+                    {
+                        Logger::Err("Bindless texture array is full");
+                        pSubMesh->diffuseTextureBindlessArraySlot = DefaultTexture::g_defaultTextureImageBindlessSlot;
+                    }
+                }
+            }
+            else
+            {
+                pSubMesh->diffuseTextureBindlessArraySlot = DefaultTexture::g_defaultTextureImageBindlessSlot;
+            }
+        };
+
+
+        // Textures
+        tryUploadTexture(subMeshData.materialData.diffuseData, pSubMesh, staticMeshData);
+
+
+        // Finalize
+        m_subMeshes.push_back(pSubMesh);
+        subMesh_i++;
+    }
     return true;
 }
 bool StaticMeshEntity::Unload()

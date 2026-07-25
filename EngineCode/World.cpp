@@ -2,6 +2,15 @@
 #include "Renderer.h"
 #include "Threading.h"
 
+#include <pxr/usd/usd/stage.h>
+#include <pxr/usd/usd/prim.h>
+#include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/usd/usdShade/materialBindingAPI.h>
+#include <pxr/usd/usdShade/shader.h>
+#include <pxr/usd/sdf/assetPath.h>
+
+#include <mutex>
 namespace Magic
 {
 
@@ -11,6 +20,12 @@ namespace
 struct EntityLoadPayload
 {
     vjson::Value* entity = nullptr;
+    EntityType entityType = EntityType::Unknown;
+};
+
+struct EntityLoadPayloadUSD
+{
+    pxr::UsdPrim entity;
     EntityType entityType = EntityType::Unknown;
 };
 
@@ -34,46 +49,83 @@ void World::Load(const char* worldPath)
         GRenderer->DestroyBuffer(stagingBuffer);
     }
 
-
-    vjson::Object jsonWorld;
-    vjson::ParseContext ctx;
-    std::string sjson;
-    assert(LoadJsonToString(worldPath, sjson));
-    if ( !jsonWorld.ParseJSON( sjson, &ctx ) )
+    // OpenUSD loading example
+    const pxr::UsdStageRefPtr usdStage = pxr::UsdStage::Open("Assets/sponza.usda");
+    if (!usdStage)
     {
-        fprintf( stderr, "Parse failed line %d: %s\n",
-            ctx.error_line, ctx.error_message.c_str() );
-
-        Logger::Err("Could not open world file");
+        Logger::Err("Could not load the OpenUSD test stage");
+        exit(1);
     }
-    vjson::Value* root = jsonWorld.ValuePtrAtKey("root");
-    vjson::Array& entities = root->ValuePtrAtKey("entities")->GetArray();
-    const std::size_t entityCount = entities.size();
+    pxr::SdfPath path("/root");
+    auto rootprim = usdStage->GetPrimAtPath(path);
 
 
-    std::vector<EntityLoadPayload> pendingEntities;
+    std::vector<EntityLoadPayloadUSD> pendingEntities;
 
-    for (std::size_t entity_i = 0; entity_i < entityCount; entity_i++)
+    std::size_t entityCount = 0;
+    for (auto prim : rootprim.GetChildren())
     {
-        vjson::Value* entity = entities.ValuePtrAtIndex(entity_i);
-        const char* entityTypeString = entity->AtKey("type").AsCString("Unknown");
-        EntityType entityType = Entity::StrToEntityType(entityTypeString);
-
-        if (entityType != EntityType::Unknown)
+        if (prim.IsA<pxr::UsdGeomXform>())
         {
-            EntityLoadPayload payload = {
-                .entity = entity
-                , .entityType = entityType
-            };
-            pendingEntities.push_back(payload);
+            Logger::Info(std::format("Xform: {}", prim.GetName().GetString()));
+            entityCount++;
+            // if (entityType != EntityType::Unknown) // TODO: assume all staticmeshes for now
+            {
+                EntityLoadPayloadUSD payload = {
+                    .entity = prim
+                    , .entityType = EntityType::StaticMesh
+                };
+                pendingEntities.push_back(payload);
+            }
+        }
+        else
+        {
+            Logger::Info(std::format("Other: {}", prim.GetName().GetString()));
         }
     }
+
+
+
+    // vjson::Object jsonWorld;
+    // vjson::ParseContext ctx;
+    // std::string sjson;
+    // assert(LoadJsonToString(worldPath, sjson));
+    // if ( !jsonWorld.ParseJSON( sjson, &ctx ) )
+    // {
+    //     fprintf( stderr, "Parse failed line %d: %s\n",
+    //         ctx.error_line, ctx.error_message.c_str() );
+
+    //     Logger::Err("Could not open world file");
+    // }
+    // vjson::Value* root = jsonWorld.ValuePtrAtKey("root");
+    // vjson::Array& entities = root->ValuePtrAtKey("entities")->GetArray();
+    // const std::size_t entityCount = entities.size();
+
+
+    // std::vector<EntityLoadPayload> pendingEntities;
+
+    // for (std::size_t entity_i = 0; entity_i < entityCount; entity_i++)
+    // {
+    //     vjson::Value* entity = entities.ValuePtrAtIndex(entity_i);
+    //     const char* entityTypeString = entity->AtKey("type").AsCString("Unknown");
+    //     EntityType entityType = Entity::StrToEntityType(entityTypeString);
+
+    //     if (entityType != EntityType::Unknown)
+    //     {
+    //         EntityLoadPayload payload = {
+    //             .entity = entity
+    //             , .entityType = entityType
+    //         };
+    //         pendingEntities.push_back(payload);
+    //     }
+    // }
 
     std::mutex loadingMutex;
     std::vector<IEntity*> loadedEntities;
 
     auto pendingEntityLoad = [&pendingEntities, &loadingMutex, &loadedEntities](std::size_t i){
-        EntityLoadPayload payload = pendingEntities.at(i);
+        // EntityLoadPayload payload = pendingEntities.at(i);
+        EntityLoadPayloadUSD payload = pendingEntities.at(i);
         switch(payload.entityType)
         {
             case EntityType::StaticMesh:
