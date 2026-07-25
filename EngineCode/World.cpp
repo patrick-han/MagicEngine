@@ -1,5 +1,6 @@
 #include "World.h"
 #include "Renderer.h"
+#include "TextureCache.h"
 #include "Threading.h"
 
 #include <pxr/usd/usd/stage.h>
@@ -16,12 +17,6 @@ namespace Magic
 
 namespace
 {
-
-struct EntityLoadPayload
-{
-    vjson::Value* entity = nullptr;
-    EntityType entityType = EntityType::Unknown;
-};
 
 struct EntityLoadPayloadUSD
 {
@@ -83,48 +78,10 @@ void World::Load(const char* worldPath)
             Logger::Info(std::format("Other: {}", prim.GetName().GetString()));
         }
     }
-
-
-
-    // vjson::Object jsonWorld;
-    // vjson::ParseContext ctx;
-    // std::string sjson;
-    // assert(LoadJsonToString(worldPath, sjson));
-    // if ( !jsonWorld.ParseJSON( sjson, &ctx ) )
-    // {
-    //     fprintf( stderr, "Parse failed line %d: %s\n",
-    //         ctx.error_line, ctx.error_message.c_str() );
-
-    //     Logger::Err("Could not open world file");
-    // }
-    // vjson::Value* root = jsonWorld.ValuePtrAtKey("root");
-    // vjson::Array& entities = root->ValuePtrAtKey("entities")->GetArray();
-    // const std::size_t entityCount = entities.size();
-
-
-    // std::vector<EntityLoadPayload> pendingEntities;
-
-    // for (std::size_t entity_i = 0; entity_i < entityCount; entity_i++)
-    // {
-    //     vjson::Value* entity = entities.ValuePtrAtIndex(entity_i);
-    //     const char* entityTypeString = entity->AtKey("type").AsCString("Unknown");
-    //     EntityType entityType = Entity::StrToEntityType(entityTypeString);
-
-    //     if (entityType != EntityType::Unknown)
-    //     {
-    //         EntityLoadPayload payload = {
-    //             .entity = entity
-    //             , .entityType = entityType
-    //         };
-    //         pendingEntities.push_back(payload);
-    //     }
-    // }
-
     std::mutex loadingMutex;
     std::vector<IEntity*> loadedEntities;
 
-    auto pendingEntityLoad = [&pendingEntities, &loadingMutex, &loadedEntities](std::size_t i){
-        // EntityLoadPayload payload = pendingEntities.at(i);
+    auto pendingEntityLoad = [this, &pendingEntities, &loadingMutex, &loadedEntities](std::size_t i){
         EntityLoadPayloadUSD payload = pendingEntities.at(i);
         switch(payload.entityType)
         {
@@ -167,6 +124,7 @@ void World::Destroy()
 
     m_entities.clear();
 
+    GTextureCache->Destroy();
     GRenderer->DestroyImage(DefaultTexture::g_defaultTextureImage);
     GRenderer->m_bindlessManager.Reset();
 }

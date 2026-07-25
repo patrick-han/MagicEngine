@@ -63,6 +63,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/StaticMeshEntity.cpp
         EngineCode/USDImporter.h
         EngineCode/USDImporter.cpp
+        EngineCode/TextureCache.h
+        EngineCode/TextureCache.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
         EngineCode/UUID.h

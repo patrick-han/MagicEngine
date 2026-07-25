@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include "StaticMeshEntity.h"
-#include "vjson_header.h"
 #include "../CommonCode/Log.h"
 #include "MemoryManager.h"
 #include "UUID.h"

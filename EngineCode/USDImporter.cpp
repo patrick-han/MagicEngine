@@ -298,6 +298,7 @@ void USDImporter::ImportUSDPrim(
                 diffuseTexture.height = textureHeight;
                 diffuseTexture.numChannels = desiredChannels;
                 diffuseTexture.baseTextureDataOffset = static_cast<int>(staticMeshData.textureData.size());
+                diffuseTexture.sourcePath = resolvedPath;
 
                 staticMeshData.textureData.insert(staticMeshData.textureData.end(), pixels, pixels + textureByteCount);
                 stbi_image_free(pixels);

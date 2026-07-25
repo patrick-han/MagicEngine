@@ -1,17 +1,10 @@
 #pragma once
 #include "Entity.h"
 #include "Buffer.h"
-#include "Image.h"
 #include "../CommonCode/AABB.h"
-
-#include <pxr/usd/usd/prim.h>
 
 #include <span>
 
-namespace vjson
-{
-class Value;
-}
 namespace Magic
 {
 
@@ -21,7 +14,6 @@ struct SubMesh
     AllocatedBuffer vertexBuffer;
     AllocatedBuffer indexBuffer;
     uint32_t indexCount = 0;
-    AllocatedImage diffuseImage;
     int diffuseTextureBindlessArraySlot = -1;
     bool hasTexture = false; // To distinguish from meshes that only have vertex colors
     AABB3f aabb;
@@ -33,8 +25,7 @@ public:
     StaticMeshEntity();
     ~StaticMeshEntity();
     [[nodiscard]] virtual EntityType GetEntityType() const override { return EntityType::StaticMesh; }
-    [[nodiscard]] virtual bool Load(vjson::Value* entity) override;
-    [[nodiscard]] bool Load(const pxr::UsdPrim& entityPrim);
+    [[nodiscard]] bool Load(const pxr::UsdPrim& entityPrim) override;
     [[nodiscard]] virtual bool Unload() override;
     [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;
     [[nodiscard]] std::size_t GetSubMeshCount() const { return m_subMeshes.size(); }
