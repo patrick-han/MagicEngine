@@ -62,6 +62,8 @@ add_executable(MagicEngine main.cpp
         EngineCode/Platform/WindowsHeader.h
         EngineCode/RendererEditor.cpp
         EngineCode/vjson_header.h
+        DataLibCode/ImportGLTF.h
+        DataLibCode/ImportGLTF.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)
