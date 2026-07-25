@@ -23,3 +23,6 @@ xcode-build
 EngineCode/imgui.ini
 imgui.ini
 root.magic
+Assets/
+Shaders/*.spv
+*.usd*
