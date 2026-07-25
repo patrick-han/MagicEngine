@@ -61,6 +61,7 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
         pSubMesh->indexCount = static_cast<uint32_t>(subMeshData.m_indices.size());
         pSubMesh->m_transform = staticMeshData.m_transforms[subMesh_i];
         // calculate aabb, TODO: this can be spun off into a separate job, or better yet done in the cooker
+        // keep this AABB in mesh-local space. The renderer transforms it to world space with the same model matrix used to draw the mesh
         for (const auto& vertex : subMeshData.m_vertices)
         {
             pSubMesh->aabb.Update(vertex.position);
