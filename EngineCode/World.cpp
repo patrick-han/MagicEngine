@@ -62,10 +62,11 @@ void World::Load(const char* worldPath)
     {
         if (prim.IsA<pxr::UsdGeomXform>())
         {
-            Logger::Info(std::format("Xform: {}", prim.GetName().GetString()));
-            entityCount++;
-            // if (entityType != EntityType::Unknown) // TODO: assume all staticmeshes for now
+            const std::string primName = prim.GetName().GetString();
+            Logger::Info(std::format("Xform: {}", primName));
+            if (primName.starts_with("sm_"))
             {
+                entityCount++;
                 EntityLoadPayloadUSD payload = {
                     .entity = prim
                     , .entityType = EntityType::StaticMesh
