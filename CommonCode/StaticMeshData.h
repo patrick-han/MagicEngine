@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <vector>
 #include "Math/Matrix4f.h"
 #include "Vertex.h"
@@ -12,6 +13,7 @@ struct TextureData
     int height = 0;
     int numChannels = 0;
     int baseTextureDataOffset = 0; // into textureData in model data
+    std::string sourcePath; // Runtime source identity used to deduplicate loaded textures.
 };
 
 struct MaterialData
@@ -32,7 +34,7 @@ struct SubMeshData
 struct StaticMeshData
 {
     std::vector<SubMeshData> m_subMeshes;
-    std::vector<Matrix4f> m_transforms;
+    std::vector<Matrix4f> m_transforms; // per submesh
     std::vector<unsigned char> textureData;
 };
 

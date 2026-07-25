@@ -3,6 +3,15 @@ project(MagicEngine)
 
 set(CMAKE_CXX_STANDARD 23)
 
+# OpenUSD
+set(OPENUSD_ROOT "/Users/patrick/openusd-install" CACHE PATH
+        "Path to the OpenUSD installation")
+list(PREPEND CMAKE_PREFIX_PATH "${OPENUSD_ROOT}")
+find_package(pxr CONFIG REQUIRED
+        PATHS "${OPENUSD_ROOT}"
+        NO_DEFAULT_PATH
+)
+
 if(WIN32)
     add_definitions(-DMAGIC_WINDOWS_BUILD)
 elseif(APPLE)
@@ -52,6 +61,10 @@ add_executable(MagicEngine main.cpp
         EngineCode/Entity.h
         EngineCode/StaticMeshEntity.h
         EngineCode/StaticMeshEntity.cpp
+        EngineCode/USDImporter.h
+        EngineCode/USDImporter.cpp
+        EngineCode/TextureCache.h
+        EngineCode/TextureCache.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
         EngineCode/UUID.h
@@ -71,6 +84,17 @@ target_link_libraries(MagicEngine PRIVATE ThirdPartyLibraries)
 
 add_subdirectory(CommonCode)
 target_link_libraries(MagicEngine PRIVATE CommonLibrary)
+
+target_link_libraries(MagicEngine PRIVATE
+        usd
+        usdGeom
+        usdShade
+        usdSkel
+        usdUtils
+)
+set_property(TARGET MagicEngine APPEND PROPERTY
+        BUILD_RPATH "${OPENUSD_ROOT}/lib"
+)
 
 # Get an absolute path to the root directory
 configure_file(

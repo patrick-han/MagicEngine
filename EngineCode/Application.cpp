@@ -13,6 +13,7 @@
 #include "Platform/Platform.h"
 #include "Editor/Editor.h"
 #include "MemoryManager.h"
+#include "TextureCache.h"
 
 
 // IMGUI
@@ -100,6 +101,7 @@ void Application::Startup()
     // Renderer
     GRenderer = GMemoryManager->New<Renderer>();
     GRenderer->Startup(m_gpuctx, m_swapchains[Window::DEFAULT_WINDOW].get());
+    GTextureCache = GMemoryManager->New<TextureCache>();
     // TODO: move this somewhere else, probably a Camera class
     GRenderer->outputWidth = defaultWindow->GetWidth();
     GRenderer->outputHeight = defaultWindow->GetHeight();
@@ -197,6 +199,8 @@ void Application::Shutdown()
     {
         window.reset();
     }
+    GTextureCache->Destroy();
+    GMemoryManager->Delete(GTextureCache);
     GRenderer->Shutdown();
     GMemoryManager->Delete(GRenderer);
     m_gpuctx->Shutdown();

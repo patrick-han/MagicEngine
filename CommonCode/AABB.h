@@ -29,6 +29,16 @@ public:
         max.y = std::max(max.y, v.y);
         max.z = std::max(max.z, v.z);
     }
+    void Update(const Vector4f& v)
+    {
+        // Element-wise min and max
+        min.x = std::min(min.x, v.v[0]);
+        min.y = std::min(min.y, v.v[1]);
+        min.z = std::min(min.z, v.v[2]);
+        max.x = std::max(max.x, v.v[0]);
+        max.y = std::max(max.y, v.v[1]);
+        max.z = std::max(max.z, v.v[2]);
+    }
     Vector3f GetMin() const { return min; }
     Vector3f GetMax() const { return max; }
 
@@ -39,139 +49,28 @@ public:
     {
         min = max = m.GetTranslate();
 
-        // Row major storage
-        // m00, m01, m02, m03
-        // m10, m11, m12, m13
-        // m20, m21, m22, m23
-        // m30, m31, m32, m33
+        // Each matrix row calculates one output component: row 0 contributes only to X, row 1 only to Y, and row 2 only to Z. Mixing these contributions between output components breaks rotated AABBs.
+        auto accumulate = [](float matrixElement, float boxMin, float boxMax, float& transformedMin, float& transformedMax)
+        {
+            // A negative matrix element reverses which endpoint produces the minimum, so test both products instead of assuming boxMin remains the transformed minimum.
+            const float a = matrixElement * boxMin;
+            const float b = matrixElement * boxMax;
+            transformedMin += std::min(a, b);
+            transformedMax += std::max(a, b);
+        };
 
-        // First row, transforming some corner [x y z]: 
-        // x'min = m00 * x + m01 * y + m02 * z
-        // Minimize each term, m00*x is smallest for x = xmin if m00 > 0, otherwise for m00 < 0, x should be xmax (most negative)
-        if (m(0, 0) > 0.0f)
-        {
-            min.x += m(0, 0) * box.min.x;
-            max.x += m(0, 0) * box.max.x;
-        }
-        else
-        {
-            min.x += m(0, 0) * box.max.x;
-            max.x += m(0, 0) * box.min.x;
-        }
-        if (m(0, 1) > 0.0f)
-        {
-            min.y += m(0, 1) * box.min.y;
-            max.y += m(0, 1) * box.max.y;
-        }
-        else
-        {
-            min.y += m(0, 1) * box.max.y;
-            max.y += m(0, 1) * box.min.y;
-        }
-        if (m(0, 2) > 0.0f)
-        {
-            min.z += m(0, 2) * box.min.z;
-            max.z += m(0, 2) * box.max.z;
-        }
-        else
-        {
-            min.z += m(0, 2) * box.max.z;
-            max.z += m(0, 2) * box.min.z;
-        }
+        accumulate(m(0, 0), box.min.x, box.max.x, min.x, max.x);
+        accumulate(m(0, 1), box.min.y, box.max.y, min.x, max.x);
+        accumulate(m(0, 2), box.min.z, box.max.z, min.x, max.x);
 
-        // Second row
-        if (m(1, 0) > 0.0f)
-        {
-            min.x += m(1, 0) * box.min.x;
-            max.x += m(1, 0) * box.max.x;
-        }
-        else
-        {
-            min.x += m(1, 0) * box.max.x;
-            max.x += m(1, 0) * box.min.x;
-        }
-        if (m(1, 1) > 0.0f)
-        {
-            min.y += m(1, 1) * box.min.y;
-            max.y += m(1, 1) * box.max.y;
-        }
-        else
-        {
-            min.y += m(1, 1) * box.max.y;
-            max.y += m(1, 1) * box.min.y;
-        }
-        if (m(1, 2) > 0.0f)
-        {
-            min.z += m(1, 2) * box.min.z;
-            max.z += m(1, 2) * box.max.z;
-        }
-        else
-        {
-            min.z += m(1, 2) * box.max.z;
-            max.z += m(1, 2) * box.min.z;
-        }
+        accumulate(m(1, 0), box.min.x, box.max.x, min.y, max.y);
+        accumulate(m(1, 1), box.min.y, box.max.y, min.y, max.y);
+        accumulate(m(1, 2), box.min.z, box.max.z, min.y, max.y);
 
-        // Third row
-        if (m(2, 0) > 0.0f)
-        {
-            min.x += m(2, 0) * box.min.x;
-            max.x += m(2, 0) * box.max.x;
-        }
-        else
-        {
-            min.x += m(2, 0) * box.max.x;
-            max.x += m(2, 0) * box.min.x;
-        }
-        if (m(2, 1) > 0.0f)
-        {
-            min.y += m(2, 1) * box.min.y;
-            max.y += m(2, 1) * box.max.y;
-        }
-        else
-        {
-            min.y += m(2, 1) * box.max.y;
-            max.y += m(2, 1) * box.min.y;
-        }
-        if (m(2, 2) > 0.0f)
-        {
-            min.z += m(2, 2) * box.min.z;
-            max.z += m(2, 2) * box.max.z;
-        }
-        else
-        {
-            min.z += m(2, 2) * box.max.z;
-            max.z += m(2, 2) * box.min.z;
-        }
+        accumulate(m(2, 0), box.min.x, box.max.x, min.z, max.z);
+        accumulate(m(2, 1), box.min.y, box.max.y, min.z, max.z);
+        accumulate(m(2, 2), box.min.z, box.max.z, min.z, max.z);
     }
-
-    // void Transform(const AABB3f& box, const Matrix4f& m)
-    // {
-    //     // Start from translation (last column)
-    //     min = max = { m.m03, m.m13, m.m23 };
-
-    //     auto accum = [](float mij, float bmin, float bmax, float& outMin, float& outMax)
-    //     {
-    //         float a = mij * bmin;
-    //         float b = mij * bmax;
-    //         if (a < b) { outMin += a; outMax += b; }
-    //         else       { outMin += b; outMax += a; }
-    //     };
-
-    //     // Row 0 → x'
-    //     accum(m.m00, box.min.x, box.max.x, min.x, max.x);
-    //     accum(m.m01, box.min.y, box.max.y, min.x, max.x);
-    //     accum(m.m02, box.min.z, box.max.z, min.x, max.x);
-
-    //     // Row 1 → y'
-    //     accum(m.m10, box.min.x, box.max.x, min.y, max.y);
-    //     accum(m.m11, box.min.y, box.max.y, min.y, max.y);
-    //     accum(m.m12, box.min.z, box.max.z, min.y, max.y);
-
-    //     // Row 2 → z'
-    //     accum(m.m20, box.min.x, box.max.x, min.z, max.z);
-    //     accum(m.m21, box.min.y, box.max.y, min.z, max.z);
-    //     accum(m.m22, box.min.z, box.max.z, min.z, max.z);
-    // }
 
 
     // Non-optimal conservative bounding sphere of the AABB

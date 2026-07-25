@@ -27,7 +27,7 @@ protected:
     friend class Renderer;
     void Initialize(class Renderer* pRenderer);
     void Shutdown();
-    void LoadContent();
+    void LoadContent(const char* worldPath);
     void UnloadContent();
     [[nodiscard]] RenderingInfo Update(const InputState& inputState, float deltaTime);
 private:

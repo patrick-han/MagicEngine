@@ -18,7 +18,6 @@ DataLibCode/*.bin
 xcode-build
 .idea/editor.xml
 .idea/misc.xml
-.cursorignore
 
 EngineCode/imgui.ini
 imgui.ini

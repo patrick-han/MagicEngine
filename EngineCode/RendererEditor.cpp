@@ -41,8 +41,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         {
             if (!GEditor->isWorldLoaded)
             {
-                // world->Init(GEditor->loadWorldTextBoxNameBuffer);
-                pGame->LoadContent();
+                pGame->LoadContent(GEditor->loadWorldTextBoxNameBuffer);
                 auto entities = world->GetAllEntities();
                 if (!entities.empty())
                 {
