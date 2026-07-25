@@ -105,10 +105,10 @@ void Game::Shutdown()
     GMemoryManager->Delete(m_pWorld);
 }
 
-void Game::LoadContent()
+void Game::LoadContent(const char* worldPath)
 {
     Logger::Info("Load MyGame content");
-    m_pWorld->Load("GameCode/world.json");
+    m_pWorld->Load(worldPath);
 }
 
 void Game::UnloadContent()

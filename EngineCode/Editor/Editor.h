@@ -9,7 +9,7 @@ struct Editor
 {
     static constexpr int defaultMaxTextLength = 128;
 
-    char loadWorldTextBoxNameBuffer[defaultMaxTextLength] = "GameCode/world.json";
+    char loadWorldTextBoxNameBuffer[defaultMaxTextLength] = "Assets/Levels/sponza.usda";
     char newResourceNameBuffer[defaultMaxTextLength] = "NewResource";
     char newResourcePathBuffer[defaultMaxTextLength*4] = "Path";
     IEntity* sceneOutlineSelectedEntity = nullptr;

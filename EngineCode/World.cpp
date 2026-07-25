@@ -50,10 +50,10 @@ void World::Load(const char* worldPath)
     }
 
     // OpenUSD loading example
-    const pxr::UsdStageRefPtr usdStage = pxr::UsdStage::Open("Assets/Levels/sponza.usda");
+    const pxr::UsdStageRefPtr usdStage = pxr::UsdStage::Open(worldPath);
     if (!usdStage)
     {
-        Logger::Err("Could not load the OpenUSD test stage");
+        Logger::Err(std::format("Could not load the OpenUSD stage: {}", worldPath));
         exit(1);
     }
     pxr::SdfPath path("/root");
