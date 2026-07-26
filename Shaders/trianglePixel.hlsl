@@ -20,6 +20,7 @@ struct PushConstants
 {
     row_major float4x4 modelMatrix;
     row_major float4x4 viewProjectionMatrix;
+    float4 directionalLight;
     uint diffuseTextureBindlessTextureArraySlot;
 };
 
@@ -37,5 +38,13 @@ float4 main(PSInput input) : SV_TARGET
 {
     float2 uv = input.uv;
     float4 texColor = sampleTextureLinear(g_textures[pc.diffuseTextureBindlessTextureArraySlot], uv);
+
+    float3 diff = clamp(dot(input.normal, -pc.directionalLight.xyz), 0, 1);
+
+    texColor.xyz *= diff;
+
+    texColor.xyz += float3(0.05, 0.05, 0.1);
+    texColor.xyz = clamp(texColor.xyz, 0, 1);
+
     return float4(texColor.rgb, 1.0f);
 }

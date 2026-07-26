@@ -34,13 +34,17 @@ inline EntityType StrToEntityType(const char* name)
     return EntityType::Unknown;
 }
 
-inline const char * EntityTypeToStr(EntityType entityType)
+inline const char * TypeToStr(EntityType entityType)
 {
     switch (entityType)
     {
         case EntityType::StaticMesh:
         {
             return "StaticMesh";
+        }
+        case EntityType::DirectionalLight:
+        {
+            return "DirectionalLight";
         }
         default:
         {

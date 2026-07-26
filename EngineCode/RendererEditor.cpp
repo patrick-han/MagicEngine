@@ -9,6 +9,7 @@
 #include "../GameCode/Game.h"
 #include "Camera.h"
 #include "GPUStats.h"
+#include "Entity.h"
 namespace Magic
 {
 void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
@@ -123,6 +124,10 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         // Entity: Display transform
         if (GEditor->sceneOutlineSelectedEntity)
         {
+            EntityType selectedEntityType = GEditor->sceneOutlineSelectedEntity->GetEntityType();
+            ImGui::TextWrapped("%s", Entity::TypeToStr(selectedEntityType));
+            ImGui::Separator(); 
+
             Matrix4f t = GEditor->sceneOutlineSelectedEntity->m_transform;
   
             ImGui::TextWrapped("Transform Matrix");
@@ -130,6 +135,15 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
             ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[4], t.m[5], t.m[6], t.m[7]);
             ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[8], t.m[9], t.m[10], t.m[11]);
             ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[12], t.m[13], t.m[14], t.m[15]);
+            ImGui::Separator(); 
+
+            if (selectedEntityType == EntityType::DirectionalLight)
+            {
+                DirectionalLightEntity* dirLight = (DirectionalLightEntity*)GEditor->sceneOutlineSelectedEntity;
+                ImGui::DragFloat3("Light Direction", &dirLight->m_direction.v[0], 0.05f, -1.0f, 1.0f, "%.3f");
+                ImGui::Separator(); 
+            }
+            
 
             // ImGui::InputFloat("Transform Amount", &GEditor->transformAmount, 0.01f, 1.0f, "%.3f");
             // if (ImGui::Button("+X", ImVec2(50, 30)))

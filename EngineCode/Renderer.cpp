@@ -13,6 +13,8 @@
 #include <limits>
 #include <thread>
 
+#include "World.h"
+
 #ifdef NDEBUG
 #define DEBUG_VMA 0
 #else
@@ -333,6 +335,7 @@ static std::vector<char> readFileBytes(const std::string& filename) {
 struct DefaultPushConstants {
     Matrix4f model;
     Matrix4f viewProjection;
+    Vector4f directionalLight;
     uint32_t diffuseTextureBindlessTextureArraySlot = 0;
 };
 // (4 * 4) * 2 + 64 = 96 bytes
@@ -609,6 +612,11 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             int subMeshIndex = 0;
             DefaultPushConstants pushConstants;
             pushConstants.viewProjection = viewProjection;
+
+            if (renderingInfo.pWorld->m_pDirLight)
+            {
+                pushConstants.directionalLight = renderingInfo.pWorld->m_pDirLight->m_direction;
+            }
 
             for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
             {

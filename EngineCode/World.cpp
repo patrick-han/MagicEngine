@@ -114,12 +114,13 @@ void World::Load(const char* worldPath)
                 if (directionalLightEntity->Load(payload.entity))
                 {
                     std::lock_guard lock(loadingMutex);
-                    Logger::Info("Loaded world directional light");
+                    loadedEntities.push_back(directionalLightEntity);
                 }
                 else
                 {
                     GMemoryManager->Delete(directionalLightEntity);
                 }
+                m_pDirLight = directionalLightEntity;
             }
             default:
             {

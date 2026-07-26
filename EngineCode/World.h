@@ -34,6 +34,7 @@ public:
     }
 
     std::vector<IEntity*> m_entities;
+    DirectionalLightEntity* m_pDirLight = nullptr;
 };
 
 }
