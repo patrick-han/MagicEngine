@@ -13,6 +13,7 @@ public:
     [[nodiscard]] virtual EntityType GetEntityType() const override { return EntityType::DirectionalLight; }
     [[nodiscard]] virtual bool Load(const pxr::UsdPrim& entityPrim) override;
     [[nodiscard]] virtual bool Unload() override;
+    virtual void DrawInspectorElements() override;
 
     Vector4f m_direction;
 private:

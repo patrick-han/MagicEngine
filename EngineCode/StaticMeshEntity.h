@@ -29,6 +29,7 @@ public:
     [[nodiscard]] virtual bool Unload() override;
     [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;
     [[nodiscard]] std::size_t GetSubMeshCount() const { return m_subMeshes.size(); }
+    virtual void DrawInspectorElements() override;
 private:
     std::vector<SubMesh*> m_subMeshes;
 };

@@ -7,7 +7,7 @@
 #include "DefaultTexture.h"
 
 #include <pxr/usd/usdGeom/xformCache.h>
-
+#include "ThirdParty/imgui/imgui.h"
 namespace Magic
 {
 StaticMeshEntity::StaticMeshEntity() 
@@ -121,4 +121,9 @@ std::span<SubMesh* const> StaticMeshEntity::GetSubMeshes() const
     return std::span<SubMesh* const>(m_subMeshes);
 }
 
+void StaticMeshEntity::DrawInspectorElements()
+{
+    ImGui::Text("SubMesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(1,1,1,1), "%zu", m_subMeshes.size());
+    ImGui::Separator(); 
+}
 }

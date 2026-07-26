@@ -4,7 +4,7 @@
 #include <pxr/usd/usdGeom/xformCache.h>
 #include <pxr/usd/usdLux/distantLight.h>
 #include <pxr/base/tf/token.h>
-
+#include "ThirdParty/imgui/imgui.h"
 Magic::DirectionalLightEntity::DirectionalLightEntity() : m_direction(Vector4f(0.0f, 0.0f, 0.0f, 0.0f)), m_color(Vector4f(1.0f)), m_angle(0.0f), m_intensity(0.0f), m_exposure(0.0f)
 {
 
@@ -46,4 +46,10 @@ bool Magic::DirectionalLightEntity::Load(const pxr::UsdPrim &entityPrim)
 bool Magic::DirectionalLightEntity::Unload()
 {
     return true;
+}
+
+void Magic::DirectionalLightEntity::DrawInspectorElements()
+{
+    ImGui::DragFloat3("Light Direction", &m_direction.v[0], 0.05f, -1.0f, 1.0f, "%.3f");
+    ImGui::Separator(); 
 }

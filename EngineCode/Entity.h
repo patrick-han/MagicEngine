@@ -70,6 +70,7 @@ public:
     [[nodiscard]] virtual bool Load(const pxr::UsdPrim& entityPrim) = 0;
     [[nodiscard]] virtual bool Unload() = 0;
     [[nodiscard]] virtual EntityType GetEntityType() const = 0;
+    virtual void DrawInspectorElements() = 0;
     IEntity* GetParent() const { return m_parent; }
     void AddChild(IEntity* pEntity)
     {
