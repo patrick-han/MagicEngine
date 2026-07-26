@@ -62,9 +62,11 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
         pSubMesh->m_transform = staticMeshData.m_transforms[subMesh_i];
         // calculate aabb, TODO: this can be spun off into a separate job, or better yet done in the cooker
         // keep this AABB in mesh-local space. The renderer transforms it to world space with the same model matrix used to draw the mesh
-        for (const auto& vertex : subMeshData.m_vertices)
+
+        // Since each submesh contains the entire vertex buffer, we need to calculate the aabb based only on its subset
+        for (const uint32_t vertexIndex : subMeshData.m_indices)
         {
-            pSubMesh->aabb.Update(vertex.position);
+            pSubMesh->aabb.Update(subMeshData.m_vertices[vertexIndex].position);
         }
         // Vertex and Index buffers
         AllocatedBuffer vertexBuffer = GRenderer->UploadBuffer(
