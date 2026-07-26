@@ -78,6 +78,8 @@ add_executable(MagicEngine main.cpp
         DataLibCode/ImportGLTF.h
         DataLibCode/ImportGLTF.cpp
         EngineCode/GPUStats.h
+        EngineCode/DirectionalLightEntity.h
+        EngineCode/DirectionalLightEntity.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)
@@ -92,6 +94,7 @@ target_link_libraries(MagicEngine PRIVATE
         usdShade
         usdSkel
         usdUtils
+        usdLux
 )
 set_property(TARGET MagicEngine APPEND PROPERTY
         BUILD_RPATH "${OPENUSD_ROOT}/lib"

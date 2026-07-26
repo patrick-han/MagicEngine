@@ -14,6 +14,7 @@ namespace Magic
 enum class EntityType
 {
     StaticMesh
+    , DirectionalLight
     , Unknown
 };
 

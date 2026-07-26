@@ -72,6 +72,15 @@ void World::Load(const char* worldPath)
                 };
                 pendingEntities.push_back(payload);
             }
+            if (primName.starts_with("dir_light"))
+            {
+                entityCount++;
+                EntityLoadPayloadUSD payload = {
+                    .entity = prim
+                    , .entityType = EntityType::DirectionalLight
+                };
+                pendingEntities.push_back(payload);
+            }
         }
         else
         {
@@ -98,6 +107,19 @@ void World::Load(const char* worldPath)
                     GMemoryManager->Delete(staticMeshEntity);
                 }
                 break;
+            }
+            case EntityType::DirectionalLight:
+            {
+                DirectionalLightEntity* directionalLightEntity = GMemoryManager->New<DirectionalLightEntity>();
+                if (directionalLightEntity->Load(payload.entity))
+                {
+                    std::lock_guard lock(loadingMutex);
+                    Logger::Info("Loaded world directional light");
+                }
+                else
+                {
+                    GMemoryManager->Delete(directionalLightEntity);
+                }
             }
             default:
             {

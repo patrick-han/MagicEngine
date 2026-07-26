@@ -25,7 +25,7 @@ public:
     StaticMeshEntity();
     ~StaticMeshEntity();
     [[nodiscard]] virtual EntityType GetEntityType() const override { return EntityType::StaticMesh; }
-    [[nodiscard]] bool Load(const pxr::UsdPrim& entityPrim) override;
+    [[nodiscard]] virtual bool Load(const pxr::UsdPrim& entityPrim) override;
     [[nodiscard]] virtual bool Unload() override;
     [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;
     [[nodiscard]] std::size_t GetSubMeshCount() const { return m_subMeshes.size(); }

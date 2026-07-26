@@ -7,6 +7,7 @@
 
 
 #include "DefaultTexture.h"
+#include "DirectionalLightEntity.h"
 
 namespace Magic
 {
