@@ -44,7 +44,6 @@ void World::Load(const char* worldPath)
         GRenderer->DestroyBuffer(stagingBuffer);
     }
 
-    // OpenUSD loading example
     const pxr::UsdStageRefPtr usdStage = pxr::UsdStage::Open(worldPath);
     if (!usdStage)
     {

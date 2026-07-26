@@ -312,7 +312,7 @@ struct DefaultPushConstants {
     Matrix4f viewProjection;
     uint32_t diffuseTextureBindlessTextureArraySlot = 0;
 };
-// 4 bytes * 4 components * 8 corners = 128 bytes
+// (4 * 4) * 2 + 64 = 96 bytes
 struct BoundingBoxPushConstants {
     Vector3f min;
     float pad0;
