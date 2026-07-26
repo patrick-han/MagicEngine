@@ -54,6 +54,8 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
         return false;
     }
 
+    Logger::Info(std::format("Load: {}", entityName));
+
     std::size_t subMesh_i = 0;
     for (const SubMeshData& subMeshData : staticMeshData.m_subMeshes)
     {
@@ -99,6 +101,7 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
         // Finalize
         m_subMeshes.push_back(pSubMesh);
         subMesh_i++;
+        Logger::Info(std::format("{} submesh, vertexCount: {}, indexCount: {}", entityName, subMeshData.m_vertices.size(), subMeshData.m_indices.size()));
     }
     return true;
 }

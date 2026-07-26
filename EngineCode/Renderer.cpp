@@ -30,6 +30,7 @@
 
 #endif
 
+#include "GPUStats.h"
 #include "CommandEncoder.h"
 #include "Timing.h"
 #include "../DataLibCode/DataSerialization.h" // TODO: find better organization for this maebbe
@@ -80,6 +81,9 @@ Renderer::~Renderer() { }
 
 AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData, VkBufferUsageFlags usage)
 {
+#if MAGIC_TRACK_GPU_STATS
+    GGpuStats.IncrementBufferBytes(bufferSize);
+#endif
     assert(bufferSize > 0);
     VmaAllocator allocator = m_gpuctx->GetVmaAllocator();
     VkBufferCreateInfo bufferCreateInfo = {
@@ -124,6 +128,14 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
 
 void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 {
+#if MAGIC_TRACK_GPU_STATS
+    {
+        VmaAllocationInfo allocInfo {};
+        vmaGetAllocationInfo(m_gpuctx->GetVmaAllocator(), allocatedBuffer.allocation, &allocInfo);
+        GGpuStats.DecrementBufferBytes(allocInfo.size);
+    }
+#endif
+
     vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), allocatedBuffer.buffer, allocatedBuffer.allocation);
 #if DEBUG_VMA
     {
@@ -171,6 +183,9 @@ AllocatedImage Renderer::UploadImage(const void *imageData, int numChannels, VkI
     AllocatedImage allocatedImage = CreateGPUOnlyImage(imageCreateInfo);
     size_t bytesPerChannel = 1;
     size_t dataSize = imageCreateInfo.extent.width * imageCreateInfo.extent.height * numChannels * bytesPerChannel;
+#if MAGIC_TRACK_GPU_STATS
+    GGpuStats.IncrementImageBytes(dataSize);
+#endif
     AllocatedBuffer imageStagingBuffer = UploadBuffer(dataSize, imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
     ImmediateSubmit([&](VkCommandBuffer cmd) {
@@ -199,6 +214,14 @@ AllocatedImage Renderer::UploadImage(const void *imageData, int numChannels, VkI
 
 void Renderer::DestroyImage(AllocatedImage allocatedImage)
 {
+#if MAGIC_TRACK_GPU_STATS
+    {
+        VmaAllocationInfo allocInfo {};
+        vmaGetAllocationInfo(m_gpuctx->GetVmaAllocator(), allocatedImage.allocation, &allocInfo);
+        GGpuStats.DecrementImageBytes(allocInfo.size);
+    }
+#endif
+
     vmaDestroyImage(m_gpuctx->GetVmaAllocator(), allocatedImage.image, allocatedImage.allocation);
 #if DEBUG_VMA
     {

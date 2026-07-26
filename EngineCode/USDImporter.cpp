@@ -322,24 +322,34 @@ void USDImporter::ImportUSDPrim(
         return true;
     };
 
-    // Each submesh gets a full copy of the vertices for now, but only gets its own index range
+    // global = entire static mesh, local = submesh
+    // partition each submesh's vertices/indices from the entire static mesh
     auto appendFaces = [&combinedGeometry, &faceIndexRanges](const pxr::VtArray<int>& faceIndices, SubMeshData& destination) -> bool
     {
-        destination.m_vertices = combinedGeometry.m_vertices;
+        std::unordered_map<uint32_t, uint32_t> globalToLocal;
+
         for (const int usdFaceIndex : faceIndices)
         {
             if (usdFaceIndex < 0 || static_cast<std::size_t>(usdFaceIndex) >= faceIndexRanges.size())
             {
-                Logger::Err(std::format("USD material subset contains invalid face index {}", usdFaceIndex));
                 return false;
             }
 
             const FaceIndexRange& range = faceIndexRanges[static_cast<std::size_t>(usdFaceIndex)];
-            for (std::size_t index = range.firstIndex; index < range.firstIndex + range.indexCount; ++index)
+
+            for (std::size_t index = range.firstIndex; index < range.firstIndex + range.indexCount; ++index) // index into the index buffer of the entire static mesh
             {
-                destination.m_indices.push_back(combinedGeometry.m_indices[index]);
+                const uint32_t globalVertexIndex = combinedGeometry.m_indices[index];
+                const uint32_t newLocalVertexIndex = static_cast<uint32_t>(destination.m_vertices.size());
+                const auto [localVertex, inserted] = globalToLocal.try_emplace(globalVertexIndex, newLocalVertexIndex); // Succeeds if globalVertexIndex is new, or in other words, a new never encountered vertex
+                if (inserted)
+                {
+                    destination.m_vertices.push_back(combinedGeometry.m_vertices[globalVertexIndex]);
+                }
+                destination.m_indices.push_back(localVertex->second);
             }
         }
+
         return true;
     };
 
@@ -358,7 +368,7 @@ void USDImporter::ImportUSDPrim(
         return;
     }
 
-    // Each subset corresponds to a submesh
+    // Each subset corresponds to a submesh, this is where the main stuff happen
     for (const pxr::UsdGeomSubset& subset : materialSubsets)
     {
         pxr::TfToken elementType;

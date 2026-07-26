@@ -77,6 +77,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/vjson_header.h
         DataLibCode/ImportGLTF.h
         DataLibCode/ImportGLTF.cpp
+        EngineCode/GPUStats.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)
