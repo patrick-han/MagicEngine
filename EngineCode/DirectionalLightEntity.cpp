@@ -14,6 +14,7 @@ bool Magic::DirectionalLightEntity::Load(const pxr::UsdPrim &entityPrim)
 {
     pxr::UsdGeomXformCache cache;
     const pxr::GfMatrix4d worldTransform = cache.GetLocalToWorldTransform(entityPrim);
+    SetName(entityPrim.GetName().GetText());
 
     
     const pxr::UsdPrim sunPrim = entityPrim.GetChild(pxr::TfToken("Sun"));
