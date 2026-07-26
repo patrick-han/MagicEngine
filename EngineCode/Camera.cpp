@@ -6,12 +6,13 @@
 namespace Magic {
 Camera::Camera(Vector3f _position, Vector3f _forward)
     : m_position(_position), m_forward(_forward.AsNormalized())
-    , m_pitch(0.0f), m_yaw(0.0f)
+    , m_pitch(rad2deg(std::asin(m_forward.z)))
+    , m_yaw(rad2deg(std::atan2(-m_forward.x, m_forward.y)))
     , m_frozen(false)
 {
-    m_worldUp = Vector3f(0.0f, 1.0f, 0.0f); // Default +Y up
-    m_left = Cross(m_worldUp, m_forward).AsNormalized();
-    m_up = Cross(m_forward, m_left).AsNormalized();
+    m_worldUp = Vector3f(0.0f, 0.0f, 1.0f);
+    m_right = Cross(m_forward, m_worldUp).AsNormalized();
+    m_up = Cross(m_right, m_forward).AsNormalized();
 }
 
 Camera::~Camera()
@@ -49,11 +50,11 @@ void Camera::Move(CameraMovementDirection movementDirection, float cameraSpeed)
     }
     if (movementDirection == CameraMovementDirection::LEFT)
     {
-        positionDelta += cameraSpeed * m_left;
+        positionDelta -= cameraSpeed * m_right;
     }
     if (movementDirection == CameraMovementDirection::RIGHT)
     {
-        positionDelta -= cameraSpeed * m_left;
+        positionDelta += cameraSpeed * m_right;
     }
     if (movementDirection == CameraMovementDirection::UP)
     {
@@ -72,8 +73,8 @@ void Camera::Rotate(float xoffset, float yoffset, bool constrainPitch)
     {
         return;
     }
-    // Moving the mouse left results in a negative offset. We want a left mouse movement to be a CCW rotation when viewed from above according to RHR.
-    // Subtracting a negative results in a positive increase (positive angle is CCW)
+    // Positive yaw is counter-clockwise about +Z. A positive mouse X offset
+    // turns right, so it decreases yaw.
     m_yaw -= xoffset;
     m_pitch += yoffset;
 
@@ -90,21 +91,21 @@ void Camera::Rotate(float xoffset, float yoffset, bool constrainPitch)
     }
     // Update the direction the camera is looking at based on the camera yaw and pitch
     Vector3f direction;
-    direction.x = std::sin(deg2rad(m_yaw)) * std::cos(deg2rad(m_pitch));
-    direction.y = std::sin(deg2rad(m_pitch));
-    direction.z = std::cos(deg2rad(m_yaw)) * std::cos(deg2rad(m_pitch));
+    direction.x = -std::sin(deg2rad(m_yaw)) * std::cos(deg2rad(m_pitch));
+    direction.y = std::cos(deg2rad(m_yaw)) * std::cos(deg2rad(m_pitch));
+    direction.z = std::sin(deg2rad(m_pitch));
     m_forward = direction.AsNormalized();
-    // also re-calculate the left and up vectors
-    m_left = Cross(m_worldUp, m_forward).AsNormalized();// normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
-    m_up = Cross(m_forward, m_left).AsNormalized();
+    // Recalculate the remaining camera axes
+    m_right = Cross(m_forward, m_worldUp).AsNormalized();
+    m_up = Cross(m_right, m_forward).AsNormalized();
 }
 
 Matrix4f Camera::GetViewMatrix() const
 {
     Matrix4f view = Matrix4f(
-        m_left.x, m_up.x, m_forward.x, m_position.x
-        , m_left.y, m_up.y, m_forward.y, m_position.y
-        , m_left.z, m_up.z, m_forward.z, m_position.z
+        m_right.x, m_forward.x, m_up.x, m_position.x
+        , m_right.y, m_forward.y, m_up.y, m_position.y
+        , m_right.z, m_forward.z, m_up.z, m_position.z
         , 0.0f, 0.0f, 0.0f, 1.0f
         ).InvertedRigid();
     return view;
@@ -114,18 +115,13 @@ Matrix4f Camera::GetProjectionMatrix(float width, float height, float near, floa
 {
     float aspectRatio = width / height;
     float tanHalfFovy = std::tanf(deg2rad(fovY) / 2.0f);
-    // (void)(far);
-    // Projection matrix for a view space already in the same orientation as Vulkan clip space (+Z away from camera, +X right, +Y down)
-    Matrix4f projection = Matrix4f(
+    // Convert the engine's +X-right, +Y-forward, +Z-up camera space directly to Vulkan clip space (+X right, +Y down, depth in [0, 1]).
+    return Matrix4f(
           1.0f / (aspectRatio * tanHalfFovy), 0.0f, 0.0f, 0.0f
-        , 0.0f, 1.0f / (tanHalfFovy), 0.0f, 0.0f
-        , 0.0f, 0.0f, far / (far-near), -(near*far) / (far-near)
-        // , 0.0f, 0.0f, 1.0f, -near // Infinite far plane
-        , 0.0f, 0.0f, 1.0f, 0.0f
+        , 0.0f, 0.0f, -1.0f / tanHalfFovy, 0.0f
+        , 0.0f, far / (far-near), 0.0f, -(near*far) / (far-near)
+        , 0.0f, 1.0f, 0.0f, 0.0f
     );
-
-    // Essentially a 180 degree CW rotation about +Z to align view space with the expected vulkan clip space
-    return projection * Matrix4f::MakeRotateZ(deg2rad(180.f));
 }
 
 void Camera::PrintDebug(bool pos, bool vecs, bool yawpitch) const
@@ -136,7 +132,7 @@ void Camera::PrintDebug(bool pos, bool vecs, bool yawpitch) const
     }
     if (vecs)
     {
-        Logger::Info(std::format("Camera Left: {}, {}, {}", m_left.x, m_left.y, m_left.z));
+        Logger::Info(std::format("Camera Right: {}, {}, {}", m_right.x, m_right.y, m_right.z));
         Logger::Info(std::format("Camera Up: {}, {}, {}", m_up.x, m_up.y, m_up.z));
         Logger::Info(std::format("Camera Forward: {}, {}, {}", m_forward.x, m_forward.y, m_forward.z));
     }

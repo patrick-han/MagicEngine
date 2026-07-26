@@ -97,8 +97,8 @@ void Game::Initialize(Renderer* pRenderer)
 
     Logger::Info(std::format("Game working directory: {}", std::filesystem::current_path().string()));
 
-    // Make a free camera pointing down +Z with +X left and +Y up
-    m_camera = std::make_unique<Camera>(Vector3f(0.0f, 1.0f, -5.0f), Vector3f(0.0f, 0.0f, 1.0f));
+    // Make a free camera pointing down +Y with +X right and +Z up.
+    m_camera = std::make_unique<Camera>(Vector3f(0.0f, -5.0f, 1.0f), Vector3f(0.0f, 1.0f, 0.0f));
 }
 
 void Game::Shutdown()
@@ -191,22 +191,22 @@ bool a = true;
 
     Vector3f playerMovementVector = Vector3f(0.0f, 0.0f, 0.0f);
     if (inputState.keyState[SDL_SCANCODE_UP]) {
-        playerMovementVector.z = 1.0f;
-    }
-    if (inputState.keyState[SDL_SCANCODE_DOWN]) {
-        playerMovementVector.z = -1.0f;
-    }
-    if (inputState.keyState[SDL_SCANCODE_LEFT]) {
-        playerMovementVector.x = 1.0f;
-    }
-    if (inputState.keyState[SDL_SCANCODE_RIGHT]) {
-        playerMovementVector.x = -1.0f;
-    }
-    if (inputState.keyState[SDL_SCANCODE_PAGEUP]) {
         playerMovementVector.y = 1.0f;
     }
-    if (inputState.keyState[SDL_SCANCODE_PAGEDOWN]) {
+    if (inputState.keyState[SDL_SCANCODE_DOWN]) {
         playerMovementVector.y = -1.0f;
+    }
+    if (inputState.keyState[SDL_SCANCODE_LEFT]) {
+        playerMovementVector.x = -1.0f;
+    }
+    if (inputState.keyState[SDL_SCANCODE_RIGHT]) {
+        playerMovementVector.x = 1.0f;
+    }
+    if (inputState.keyState[SDL_SCANCODE_PAGEUP]) {
+        playerMovementVector.z = 1.0f;
+    }
+    if (inputState.keyState[SDL_SCANCODE_PAGEDOWN]) {
+        playerMovementVector.z = -1.0f;
     }
 
 

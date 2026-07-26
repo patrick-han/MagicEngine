@@ -2,9 +2,10 @@
 #include "../CommonCode/Math/Matrix4f.h"
 #include "../CommonCode/Math/Vector3f.h"
 
-// +X left
-// +Y up
-// +Z pointing OUT of the camera
+// Right-handed camera space:
+// +X right
+// +Y forward (away from the camera)
+// +Z up
 
 namespace Magic
 {
@@ -37,13 +38,12 @@ public:
     void UnFreeze() { m_frozen = false; }
 
     [[nodiscard]] Vector3f GetForward() const { return m_forward; }
-    [[nodiscard]] Vector3f GetLeft() const { return m_left; }
+    [[nodiscard]] Vector3f GetRight() const { return m_right; }
     [[nodiscard]] Vector3f GetUp() const { return m_up; }
 private:
-    // Matrix4f m_toWorld;
     Vector3f m_position;
     Vector3f m_forward;
-    Vector3f m_left;
+    Vector3f m_right;
     Vector3f m_up;
     Vector3f m_worldUp;
     float m_yaw;

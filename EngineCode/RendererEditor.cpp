@@ -36,9 +36,9 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::Text("Image MB Uploaded:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%lf", bytesToMB(renderingInfo.gameStats.imageBytesUploaded));
 #endif
     ImGui::Text("Camera Axes:");
-    ImGui::TextColored(ImVec4(1,0.3,0.3,1), "X: [%f %f %f]", pGame->m_camera->GetLeft().x, pGame->m_camera->GetLeft().y, pGame->m_camera->GetLeft().z);
-    ImGui::TextColored(ImVec4(0.3,1,0.3,1), "Y: [%f %f %f]", pGame->m_camera->GetUp().x, pGame->m_camera->GetUp().y, pGame->m_camera->GetUp().z);
-    ImGui::TextColored(ImVec4(0.3,0.3,1,1), "Z: [%f %f %f]", pGame->m_camera->GetForward().x, pGame->m_camera->GetForward().y, pGame->m_camera->GetForward().z);
+    ImGui::TextColored(ImVec4(1,0.3,0.3,1), "X (right): [%f %f %f]", pGame->m_camera->GetRight().x, pGame->m_camera->GetRight().y, pGame->m_camera->GetRight().z);
+    ImGui::TextColored(ImVec4(0.3,1,0.3,1), "Y (forward): [%f %f %f]", pGame->m_camera->GetForward().x, pGame->m_camera->GetForward().y, pGame->m_camera->GetForward().z);
+    ImGui::TextColored(ImVec4(0.3,0.3,1,1), "Z (up): [%f %f %f]", pGame->m_camera->GetUp().x, pGame->m_camera->GetUp().y, pGame->m_camera->GetUp().z);
     ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
     if (!GEditor->isWorldLoaded)
     {
