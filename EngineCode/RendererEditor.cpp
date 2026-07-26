@@ -8,6 +8,7 @@
 #include "World.h"
 #include "../GameCode/Game.h"
 #include "Camera.h"
+#include "GPUStats.h"
 namespace Magic
 {
 void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
@@ -28,6 +29,12 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::Text("Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", renderingInfo.gameStats.meshCount);
     ImGui::Text("SubMesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", renderingInfo.gameStats.subMeshCount);
     ImGui::Text("Texture Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", renderingInfo.gameStats.textureCount);
+
+#if MAGIC_TRACK_GPU_STATS
+    auto bytesToMB = [](std::size_t bytes) -> double { return static_cast<double>(bytes) / (1024.0 * 1024.0); };\
+    ImGui::Text("Buffer MB Uploaded:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%lf", bytesToMB(renderingInfo.gameStats.bufferBytesUploaded));
+    ImGui::Text("Image MB Uploaded:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%lf", bytesToMB(renderingInfo.gameStats.imageBytesUploaded));
+#endif
     ImGui::Text("Camera Axes:");
     ImGui::TextColored(ImVec4(1,0.3,0.3,1), "X: [%f %f %f]", pGame->m_camera->GetLeft().x, pGame->m_camera->GetLeft().y, pGame->m_camera->GetLeft().z);
     ImGui::TextColored(ImVec4(0.3,1,0.3,1), "Y: [%f %f %f]", pGame->m_camera->GetUp().x, pGame->m_camera->GetUp().y, pGame->m_camera->GetUp().z);

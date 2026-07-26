@@ -11,6 +11,7 @@
 #include "../EngineCode/Threading.h"
 #include "../CommonCode/BinaryBlob.h"
 #include "../EngineCode/Timing.h"
+#include "../EngineCode/GPUStats.h"
 #include <filesystem>
 #include <unordered_map>
 namespace Magic
@@ -221,6 +222,8 @@ bool a = true;
         , .meshCount = staticMeshEntities.size()
         , .subMeshCount = subMeshCount
         , .textureCount = GRenderer->m_bindlessManager.GetNumberOfGPUTextures()
+        , .bufferBytesUploaded = GGpuStats.ReadBufferBytes()
+        , .imageBytesUploaded = GGpuStats.ReadImageBytes()
 
     };
 

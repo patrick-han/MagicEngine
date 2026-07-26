@@ -7,10 +7,12 @@
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
+#include <pxr/usd/usdGeom/subset.h>
 #include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 #include <pxr/usd/usdShade/shader.h>
+#include <pxr/usd/usdShade/tokens.h>
 
 #include <optional>
 #include <unordered_map>
@@ -99,11 +101,18 @@ void USDImporter::ImportUSDPrim(
         return std::nullopt;
     };
 
-    SubMeshData subMeshData;
+    SubMeshData combinedGeometry;
     // In the worst case every face corner has a distinct normal or UV, so the
     // final engine vertex count can be as large as the USD index count.
-    subMeshData.m_vertices.reserve(indices.size());
-    subMeshData.m_indices.reserve(indices.size());
+    combinedGeometry.m_vertices.reserve(indices.size());
+    combinedGeometry.m_indices.reserve(indices.size());
+
+    struct FaceIndexRange
+    {
+        std::size_t firstIndex;
+        std::size_t indexCount;
+    };
+    std::vector<FaceIndexRange> faceIndexRanges(faceVertexCounts.size()); // Keep track of which index ranges correspond to each face if all faces are triangles indexCount is always 3, but this works for quads too. This is indexed by the indices in a GeomSubset (the indices are face indices)
 
     // MagicEngine stores one position, normal, and UV per vertex. USD can
     // assign different normals or UVs to corners that reference the same
@@ -154,6 +163,7 @@ void USDImporter::ImportUSDPrim(
             return;
         }
 
+        const std::size_t firstFaceIndex = combinedGeometry.m_indices.size();
         for (int faceCorner = 0; faceCorner < faceVertexCount; ++faceCorner)
         {
             if (cornerIndex >= indices.size())
@@ -214,15 +224,16 @@ void USDImporter::ImportUSDPrim(
                 .uvX = vertex.uv_x,
                 .uvY = vertex.uv_y
             };
-            const uint32_t newVertexIndex = static_cast<uint32_t>(subMeshData.m_vertices.size());
+            const uint32_t newVertexIndex = static_cast<uint32_t>(combinedGeometry.m_vertices.size());
             const auto [sharedVertex, inserted] = sharedVertices.try_emplace(key, newVertexIndex);
             if (inserted) // If this is truly a unique vertex, it gets inserted with a new associated index, and also added to the vertex buffer
             {
-                subMeshData.m_vertices.push_back(vertex);
+                combinedGeometry.m_vertices.push_back(vertex);
             }
-            subMeshData.m_indices.push_back(sharedVertex->second); // Otherwise, we look up the index of the existing vertex and add it to the index buffer
+            combinedGeometry.m_indices.push_back(sharedVertex->second); // Otherwise, we look up the index of the existing vertex and add it to the index buffer
             ++cornerIndex;
         }
+        faceIndexRanges[faceIndex] = { .firstIndex = firstFaceIndex, .indexCount = combinedGeometry.m_indices.size() - firstFaceIndex };
     }
 
     // Every entry in faceVertexIndices must belong to exactly one face.
@@ -232,88 +243,170 @@ void USDImporter::ImportUSDPrim(
         return;
     }
 
-    // Material
-    const pxr::UsdShadeMaterial material = pxr::UsdShadeMaterialBindingAPI(meshPrim).ComputeBoundMaterial();
-    if (material)
+    auto populateMaterial = [&staticMeshData](const pxr::UsdPrim& bindingPrim, MaterialData& materialData) -> bool
     {
+        const pxr::UsdShadeMaterial material = pxr::UsdShadeMaterialBindingAPI(bindingPrim).ComputeBoundMaterial();
+        if (!material)
+        {
+            Logger::Warn(std::format("USD prim '{}' has no bound material", bindingPrim.GetPath().GetString()));
+            return true;
+        }
+
         const pxr::UsdShadeShader surfaceShader = material.ComputeSurfaceSource(); // typically UsdPreviewSurface
         if (!surfaceShader)
         {
             Logger::Warn(std::format("USD material '{}' has no surface shader", material.GetPrim().GetPath().GetString()));
+            return true;
         }
-        else
+
+        const pxr::UsdShadeInput diffuseInput = surfaceShader.GetInput(pxr::TfToken("diffuseColor"));
+        pxr::UsdShadeShader textureShader;
+        if (diffuseInput)
         {
-            const pxr::UsdShadeInput diffuseInput = surfaceShader.GetInput(pxr::TfToken("diffuseColor"));
-            pxr::UsdShadeShader textureShader;
-            if (diffuseInput)
+            for (const pxr::UsdAttribute& source : diffuseInput.GetValueProducingAttributes(true))
             {
-                for (const pxr::UsdAttribute& source : diffuseInput.GetValueProducingAttributes(true))
+                const pxr::UsdShadeShader candidate(source.GetPrim());
+                pxr::TfToken shaderId;
+                if (candidate && candidate.GetIdAttr().Get(&shaderId) && shaderId == pxr::TfToken("UsdUVTexture"))
                 {
-                    const pxr::UsdShadeShader candidate(source.GetPrim());
-                    pxr::TfToken shaderId;
-                    if (candidate && candidate.GetIdAttr().Get(&shaderId) && shaderId == pxr::TfToken("UsdUVTexture"))
-                    {
-                        textureShader = candidate;
-                        break;
-                    }
+                    textureShader = candidate;
+                    break;
                 }
-            }
-
-            if (!textureShader)
-            {
-                Logger::Warn(std::format("USD material '{}' has no diffuse UsdUVTexture", material.GetPrim().GetPath().GetString()));
-            }
-            else
-            {
-                pxr::SdfAssetPath textureAsset;
-                const pxr::UsdShadeInput fileInput = textureShader.GetInput(pxr::TfToken("file"));
-                if (!fileInput || !fileInput.Get(&textureAsset))
-                {
-                    Logger::Err("Could not read the diffuse texture asset path");
-                    return;
-                }
-
-                const std::string& resolvedPath = textureAsset.GetResolvedPath();
-                if (resolvedPath.empty())
-                {
-                    Logger::Err(std::format("Could not resolve diffuse texture '{}'", textureAsset.GetAuthoredPath()));
-                    return;
-                }
-
-                constexpr int desiredChannels = 4;
-                int textureWidth = 0;
-                int textureHeight = 0;
-                int sourceChannels = 0;
-                stbi_uc* pixels = stbi_load(resolvedPath.c_str(), &textureWidth, &textureHeight, &sourceChannels, desiredChannels);
-                if (!pixels)
-                {
-                    Logger::Err(std::format("Could not load diffuse texture '{}': {}", resolvedPath, stbi_failure_reason()));
-                    return;
-                }
-
-                const std::size_t textureByteCount = static_cast<std::size_t>(textureWidth) * static_cast<std::size_t>(textureHeight) * desiredChannels;
-
-                TextureData diffuseTexture;
-                diffuseTexture.width = textureWidth;
-                diffuseTexture.height = textureHeight;
-                diffuseTexture.numChannels = desiredChannels;
-                diffuseTexture.baseTextureDataOffset = static_cast<int>(staticMeshData.textureData.size());
-                diffuseTexture.sourcePath = resolvedPath;
-
-                staticMeshData.textureData.insert(staticMeshData.textureData.end(), pixels, pixels + textureByteCount);
-                stbi_image_free(pixels);
-
-                subMeshData.materialData.diffuseData = diffuseTexture;
             }
         }
-    }
-    else
+
+        if (!textureShader)
+        {
+            Logger::Warn(std::format("USD material '{}' has no diffuse UsdUVTexture", material.GetPrim().GetPath().GetString()));
+            return true;
+        }
+
+        pxr::SdfAssetPath textureAsset;
+        const pxr::UsdShadeInput fileInput = textureShader.GetInput(pxr::TfToken("file"));
+        if (!fileInput || !fileInput.Get(&textureAsset))
+        {
+            Logger::Err("Could not read the diffuse texture asset path");
+            return false;
+        }
+
+        const std::string& resolvedPath = textureAsset.GetResolvedPath();
+        if (resolvedPath.empty())
+        {
+            Logger::Err(std::format("Could not resolve diffuse texture '{}'", textureAsset.GetAuthoredPath()));
+            return false;
+        }
+
+        constexpr int desiredChannels = 4;
+        int textureWidth = 0;
+        int textureHeight = 0;
+        int sourceChannels = 0;
+        stbi_uc* pixels = stbi_load(resolvedPath.c_str(), &textureWidth, &textureHeight, &sourceChannels, desiredChannels);
+        if (!pixels)
+        {
+            Logger::Err(std::format("Could not load diffuse texture '{}': {}", resolvedPath, stbi_failure_reason()));
+            return false;
+        }
+
+        const std::size_t textureByteCount = static_cast<std::size_t>(textureWidth) * static_cast<std::size_t>(textureHeight) * desiredChannels;
+
+        TextureData diffuseTexture;
+        diffuseTexture.width = textureWidth;
+        diffuseTexture.height = textureHeight;
+        diffuseTexture.numChannels = desiredChannels;
+        diffuseTexture.baseTextureDataOffset = static_cast<int>(staticMeshData.textureData.size());
+        diffuseTexture.sourcePath = resolvedPath;
+
+        staticMeshData.textureData.insert(staticMeshData.textureData.end(), pixels, pixels + textureByteCount);
+        stbi_image_free(pixels);
+        materialData.diffuseData = std::move(diffuseTexture);
+        return true;
+    };
+
+    // global = entire static mesh, local = submesh
+    // partition each submesh's vertices/indices from the entire static mesh
+    auto appendFaces = [&combinedGeometry, &faceIndexRanges](const pxr::VtArray<int>& faceIndices, SubMeshData& destination) -> bool
     {
-        Logger::Warn(std::format("USD mesh '{}' has no bound material",meshPrim.GetPath().GetString()));
+        std::unordered_map<uint32_t, uint32_t> globalToLocal;
+
+        for (const int usdFaceIndex : faceIndices)
+        {
+            if (usdFaceIndex < 0 || static_cast<std::size_t>(usdFaceIndex) >= faceIndexRanges.size())
+            {
+                return false;
+            }
+
+            const FaceIndexRange& range = faceIndexRanges[static_cast<std::size_t>(usdFaceIndex)];
+
+            for (std::size_t index = range.firstIndex; index < range.firstIndex + range.indexCount; ++index) // index into the index buffer of the entire static mesh
+            {
+                const uint32_t globalVertexIndex = combinedGeometry.m_indices[index];
+                const uint32_t newLocalVertexIndex = static_cast<uint32_t>(destination.m_vertices.size());
+                const auto [localVertex, inserted] = globalToLocal.try_emplace(globalVertexIndex, newLocalVertexIndex); // Succeeds if globalVertexIndex is new, or in other words, a new never encountered vertex
+                if (inserted)
+                {
+                    destination.m_vertices.push_back(combinedGeometry.m_vertices[globalVertexIndex]);
+                }
+                destination.m_indices.push_back(localVertex->second);
+            }
+        }
+
+        return true;
+    };
+
+    pxr::UsdShadeMaterialBindingAPI meshBindingAPI(meshPrim);
+    const std::vector<pxr::UsdGeomSubset> materialSubsets = meshBindingAPI.GetMaterialBindSubsets();
+
+    // If there are no materials, we can just add the geometry and be done with this function
+    if (materialSubsets.empty())
+    {
+        if (!populateMaterial(meshPrim, combinedGeometry.materialData))
+        {
+            return;
+        }
+        staticMeshData.m_transforms.emplace_back(); // Identity for now
+        staticMeshData.m_subMeshes.push_back(std::move(combinedGeometry));
+        return;
     }
 
-    staticMeshData.m_transforms.emplace_back(); // Identity for now
-    staticMeshData.m_subMeshes.push_back(std::move(subMeshData));
+    // Each subset corresponds to a submesh, this is where the main stuff happen
+    for (const pxr::UsdGeomSubset& subset : materialSubsets)
+    {
+        pxr::TfToken elementType;
+        if (!subset.GetElementTypeAttr().Get(&elementType) || elementType != pxr::UsdGeomTokens->face)
+        {
+            Logger::Warn(std::format("Ignoring non-face material subset '{}'", subset.GetPrim().GetPath().GetString()));
+            continue;
+        }
+
+        pxr::VtArray<int> subsetFaceIndices;
+        if (!subset.GetIndicesAttr().Get(&subsetFaceIndices) || subsetFaceIndices.empty())
+        {
+            Logger::Warn(std::format("Ignoring empty material subset '{}'", subset.GetPrim().GetPath().GetString()));
+            continue;
+        }
+
+        SubMeshData subsetData;
+        // HERE is where it actually all gets called: Receive vertices/indices, material data
+        if (!appendFaces(subsetFaceIndices, subsetData) || !populateMaterial(subset.GetPrim(), subsetData.materialData))
+        {
+            return;
+        }
+        staticMeshData.m_transforms.emplace_back(); // Every material subset shares the Mesh transform.
+        staticMeshData.m_subMeshes.push_back(std::move(subsetData));
+    }
+
+    // If there are remaining faces not included in a material subset, makes a new submesh just for them
+    const pxr::VtArray<int> unassignedFaces = pxr::UsdGeomSubset::GetUnassignedIndices(entityMesh, pxr::UsdGeomTokens->face, pxr::UsdShadeTokens->materialBind);
+    if (!unassignedFaces.empty())
+    {
+        SubMeshData fallbackData;
+        if (!appendFaces(unassignedFaces, fallbackData) || !populateMaterial(meshPrim, fallbackData.materialData))
+        {
+            return;
+        }
+        staticMeshData.m_transforms.emplace_back();
+        staticMeshData.m_subMeshes.push_back(std::move(fallbackData));
+    }
 }
 
 }
