@@ -20,7 +20,7 @@
 namespace Magic
 {
 
-void USDImporter::ImportUSDPrim(
+void USDImporter::ImportUSDPrimAsStaticMesh(
     const pxr::UsdPrim& entityPrim,
     StaticMeshData& staticMeshData)
 {

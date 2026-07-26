@@ -48,7 +48,7 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
 
     StaticMeshData staticMeshData;
     USDImporter importer;
-    importer.ImportUSDPrim(entityPrim, staticMeshData);
+    importer.ImportUSDPrimAsStaticMesh(entityPrim, staticMeshData);
     if (staticMeshData.m_subMeshes.empty())
     {
         return false;

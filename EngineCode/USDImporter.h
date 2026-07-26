@@ -10,7 +10,7 @@ struct StaticMeshData;
 class USDImporter
 {
 public:
-    void ImportUSDPrim(
+    void ImportUSDPrimAsStaticMesh(
         const pxr::UsdPrim& entityPrim,
         StaticMeshData& staticMeshDataData);
 };
