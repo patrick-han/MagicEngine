@@ -19,9 +19,13 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
 
     ImGui::NewFrame();
     ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove;
+    const float halfDisplayHeight = displaySize.y * 0.5f;
+    const float maximumPanelWidth = displaySize.x * 0.75f;
+
     ImGui::SetNextWindowPos(ImVec2(0, 0)); // Top left
-    ImGui::SetNextWindowSize(ImVec2(300, displaySize.y / 2));
+    ImGui::SetNextWindowSize(ImVec2(450, halfDisplayHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, halfDisplayHeight), ImVec2(maximumPanelWidth, halfDisplayHeight));
 
     ImGui::Begin("Engine Info", nullptr, flags);
     ImGui::Text("Game::Update() (us):"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%lld", renderingInfo.updateLoopTimingUS.count());
@@ -37,9 +41,33 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::Text("Image MB Uploaded:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%lf", bytesToMB(renderingInfo.gameStats.imageBytesUploaded));
 #endif
     ImGui::Text("Camera Axes:");
-    ImGui::TextColored(ImVec4(1,0.3,0.3,1), "X (right): [%f %f %f]", pGame->m_camera->GetRight().x, pGame->m_camera->GetRight().y, pGame->m_camera->GetRight().z);
-    ImGui::TextColored(ImVec4(0.3,1,0.3,1), "Y (forward): [%f %f %f]", pGame->m_camera->GetForward().x, pGame->m_camera->GetForward().y, pGame->m_camera->GetForward().z);
-    ImGui::TextColored(ImVec4(0.3,0.3,1,1), "Z (up): [%f %f %f]", pGame->m_camera->GetUp().x, pGame->m_camera->GetUp().y, pGame->m_camera->GetUp().z);
+    constexpr float cameraValueColumnX = 105.0f;
+    constexpr const char* cameraComponentFormat = "% 5.3f";
+    const Vector3f cameraPosition = pGame->m_camera->GetPosition();
+    ImGui::Text("Position:");
+    ImGui::SameLine(cameraValueColumnX);
+    ImGui::Text("[");
+    ImGui::SameLine(0.0f, 0.0f);
+    ImGui::TextColored(ImVec4(1,0.3,0.3,1), cameraComponentFormat, cameraPosition.x);
+    ImGui::SameLine(0.0f, 0.0f);
+    ImGui::Text(" ");
+    ImGui::SameLine(0.0f, 0.0f);
+    ImGui::TextColored(ImVec4(0.3,1,0.3,1), cameraComponentFormat, cameraPosition.y);
+    ImGui::SameLine(0.0f, 0.0f);
+    ImGui::Text(" ");
+    ImGui::SameLine(0.0f, 0.0f);
+    ImGui::TextColored(ImVec4(0.3,0.3,1,1), cameraComponentFormat, cameraPosition.z);
+    ImGui::SameLine(0.0f, 0.0f);
+    ImGui::Text("]");
+    ImGui::TextColored(ImVec4(1,0.3,0.3,1), "X (right):");
+    ImGui::SameLine(cameraValueColumnX);
+    ImGui::TextColored(ImVec4(1,0.3,0.3,1), "[% 5.3f % 5.3f % 5.3f]", pGame->m_camera->GetRight().x, pGame->m_camera->GetRight().y, pGame->m_camera->GetRight().z);
+    ImGui::TextColored(ImVec4(0.3,1,0.3,1), "Y (forward):");
+    ImGui::SameLine(cameraValueColumnX);
+    ImGui::TextColored(ImVec4(0.3,1,0.3,1), "[% 5.3f % 5.3f % 5.3f]", pGame->m_camera->GetForward().x, pGame->m_camera->GetForward().y, pGame->m_camera->GetForward().z);
+    ImGui::TextColored(ImVec4(0.3,0.3,1,1), "Z (up):");
+    ImGui::SameLine(cameraValueColumnX);
+    ImGui::TextColored(ImVec4(0.3,0.3,1,1), "[% 5.3f % 5.3f % 5.3f]", pGame->m_camera->GetUp().x, pGame->m_camera->GetUp().y, pGame->m_camera->GetUp().z);
     ImGui::Checkbox("Show Bounding Boxes", &m_renderBoundingBoxes);
     if (!GEditor->isWorldLoaded)
     {
@@ -89,8 +117,9 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::Text("World Loaded:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%s", GEditor->loadedWorldNameBuffer);
     ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(0, displaySize.y * 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(300.0f, displaySize.y * 0.5f));
+    ImGui::SetNextWindowPos(ImVec2(0, halfDisplayHeight));
+    ImGui::SetNextWindowSize(ImVec2(300.0f, halfDisplayHeight), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(200.0f, halfDisplayHeight), ImVec2(maximumPanelWidth, halfDisplayHeight));
 
     if (ImGui::Begin("Scene Outline", nullptr, flags))
     {
@@ -116,8 +145,9 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::End();
 
 
-    ImGui::SetNextWindowPos(ImVec2(displaySize.x - 400.0f, 0.0f));
-    ImGui::SetNextWindowSize(ImVec2(400.0f, displaySize.y));
+    ImGui::SetNextWindowPos(ImVec2(displaySize.x, 0.0f), ImGuiCond_Always, ImVec2(1.0f, 0.0f));
+    ImGui::SetNextWindowSize(ImVec2(400.0f, displaySize.y), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(300.0f, displaySize.y), ImVec2(maximumPanelWidth, displaySize.y));
 
     if (ImGui::Begin("Inspector", nullptr, flags))
     {
