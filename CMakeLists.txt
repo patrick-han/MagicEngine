@@ -13,7 +13,7 @@ find_package(pxr CONFIG REQUIRED
 )
 
 if(WIN32)
-    add_definitions(-DMAGIC_WINDOWS_BUILD)
+    add_definitions(-DMAGIC_WINDOWS_BUILD -DNOMINMAX)
 elseif(APPLE)
     add_definitions(-DMAGIC_MACOS_BUILD)
 endif()
