@@ -4,7 +4,7 @@ project(MagicEngine)
 set(CMAKE_CXX_STANDARD 23)
 
 # OpenUSD
-set(OPENUSD_ROOT "/Users/patrick/openusd-install" CACHE PATH
+set(OPENUSD_ROOT "E:\\openusd-install" CACHE PATH
         "Path to the OpenUSD installation")
 list(PREPEND CMAKE_PREFIX_PATH "${OPENUSD_ROOT}")
 find_package(pxr CONFIG REQUIRED
@@ -16,6 +16,14 @@ if(WIN32)
     add_definitions(-DMAGIC_WINDOWS_BUILD -DNOMINMAX)
 elseif(APPLE)
     add_definitions(-DMAGIC_MACOS_BUILD)
+endif()
+
+# Assuming OpenUSD is currently built as Release: MSVC Debug builds normally
+# use a different CRT/STL layout (/MDd and checked iterators), which corrupts
+# STL objects such as std::string when passed across the OpenUSD DLL boundary.
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+    add_compile_definitions($<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=0>)
 endif()
 
 add_executable(MagicEngine main.cpp
