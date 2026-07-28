@@ -243,7 +243,105 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
         return;
     }
 
-    auto populateMaterial = [&staticMeshData](const pxr::UsdPrim& bindingPrim, MaterialData& materialData) -> bool
+
+    // Materials: For a given material start at UsdPreviewSurface/Principled BSDF and discover all its connections (diffuse, normal, etc.). If those connections exist go load the textures and enforce gltf metallic-roughness format
+
+    struct TextureConnection
+    {
+        // The UsdUVTexture node owns the image path. outputName records which
+        // output socket (rgb, r, g, b, or a) feeds the surface input.
+        pxr::UsdShadeShader shader;
+        pxr::TfToken outputName;
+    };
+
+    // Follow a UsdPreviewSurface input through any intervening node-graph
+    // connections until its value-producing UsdUVTexture is found
+    // UsdPreviewSurface in most cases ~ Principled BSDF from Blender export
+    auto findTextureConnection = [](const pxr::UsdShadeInput& input) -> std::optional<TextureConnection>
+    { // input is diffuse, normal, etc.
+        if (!input)
+        {
+            return std::nullopt;
+        }
+
+        for (const pxr::UsdAttribute& source : input.GetValueProducingAttributes(true)) // recursively follows a shader input’s connections to find the attributes that actually supply its value
+        // ex: float inputs:metallic.connect = <ImageTexture.outputs:b> -> ImageTexture.outputs:b
+        // source.GetPrim() -> the UsdUVTexture shader
+        // source.GetBaseName() -> "b"
+        {
+            const pxr::UsdShadeShader candidate(source.GetPrim());
+            pxr::TfToken shaderId;
+            if (candidate && candidate.GetIdAttr().Get(&shaderId) && shaderId == pxr::TfToken("UsdUVTexture"))
+            {
+                return TextureConnection {
+                    .shader = candidate, // def Shader "Image_Texture" { uniform token info:id = "UsdUVTexture" ... }
+                    .outputName = source.GetBaseName() // for roughness this should be "g", metallic this should be "b"
+                };
+            }
+        }
+        return std::nullopt;
+    };
+
+    // Multiple material inputs and submeshes often reference the same image.
+    // Reuse its TextureData so the decoded pixels are appended only once to
+    // this StaticMeshData. TextureCache performs the later GPU-side reuse.
+    std::unordered_map<std::string, TextureData> loadedTextures;
+    auto loadTexture = [&staticMeshData, &loadedTextures](const TextureConnection& connection, const char* usage, TextureData& destination) -> bool
+    { // usage = "diffuse", "normal", etc.
+        pxr::SdfAssetPath textureAsset;
+        const pxr::UsdShadeInput fileInput = connection.shader.GetInput(pxr::TfToken("file"));
+        if (!fileInput || !fileInput.Get(&textureAsset))
+        {
+            Logger::Err(std::format("Could not read the {} texture asset path", usage));
+            return false;
+        }
+
+        const std::string& resolvedPath = textureAsset.GetResolvedPath();
+        if (resolvedPath.empty())
+        {
+            Logger::Err(std::format("Could not resolve {} texture '{}'", usage, textureAsset.GetAuthoredPath()));
+            return false;
+        }
+
+        const auto previouslyLoaded = loadedTextures.find(resolvedPath);
+        if (previouslyLoaded != loadedTextures.end())
+        {
+            destination = previouslyLoaded->second;
+            return true;
+        }
+
+        // Normalize all material images to RGBA8. This also makes packed
+        // material channels directly addressable by the renderer.
+        constexpr int desiredChannels = 4;
+        int textureWidth = 0;
+        int textureHeight = 0;
+        int sourceChannels = 0;
+        stbi_uc* pixels = stbi_load(resolvedPath.c_str(), &textureWidth, &textureHeight, &sourceChannels, desiredChannels);
+        if (!pixels)
+        {
+            Logger::Err(std::format("Could not load {} texture '{}': {}", usage, resolvedPath, stbi_failure_reason()));
+            return false;
+        }
+
+        const std::size_t textureByteCount = static_cast<std::size_t>(textureWidth) * static_cast<std::size_t>(textureHeight) * desiredChannels;
+
+        TextureData texture;
+        texture.width = textureWidth;
+        texture.height = textureHeight;
+        texture.numChannels = desiredChannels;
+        texture.baseTextureDataOffset = static_cast<int>(staticMeshData.textureData.size());
+        texture.sourcePath = resolvedPath;
+
+        staticMeshData.textureData.insert(staticMeshData.textureData.end(), pixels, pixels + textureByteCount);
+        stbi_image_free(pixels);
+        destination = texture;
+        loadedTextures.emplace(resolvedPath, std::move(texture));
+        return true;
+    };
+
+    // Resolve the material bound to a mesh or material subset (submesh), then translate
+    // the supported UsdPreviewSurface inputs into the engine material layout.
+    auto populateMaterial = [&findTextureConnection, &loadTexture](const pxr::UsdPrim& bindingPrim, MaterialData& materialData) -> bool
     {
         const pxr::UsdShadeMaterial material = pxr::UsdShadeMaterialBindingAPI(bindingPrim).ComputeBoundMaterial();
         if (!material)
@@ -252,7 +350,7 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
             return true;
         }
 
-        const pxr::UsdShadeShader surfaceShader = material.ComputeSurfaceSource(); // typically UsdPreviewSurface
+        const pxr::UsdShadeShader surfaceShader = material.ComputeSurfaceSource(); // typically UsdPreviewSurface/Principled BSDF
         if (!surfaceShader)
         {
             Logger::Warn(std::format("USD material '{}' has no surface shader", material.GetPrim().GetPath().GetString()));
@@ -260,65 +358,75 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
         }
 
         const pxr::UsdShadeInput diffuseInput = surfaceShader.GetInput(pxr::TfToken("diffuseColor"));
-        pxr::UsdShadeShader textureShader;
-        if (diffuseInput)
+        const std::optional<TextureConnection> diffuseConnection = findTextureConnection(diffuseInput);
+        if (diffuseConnection)
         {
-            for (const pxr::UsdAttribute& source : diffuseInput.GetValueProducingAttributes(true))
+            if (!loadTexture(*diffuseConnection, "diffuse", materialData.diffuseData))
             {
-                const pxr::UsdShadeShader candidate(source.GetPrim());
-                pxr::TfToken shaderId;
-                if (candidate && candidate.GetIdAttr().Get(&shaderId) && shaderId == pxr::TfToken("UsdUVTexture"))
-                {
-                    textureShader = candidate;
-                    break;
-                }
+                return false;
             }
         }
-
-        if (!textureShader)
+        else
         {
             Logger::Warn(std::format("USD material '{}' has no diffuse UsdUVTexture", material.GetPrim().GetPath().GetString()));
-            return true;
         }
 
-        pxr::SdfAssetPath textureAsset;
-        const pxr::UsdShadeInput fileInput = textureShader.GetInput(pxr::TfToken("file"));
-        if (!fileInput || !fileInput.Get(&textureAsset))
+        const pxr::UsdShadeInput normalInput = surfaceShader.GetInput(pxr::TfToken("normal"));
+        if (const std::optional<TextureConnection> normalConnection = findTextureConnection(normalInput))
         {
-            Logger::Err("Could not read the diffuse texture asset path");
-            return false;
+            if (!loadTexture(*normalConnection, "normal", materialData.normalData))
+            {
+                return false;
+            }
+            // This importer flips Blender-authored V coordinates when creating
+            // vertices, which also flips the tangent-space bitangent.
+            materialData.normalYSign = -1.0f;
         }
 
-        const std::string& resolvedPath = textureAsset.GetResolvedPath();
-        if (resolvedPath.empty())
+        // When no metallic-roughness texture is connected we can fetch constants:
+        const pxr::UsdShadeInput metallicInput = surfaceShader.GetInput(pxr::TfToken("metallic"));
+        if (metallicInput)
         {
-            Logger::Err(std::format("Could not resolve diffuse texture '{}'", textureAsset.GetAuthoredPath()));
-            return false;
+            metallicInput.Get(&materialData.metallicFactor);
         }
-
-        constexpr int desiredChannels = 4;
-        int textureWidth = 0;
-        int textureHeight = 0;
-        int sourceChannels = 0;
-        stbi_uc* pixels = stbi_load(resolvedPath.c_str(), &textureWidth, &textureHeight, &sourceChannels, desiredChannels);
-        if (!pixels)
+        const pxr::UsdShadeInput roughnessInput = surfaceShader.GetInput(pxr::TfToken("roughness"));
+        if (roughnessInput)
         {
-            Logger::Err(std::format("Could not load diffuse texture '{}': {}", resolvedPath, stbi_failure_reason()));
-            return false;
+            roughnessInput.Get(&materialData.roughnessFactor);
         }
 
-        const std::size_t textureByteCount = static_cast<std::size_t>(textureWidth) * static_cast<std::size_t>(textureHeight) * desiredChannels;
+        const std::optional<TextureConnection> metallicConnection = findTextureConnection(metallicInput);
+        const std::optional<TextureConnection> roughnessConnection = findTextureConnection(roughnessInput);
+        if (metallicConnection || roughnessConnection)
+        {
+            // IMPORTANT: Importer assumes gltf metallic-roughness channel convention
+            // Both surface inputs must come from the same UsdUVTexture node (i.e. same texture) with metallic in blue and
+            // roughness in green. Separate images or other channel layouts are deliberately unsupported
+            const bool followsMetallicRoughnessConvention =
+                metallicConnection
+                && roughnessConnection
+                && metallicConnection->shader.GetPrim().GetPath() == roughnessConnection->shader.GetPrim().GetPath()
+                && metallicConnection->outputName == pxr::TfToken("b")
+                && roughnessConnection->outputName == pxr::TfToken("g");
 
-        TextureData diffuseTexture;
-        diffuseTexture.width = textureWidth;
-        diffuseTexture.height = textureHeight;
-        diffuseTexture.numChannels = desiredChannels;
-        diffuseTexture.baseTextureDataOffset = static_cast<int>(staticMeshData.textureData.size());
-        diffuseTexture.sourcePath = resolvedPath;
-
-        staticMeshData.textureData.insert(staticMeshData.textureData.end(), pixels, pixels + textureByteCount);
-        stbi_image_free(pixels);
-        materialData.diffuseData = std::move(diffuseTexture);
+            if (!followsMetallicRoughnessConvention)
+            {
+                Logger::Warn(std::format(
+                    "USD material '{}' does not use one gltf metallic-roughness texture (B=metallic, G=roughness); ignoring its metallic/roughness texture connections",
+                    material.GetPrim().GetPath().GetString()));
+            }
+            else if (!loadTexture(*metallicConnection, "metallic-roughness", materialData.metallicRoughnessData))
+            {
+                return false;
+            }
+            else
+            {
+                // When both conditions are true, this ensures multiplying by the sampled roughness/metallic texture remains unchanged
+                // i.e. so we don't need to branch to check if the mesh is using the default (1.0f, 1.0f) texture or a real metallic-roughness texture, the behavior is the same in the end
+                materialData.metallicFactor = 1.0f;
+                materialData.roughnessFactor = 1.0f;
+            }
+        }
         return true;
     };
 

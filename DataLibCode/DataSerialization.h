@@ -7,6 +7,24 @@
 namespace Magic::Data
 {
 
+inline void SerializeTextureData(BinaryBlob& blob, const TextureData& texture)
+{
+    blob.AddI32(texture.width);
+    blob.AddI32(texture.height);
+    blob.AddI32(texture.numChannels);
+    blob.AddI32(texture.baseTextureDataOffset);
+    blob.AddString(texture.sourcePath);
+}
+
+inline void DeserializeTextureData(BinaryBlob& blob, TextureData& texture)
+{
+    texture.width = blob.GetI32();
+    texture.height = blob.GetI32();
+    texture.numChannels = blob.GetI32();
+    texture.baseTextureDataOffset = blob.GetI32();
+    texture.sourcePath = blob.GetString();
+}
+
 inline void SerializeStaticMeshDataBlob(const StaticMeshData& staticMeshData, const std::string& filename) 
 {
     BinaryBlob blob;
@@ -16,10 +34,13 @@ inline void SerializeStaticMeshDataBlob(const StaticMeshData& staticMeshData, co
         blob.AddSimpleVertexArr(mesh.m_vertices.data(), mesh.m_vertices.size());
         blob.AddU64(mesh.m_indices.size());
         blob.AddU32Array(mesh.m_indices.data(), mesh.m_indices.size());
-        blob.AddI32(mesh.materialData.diffuseData.width);
-        blob.AddI32(mesh.materialData.diffuseData.height);
-        blob.AddI32(mesh.materialData.diffuseData.numChannels);
-        blob.AddI32(mesh.materialData.diffuseData.baseTextureDataOffset);
+        SerializeTextureData(blob, mesh.materialData.diffuseData);
+        SerializeTextureData(blob, mesh.materialData.normalData);
+        SerializeTextureData(blob, mesh.materialData.metallicRoughnessData);
+        blob.AddF32(mesh.materialData.metallicFactor);
+        blob.AddF32(mesh.materialData.roughnessFactor);
+        blob.AddF32(mesh.materialData.normalScale);
+        blob.AddF32(mesh.materialData.normalYSign);
     }
     blob.AddMatrix4fArr(staticMeshData.m_transforms.data(), staticMeshData.m_transforms.size());
     blob.AddSizeT(staticMeshData.textureData.size());
@@ -42,10 +63,13 @@ inline std::optional<StaticMeshData> DeserializeStaticMeshDataBlob(const std::st
         uint64_t indexCount = blob.GetU64();
         mesh.m_indices.resize(indexCount);
         blob.GetU32Array(mesh.m_indices.data(), indexCount);
-        mesh.materialData.diffuseData.width = blob.GetI32();
-        mesh.materialData.diffuseData.height = blob.GetI32();
-        mesh.materialData.diffuseData.numChannels = blob.GetI32();
-        mesh.materialData.diffuseData.baseTextureDataOffset = blob.GetI32();
+        DeserializeTextureData(blob, mesh.materialData.diffuseData);
+        DeserializeTextureData(blob, mesh.materialData.normalData);
+        DeserializeTextureData(blob, mesh.materialData.metallicRoughnessData);
+        mesh.materialData.metallicFactor = blob.GetF32();
+        mesh.materialData.roughnessFactor = blob.GetF32();
+        mesh.materialData.normalScale = blob.GetF32();
+        mesh.materialData.normalYSign = blob.GetF32();
     }
     staticMeshData.m_transforms.resize(staticMeshData.m_subMeshes.size());
     blob.GetMatrix4fArr(staticMeshData.m_transforms.data(), staticMeshData.m_transforms.size());

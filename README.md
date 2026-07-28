@@ -14,3 +14,12 @@ camera space: +X is right, +Y is forward, and +Z is up.
 - Materials > Export Textures > **Keep**
 
 Assets/Levels should contain .usd* files, the rest of Assets can be structured however
+
+## Material texture convention
+
+Assumes the gltf metallic roughness channel layout, including when materials are imported from USD:
+
+- Base color and tangent-space normal maps are separate images
+- Metallic and roughness must share one non-color image
+- Roughness (G) and metallic (B)
+- Both inputs must connect to the same `UsdUVTexture` node through its `b` and `g` outputs respectively. Other layouts are warned about and ignored

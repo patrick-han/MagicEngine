@@ -2,6 +2,7 @@
 #include "Entity.h"
 #include "Buffer.h"
 #include "../CommonCode/AABB.h"
+#include "../CommonCode/StaticMeshData.h"
 
 #include <span>
 
@@ -15,6 +16,12 @@ struct SubMesh
     AllocatedBuffer indexBuffer;
     uint32_t indexCount = 0;
     int diffuseTextureBindlessArraySlot = -1;
+    int normalTextureBindlessArraySlot = -1;
+    int metallicRoughnessTextureBindlessArraySlot = -1;
+    float metallicFactor = 0.0f;
+    float roughnessFactor = 0.5f;
+    float normalScale = 1.0f;
+    float normalYSign = 1.0f;
     bool hasTexture = false; // To distinguish from meshes that only have vertex colors
     AABB3f aabb;
 };

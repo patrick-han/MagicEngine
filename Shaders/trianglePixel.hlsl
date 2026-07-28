@@ -1,3 +1,5 @@
+#include "common.hlsl"
+
 
 
 
@@ -16,35 +18,20 @@ float4 sampleTexturePoint(Texture2D tex, float2 texCoords) {
     return tex.Sample(g_samplers[1], texCoords);
 }
 
-struct PushConstants
-{
-    row_major float4x4 modelMatrix;
-    row_major float4x4 viewProjectionMatrix;
-    float4 directionalLight;
-    uint diffuseTextureBindlessTextureArraySlot;
-};
-
-[[vk::push_constant]] PushConstants pc;
-
 struct PSInput
 {
-    float4 position : SV_POSITION;
-    float3 color    : COLOR;
-    float2 uv       : TEXCOORD0;
-    float3 normal   : NORMAL;
+    float4 position      : SV_POSITION;
+    float3 color         : COLOR;
+    float2 uv            : TEXCOORD0;
+    float3 worldNormal   : NORMAL;
+    float3 worldPosition : TEXCOORD1;
 };
 
 float4 main(PSInput input) : SV_TARGET
 {
     float2 uv = input.uv;
-    float4 texColor = sampleTextureLinear(g_textures[pc.diffuseTextureBindlessTextureArraySlot], uv);
-
-    float3 diff = clamp(dot(input.normal, -pc.directionalLight.xyz), 0, 1);
-
-    texColor.xyz *= diff;
-
-    texColor.xyz += float3(0.05, 0.05, 0.1);
-    texColor.xyz = clamp(texColor.xyz, 0, 1);
-
-    return float4(texColor.rgb, 1.0f);
+    float3 baseColor = sampleTextureLinear(g_textures[pc.diffuseTextureBindlessTextureArraySlot], uv).rgb;
+    float diff = saturate(dot(input.worldNormal, -pc.directionalLight.xyz));
+    baseColor *= diff;
+    return float4(baseColor, 1.0f);
 }

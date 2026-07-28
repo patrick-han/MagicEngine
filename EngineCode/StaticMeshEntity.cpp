@@ -85,17 +85,25 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
         pSubMesh->indexBuffer = indexBuffer;
 
         // Textures
-        const TextureData& diffuseTexture = subMeshData.materialData.diffuseData;
-        pSubMesh->hasTexture = diffuseTexture.width != 0;
-        if (pSubMesh->hasTexture)
+        auto uploadTexture = [&staticMeshData](const TextureData& texture, int defaultBindlessSlot) -> int
         {
-            const unsigned char* pixels = staticMeshData.textureData.data() + diffuseTexture.baseTextureDataOffset;
-            pSubMesh->diffuseTextureBindlessArraySlot = GTextureCache->GetOrUpload(diffuseTexture.sourcePath, diffuseTexture, pixels);
-        }
-        else
-        {
-            pSubMesh->diffuseTextureBindlessArraySlot = DefaultTexture::g_defaultTextureImageBindlessSlot;
-        }
+            if (texture.width == 0)
+            {
+                return defaultBindlessSlot;
+            }
+            const unsigned char* pixels = staticMeshData.textureData.data() + texture.baseTextureDataOffset;
+            return GTextureCache->GetOrUpload(texture.sourcePath, texture, pixels);
+        };
+
+        const MaterialData& materialData = subMeshData.materialData;
+        pSubMesh->hasTexture = materialData.diffuseData.width != 0 || materialData.normalData.width != 0 || materialData.metallicRoughnessData.width != 0;
+        pSubMesh->diffuseTextureBindlessArraySlot = uploadTexture(materialData.diffuseData, DefaultTexture::g_defaultTextureImageBindlessSlot);
+        pSubMesh->normalTextureBindlessArraySlot = uploadTexture(materialData.normalData, DefaultTexture::g_flatNormalTextureImageBindlessSlot);
+        pSubMesh->metallicRoughnessTextureBindlessArraySlot = uploadTexture(materialData.metallicRoughnessData, DefaultTexture::g_whiteTextureImageBindlessSlot);
+        pSubMesh->metallicFactor = materialData.metallicFactor;
+        pSubMesh->roughnessFactor = materialData.roughnessFactor;
+        pSubMesh->normalScale = materialData.normalScale;
+        pSubMesh->normalYSign = materialData.normalYSign;
 
 
         // Finalize

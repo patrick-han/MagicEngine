@@ -1,19 +1,12 @@
-struct PushConstants
-{
-    row_major float4x4 modelMatrix;
-    row_major float4x4 viewProjectionMatrix;
-    float4 directionalLight;
-    uint diffuseTextureBindlessTextureArraySlot;
-};
-
-[[vk::push_constant]] PushConstants pc;
+#include "common.hlsl"
 
 struct PSInput
 {
-    float4 position : SV_POSITION;
-    float3 color    : COLOR;
-    float2 uv       : TEXCOORD0;
-    float3 normal   : NORMAL;
+    float4 position      : SV_POSITION;
+    float3 color         : COLOR;
+    float2 uv            : TEXCOORD0;
+    float3 worldNormal        : NORMAL;
+    float3 worldPosition : TEXCOORD1;
 };
 
 float4 main(PSInput input) : SV_TARGET

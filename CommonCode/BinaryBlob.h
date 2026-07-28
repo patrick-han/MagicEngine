@@ -134,6 +134,26 @@ public:
         AddData(&in, sizeof(uint64_t));
     }
 
+    void AddString(const std::string& in)
+    {
+        AddU64(in.size());
+        if (!in.empty())
+        {
+            AddData(in.data(), in.size());
+        }
+    }
+
+    std::string GetString()
+    {
+        const std::uint64_t size = GetU64();
+        std::string out(size, '\0');
+        if (size != 0)
+        {
+            GetData(out.data(), size);
+        }
+        return out;
+    }
+
     std::size_t GetSizeT()
     {
         std::size_t out;

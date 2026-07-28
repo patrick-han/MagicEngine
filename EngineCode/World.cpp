@@ -28,20 +28,27 @@ struct EntityLoadPayloadUSD
 
 void World::Load(const char* worldPath)
 {
-    // Upload default texture
+    // Every material texture slot is always valid. Missing base-color and
+    // metallic-roughness maps use white; missing normal maps use a flat normal.
     {
         constexpr VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
         constexpr VkExtent3D extent { .width = 128 , .height = 128 , .depth = 1 };
         const VkImageCreateInfo imci = DefaultImageCreateInfo(imageFormat, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
-        constexpr size_t bytesPerChannel = 1;
-        constexpr size_t numChannels = 4;
-        constexpr size_t dataSize = extent.width * extent.height * numChannels * bytesPerChannel;
-        AllocatedBuffer stagingBuffer = GRenderer->UploadBuffer(dataSize, DefaultTexture::g_DefaultTexture.data(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-        DefaultTexture::g_defaultTextureImage = GRenderer->UploadImage(DefaultTexture::g_DefaultTexture.data(), 4, imci);
-        auto imageViewCreateInfo = DefaultImageViewCreateInfo(DefaultTexture::g_defaultTextureImage.image, imageFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
-        DefaultTexture::g_defaultTextureImage.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
-        DefaultTexture::g_defaultTextureImageBindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(DefaultTexture::g_defaultTextureImage);
-        GRenderer->DestroyBuffer(stagingBuffer);
+        auto uploadDefaultTexture = [&imci](const DefaultTexture::TextureArray& pixels, AllocatedImage& image, int& bindlessSlot)
+        {
+            image = GRenderer->UploadImage(pixels.data(), DefaultTexture::CHANNELS, imci);
+            const VkImageViewCreateInfo imageViewCreateInfo = DefaultImageViewCreateInfo(
+                image.image,
+                imci.format,
+                VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A },
+                VK_IMAGE_ASPECT_COLOR_BIT);
+            image.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
+            bindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(image);
+        };
+
+        uploadDefaultTexture(DefaultTexture::g_DefaultTexture, DefaultTexture::g_defaultTextureImage, DefaultTexture::g_defaultTextureImageBindlessSlot);
+        uploadDefaultTexture(DefaultTexture::g_WhiteTexture, DefaultTexture::g_whiteTextureImage, DefaultTexture::g_whiteTextureImageBindlessSlot);
+        uploadDefaultTexture(DefaultTexture::g_FlatNormalTexture, DefaultTexture::g_flatNormalTextureImage, DefaultTexture::g_flatNormalTextureImageBindlessSlot);
     }
 
     const pxr::UsdStageRefPtr usdStage = pxr::UsdStage::Open(worldPath);
@@ -149,6 +156,8 @@ void World::Destroy()
 
     GTextureCache->Destroy();
     GRenderer->DestroyImage(DefaultTexture::g_defaultTextureImage);
+    GRenderer->DestroyImage(DefaultTexture::g_whiteTextureImage);
+    GRenderer->DestroyImage(DefaultTexture::g_flatNormalTextureImage);
     GRenderer->m_bindlessManager.Reset();
 }
 

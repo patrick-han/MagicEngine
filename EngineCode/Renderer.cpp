@@ -337,8 +337,15 @@ struct DefaultPushConstants {
     Matrix4f viewProjection;
     Vector4f directionalLight;
     uint32_t diffuseTextureBindlessTextureArraySlot = 0;
+    uint32_t normalTextureBindlessTextureArraySlot = 0;
+    uint32_t metallicRoughnessTextureBindlessTextureArraySlot = 0;
+    float metallicFactor = 0.0f;
+    float roughnessFactor = 0.5f;
+    float normalScale = 1.0f;
+    float normalYSign = 1.0f;
 };
-// (4 * 4) * 2 + 64 = 96 bytes
+static_assert(sizeof(DefaultPushConstants) == 172);
+
 struct BoundingBoxPushConstants {
     Vector3f min;
     float pad0;
@@ -625,13 +632,16 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                 {
                     pushConstants.model = transforms[subMeshIndex];
 
-                    if (
-                        (pSubMesh->diffuseTextureBindlessArraySlot != DefaultTexture::g_defaultTextureImageBindlessSlot)
-                        || pSubMesh->hasTexture
-                    )
+                    if (pSubMesh->hasTexture)
                     {
                         cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
                         pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;
+                        pushConstants.normalTextureBindlessTextureArraySlot = pSubMesh->normalTextureBindlessArraySlot;
+                        pushConstants.metallicRoughnessTextureBindlessTextureArraySlot = pSubMesh->metallicRoughnessTextureBindlessArraySlot;
+                        pushConstants.metallicFactor = pSubMesh->metallicFactor;
+                        pushConstants.roughnessFactor = pSubMesh->roughnessFactor;
+                        pushConstants.normalScale = pSubMesh->normalScale;
+                        pushConstants.normalYSign = pSubMesh->normalYSign;
                     }
                     else
                     {

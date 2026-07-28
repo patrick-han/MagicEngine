@@ -45,6 +45,7 @@ static void LoadTextureData(const std::filesystem::path& texturePath, TextureDat
     textureData.height = textureHeight;
     textureData.numChannels = desiredChannels;
     textureData.baseTextureDataOffset = staticMeshDataData.textureData.size();
+    textureData.sourcePath = texturePath.lexically_normal().string();
     staticMeshDataData.textureData.insert(staticMeshDataData.textureData.end(), pixels.begin(), pixels.end()); // TODO: This copies everything maybe revisit this later
 }
 
@@ -196,42 +197,68 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataD
             Vector3f baseColorFactor; // "Vertex colors" not quite, since there is an attribute for that, but for now
             if (material)
             {
+                auto loadTextureView = [this, &filePath, &staticMeshDataData](const cgltf_texture_view& textureView, TextureData& destination) -> bool
+                {
+                    if (!textureView.texture)
+                    {
+                        return false;
+                    }
+
+                    assert(textureView.texcoord == 0); // Only TEXCOORD_0 is supported for now.
+                    const cgltf_image* image = textureView.texture->image;
+                    if (!image)
+                    {
+                        Logger::Warn("Texture has no image");
+                        return false;
+                    }
+                    if (image->buffer_view)
+                    {
+                        Logger::Warn("Embedded glTF images are not supported yet");
+                        return false;
+                    }
+                    if (!image->uri)
+                    {
+                        Logger::Warn("External glTF image has no URI");
+                        return false;
+                    }
+
+                    const std::filesystem::path textureFilePath = (filePath.parent_path() / std::filesystem::path(image->uri)).lexically_normal();
+                    const std::string textureKey = textureFilePath.string();
+                    const auto previouslyLoaded = m_texturesSeen.find(textureKey);
+                    if (previouslyLoaded != m_texturesSeen.end())
+                    {
+                        Logger::Info(std::format("Reusing texture '{}'", textureKey));
+                        destination = previouslyLoaded->second;
+                        return true;
+                    }
+
+                    TextureData textureData;
+                    LoadTextureData(textureFilePath, textureData, staticMeshDataData);
+                    destination = textureData;
+                    m_texturesSeen.emplace(textureKey, std::move(textureData));
+                    return true;
+                };
+
                 if (material->has_pbr_metallic_roughness)
                 {
                     const cgltf_texture_view baseColor = material->pbr_metallic_roughness.base_color_texture;
                     baseColorFactor.x = material->pbr_metallic_roughness.base_color_factor[0];
                     baseColorFactor.y = material->pbr_metallic_roughness.base_color_factor[1];
                     baseColorFactor.z = material->pbr_metallic_roughness.base_color_factor[2];
-                    if (!baseColor.texture)
+                    meshData.materialData.metallicFactor = material->pbr_metallic_roughness.metallic_factor;
+                    meshData.materialData.roughnessFactor = material->pbr_metallic_roughness.roughness_factor;
+
+                    if (!loadTextureView(baseColor, meshData.materialData.diffuseData))
                     {
                         Logger::Warn("This primitive has no base color texture!");
                     }
-                    else
-                    {
-                        assert(baseColor.texcoord == 0); // TODO: only want to mess with TEXCOORD_0 for now, but this tells us which UV set the texture uses
-                        if (m_texturesSeen.find(baseColor.texture->image->uri) == m_texturesSeen.end())
-                        {
-                            const cgltf_image* image = baseColor.texture->image;
-                            if (image->buffer_view) // Case 1: Image is embedded in the buffer view
-                            {
-                                // TODO:
-                                assert(false);
-                            }
-                            else // Case 2: Load from file
-                            {
-                                std::filesystem::path textureFilePath = filePath.parent_path() / std::filesystem::path(image->uri);
-                                TextureData textureData;
-                                LoadTextureData(textureFilePath, textureData, staticMeshDataData);
-                                meshData.materialData.diffuseData = textureData;
-                                m_texturesSeen.insert(std::pair{image->uri, textureData});
-                            }
-                        }
-                        else
-                        {
-                            Logger::Info("Encountered the same texture twice!");
-                            meshData.materialData.diffuseData = m_texturesSeen.at(baseColor.texture->image->uri);
-                        }
-                    }
+
+                    loadTextureView(material->pbr_metallic_roughness.metallic_roughness_texture, meshData.materialData.metallicRoughnessData);
+                }
+
+                if (loadTextureView(material->normal_texture, meshData.materialData.normalData))
+                {
+                    meshData.materialData.normalScale = material->normal_texture.scale;
                 }
             }
             for (auto& vertex : meshData.m_vertices) // fixup vertex colors after material parsing
@@ -256,6 +283,7 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataD
 
 void GLTFImporter::ImportGLTF(const std::string& filepathStr, StaticMeshData& staticMeshDataData)
 {
+    m_texturesSeen.clear();
     cgltf_options options = {};
     cgltf_data* gltfData = nullptr;
 

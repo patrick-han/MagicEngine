@@ -1,4 +1,6 @@
 
+#include "common.hlsl"
+
 struct VSInput
 {
     [[vk::location(0)]] float3 position : POSITION; // semantic matches vertex input layout
@@ -10,21 +12,12 @@ struct VSInput
 
 struct VSOutput
 {
-    float4 position : SV_POSITION;
-    float3 color    : COLOR;
-    float2 uv       : TEXCOORD0;
-    float3 normal   : NORMAL;
+    float4 position      : SV_POSITION;
+    float3 color         : COLOR;
+    float2 uv            : TEXCOORD0;
+    float3 worldNormal   : NORMAL;
+    float3 worldPosition : TEXCOORD1;
 };
-
-struct PushConstants
-{
-    row_major float4x4 modelMatrix;
-    row_major float4x4 viewProjectionMatrix;
-    float4 directionalLight;
-    uint diffuseTextureBindlessTextureArraySlot;
-};
-
-[[vk::push_constant]] PushConstants pc;
 
 //VSOutput main(uint vertexID : SV_VertexID)
 VSOutput main(VSInput input)
@@ -35,6 +28,7 @@ VSOutput main(VSInput input)
     output.position = mul(pc.viewProjectionMatrix, worldPosition);
     output.color = input.color;
     output.uv = float2(input.uv_x, input.uv_y);
-    output.normal = input.normal;
+    output.worldNormal = normalize(mul((float3x3)pc.modelMatrix, input.normal)); // Assumes world transform mtx is rotation, translation, and uniform scaling
+    output.worldPosition = worldPosition.xyz;
     return output;
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <string>
 #include <vector>
 #include "Math/Matrix4f.h"
@@ -19,8 +20,12 @@ struct TextureData
 struct MaterialData
 {
     TextureData diffuseData;
-    // TextureData metallicRoughnessData;
-    // TextureData normalData;
+    TextureData normalData;
+    TextureData metallicRoughnessData;
+    float metallicFactor = 0.0f;
+    float roughnessFactor = 0.5f;
+    float normalScale = 1.0f;
+    float normalYSign = 1.0f;
     // TextureData emissiveData;
 };
 
