@@ -157,9 +157,9 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
     for (std::size_t faceIndex = 0; faceIndex < faceVertexCounts.size(); ++faceIndex)
     {
         const int faceVertexCount = faceVertexCounts[faceIndex];
-        if (faceVertexCount < 0)
+        if (faceVertexCount != 3)
         {
-            Logger::Err("USD mesh has a negative face-vertex count");
+            Logger::Err("USD mesh has non-triangle faces, please triangulate all meshes");
             return;
         }
 
