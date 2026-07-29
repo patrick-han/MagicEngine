@@ -16,6 +16,8 @@
 
 #include <optional>
 #include <unordered_map>
+#include <array>
+#include <cassert>
 
 namespace Magic
 {
@@ -157,44 +159,39 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
     for (std::size_t faceIndex = 0; faceIndex < faceVertexCounts.size(); ++faceIndex)
     {
         const int faceVertexCount = faceVertexCounts[faceIndex];
-        if (faceVertexCount != 3)
-        {
-            Logger::Err("USD mesh has non-triangle faces, please triangulate all meshes");
-            return;
-        }
+        assert(faceVertexCount == 3 && "USD mesh has non-triangle faces, please triangulate all meshes");
 
-        const std::size_t firstFaceIndex = combinedGeometry.m_indices.size();
-        for (int faceCorner = 0; faceCorner < faceVertexCount; ++faceCorner)
+        // Fetch all 3 points first, since they're needed to calculate the bitangent and tangent
+        auto getVertexForACorner = [faceIndex, &getElementIndex
+            , &uvInterpolation, &uvs
+            , &normalsInterpolation, &indices, &vertices, &normals](std::size_t cornerIndex, bool hasUvs, SimpleVertex& outVertex) -> bool
         {
-            if (cornerIndex >= indices.size())
-            {
-                Logger::Err("USD mesh topology has too few indices");
-                return;
-            }
+            assert(cornerIndex < indices.size() && "USD mesh topology has too few indices");
 
-            const int usdPointIndex = indices[cornerIndex]; // indices is faceVertexIndices
+            // Triangle vertices 0, 1, 2
+            const int usdPointIndex = indices[cornerIndex];
             if (usdPointIndex < 0 || static_cast<std::size_t>(usdPointIndex) >= vertices.size())
             {
                 Logger::Err("USD mesh contains an invalid point index");
-                return;
+                return false;
             }
-
-            // The topology index selects the position. The normal index is
-            // selected separately according to the normal interpolation mode.
             const std::size_t pointIndex = static_cast<std::size_t>(usdPointIndex);
             const std::optional<std::size_t> normalIndex = getElementIndex(normalsInterpolation, faceIndex, cornerIndex, pointIndex);
             if (!normalIndex || *normalIndex >= normals.size())
             {
                 Logger::Err("Unsupported or invalid USD normal interpolation");
-                return;
+                return false;
             }
 
-            SimpleVertex vertex{};
             const pxr::GfVec3f& position = vertices[pointIndex];
             const pxr::GfVec3f& normal = normals[*normalIndex];
-            vertex.position = Vector3f(position[0], position[1], position[2]);
-            vertex.normal = Vector3f(normal[0], normal[1], normal[2]);
-            vertex.color = Vector3f(1.0f, 1.0f, 1.0f);
+            outVertex.position.x = position[0];
+            outVertex.position.y = position[1];
+            outVertex.position.z = position[2];
+            outVertex.normal.x = normal[0];
+            outVertex.normal.y = normal[1];
+            outVertex.normal.z = normal[2];
+            outVertex.color = Vector3f(1.0f, 1.0f, 1.0f);
 
             if (hasUvs)
             {
@@ -202,16 +199,32 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
                 if (!uvIndex || *uvIndex >= uvs.size())
                 {
                     Logger::Err("Unsupported or invalid USD UV interpolation");
-                    return;
+                    return false;
                 }
 
-                vertex.uv_x = uvs[*uvIndex][0];
+                outVertex.uv_x = uvs[*uvIndex][0];
                 // The renderer's texture convention has the opposite V axis
                 // from these Blender-authored USD UVs.
-                vertex.uv_y = 1.0f - uvs[*uvIndex][1];
+                outVertex.uv_y = 1.0f - uvs[*uvIndex][1];
             }
-            // At this point we have a completed candidate SimpleVertex with all its fields populated
+            return true;
+        };
+        std::array<SimpleVertex, 3> triVerts{}; // change this and below if we'd expect more vertices per face
+        if (!getVertexForACorner(cornerIndex, hasUvs, triVerts[0]) || !getVertexForACorner(cornerIndex + 1, hasUvs, triVerts[1]) || !getVertexForACorner(cornerIndex + 2, hasUvs, triVerts[2]))
+        {
+            return;
+        }
 
+        const std::size_t firstFaceIndex = combinedGeometry.m_indices.size();
+        for (int faceCorner = 0; faceCorner < faceVertexCount; ++faceCorner) // 3 iterations, because we presume triangles
+        {
+  
+            const int usdPointIndex = indices[cornerIndex]; // indices is faceVertexIndices
+            const std::size_t pointIndex = static_cast<std::size_t>(usdPointIndex);
+
+            SimpleVertex vertex{};
+            vertex = triVerts[faceCorner];
+            // At this point we have a completed candidate SimpleVertex with all its fields populated
 
             // Reuse an existing vertex only when position ownership, normal,
             // and UV all match. Otherwise append a split vertex and index it.
