@@ -3,6 +3,8 @@
 #include "StaticMeshEntity.h"
 #include "Timing.h"
 #include "GPUStats.h"
+#include "DirectionalLightEntity.h"
+
 namespace Magic
 {
 
@@ -31,4 +33,12 @@ struct RenderingInfo
     Game* pGame;
     std::chrono::microseconds updateLoopTimingUS;
 };
+
+
+struct WorldData
+{
+    DirectionalLightData dirLight;
+};
+
+
 }

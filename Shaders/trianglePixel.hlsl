@@ -49,9 +49,12 @@ float4 main(PSInput input) : SV_TARGET
     float sampledMetallic = sampledMetallicRoughness.b * pc.metallicFactor;
     float sampledRoughness = sampledMetallicRoughness.g * pc.roughnessFactor;
 
+    WorldData worldData = GetWorldData();
 
 
-    float diff = saturate(dot(sampledNormalWS, -pc.directionalLight.xyz));
+
+    float diff = saturate(dot(sampledNormalWS, -worldData.dirLight.direction.xyz));
     sampledAlbedo *= diff;
+    sampledAlbedo *= worldData.dirLight.color.xyz;
     return float4(sampledAlbedo, 1.0);
 }

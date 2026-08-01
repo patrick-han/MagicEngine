@@ -5,6 +5,16 @@
 namespace Magic
 {
 
+struct DirectionalLightData
+{
+    Vector4f m_direction;
+    Vector4f m_color;
+    float m_angle = 0.0f;
+    float m_intensity = 0.0f;
+    float m_exposure = 0.0f;
+    float data0 = 0.0f;
+};
+
 class DirectionalLightEntity final : public IEntity
 {
 public:
@@ -16,8 +26,6 @@ public:
     virtual void DrawInspectorElements() override;
 
     Vector4f m_direction;
-private:
-    
     Vector4f m_color;
     float m_angle;
     float m_intensity;

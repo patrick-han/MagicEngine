@@ -128,6 +128,17 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
     return allocatedBuffer;
 }
 
+void Renderer::UpdateBuffer(const AllocatedBuffer &buffer, const void *dataSource, size_t bufferSize)
+{
+    VmaAllocator allocator = m_gpuctx->GetVmaAllocator();
+    void* mapped = nullptr;
+    VK_CHECK(vmaMapMemory(allocator, buffer.allocation, &mapped));
+    std::memcpy(mapped, dataSource, bufferSize);
+    // Required for non-coherent memory; harmless when coherent.
+    VK_CHECK(vmaFlushAllocation(allocator, buffer.allocation, 0, bufferSize));
+    vmaUnmapMemory(allocator, buffer.allocation);
+}
+
 void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 {
 #if MAGIC_TRACK_GPU_STATS
@@ -270,6 +281,14 @@ void Renderer::Startup(GPUContext* _gpuctx, Swapchain* _swapchain)
         // Image acquire semaphores
         VkSemaphoreCreateInfo createInfo = {.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         VK_CHECK(vkCreateSemaphore(device, &createInfo, nullptr, &f.m_imageReadySemaphore));
+
+        WorldData worldData{}; // Initially populate each frame with nothing
+        f.m_worldData = UploadBuffer(sizeof(worldData), &worldData, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT);
+        VkBufferDeviceAddressInfoKHR worldDataBufferAddressInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR,
+            .buffer = f.m_worldData.buffer
+        };
+        f.m_worldDataAddress = vkGetBufferDeviceAddress(device, &worldDataBufferAddressInfo);
     }
 
 
@@ -335,14 +354,16 @@ static std::vector<char> readFileBytes(const std::string& filename) {
 struct DefaultPushConstants {
     Matrix4f model;
     Matrix4f viewProjection;
-    Vector4f directionalLight;
     uint32_t diffuseTextureBindlessTextureArraySlot = 0;
     uint32_t normalTextureBindlessTextureArraySlot = 0;
     uint32_t metallicRoughnessTextureBindlessTextureArraySlot = 0;
+    VkDeviceAddress worldDataBufferAddress = 0;
     float metallicFactor = 0.0f;
     float roughnessFactor = 0.5f;
     float normalYSign = 1.0f;
 };
+static_assert(sizeof(WorldData) == 48);
+static_assert(offsetof(DefaultPushConstants, worldDataBufferAddress) == 144);
 static_assert(sizeof(DefaultPushConstants) == 168);
 
 struct BoundingBoxPushConstants {
@@ -619,9 +640,19 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             DefaultPushConstants pushConstants;
             pushConstants.viewProjection = viewProjection;
 
-            if (renderingInfo.pWorld->m_pDirLight)
-            {
-                pushConstants.directionalLight = renderingInfo.pWorld->m_pDirLight->m_direction;
+            { // Update per frame in flight world data
+                pushConstants.worldDataBufferAddress = frameData.m_worldDataAddress;
+                WorldData worldData{};
+                if (renderingInfo.pWorld->m_pDirLight)
+                {
+                    worldData.dirLight.m_direction = renderingInfo.pWorld->m_pDirLight->m_direction;
+                    worldData.dirLight.m_color = renderingInfo.pWorld->m_pDirLight->m_color;
+                    worldData.dirLight.m_angle = renderingInfo.pWorld->m_pDirLight->m_angle;
+                    worldData.dirLight.m_intensity = renderingInfo.pWorld->m_pDirLight->m_intensity;
+                    worldData.dirLight.m_exposure = renderingInfo.pWorld->m_pDirLight->m_exposure;
+                }
+
+                UpdateBuffer(frameData.m_worldData, &worldData, sizeof(worldData));
             }
 
             for (SubMesh* pSubMesh : renderingInfo.meshesToRender)
@@ -789,19 +820,6 @@ void Renderer::WaitIdle()
 
 void Renderer::Shutdown()
 {
-#if DEBUG_VMA
-    {
-        std::scoped_lock lock(g_vmaAllocInfoMutex);
-        for (auto& debug : g_vmaAllocInfo)
-        {
-#if PLATFORM_MACOS
-            backtrace_symbols_fd(debug.second.info.stack, debug.second.info.frameCount, STDERR_FILENO);
-#elif PLATFORM_WINDOWS
-            Logger::Err(std::to_string(debug.second.info.stack));
-#endif
-        }
-    }
-#endif
     VkDevice device = m_gpuctx->GetDevice();
     vkDestroyDescriptorPool(device, m_imguiDescriptorPool, nullptr);
 
@@ -819,7 +837,23 @@ void Renderer::Shutdown()
     {
         vkDestroySemaphore(device, p.m_imageReadySemaphore, nullptr);
         vkDestroyCommandPool(device, p.m_commandEncoder.Pool(), nullptr);
+        DestroyBuffer(p.m_worldData);
     }
+
+    // Check for gpu memory leaks
+#if DEBUG_VMA
+    {
+        std::scoped_lock lock(g_vmaAllocInfoMutex);
+        for (auto& debug : g_vmaAllocInfo)
+        {
+#if PLATFORM_MACOS
+            backtrace_symbols_fd(debug.second.info.stack, debug.second.info.frameCount, STDERR_FILENO);
+#elif PLATFORM_WINDOWS
+            Logger::Err(std::to_string(debug.second.info.stack));
+#endif
+        }
+    }
+#endif
 }
 
 void Renderer::ImmediateSubmit(std::function<void(VkCommandBuffer cmd)> &&function)

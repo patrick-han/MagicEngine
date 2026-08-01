@@ -68,6 +68,7 @@ public:
     ~Renderer();
 
     [[nodiscard]] AllocatedBuffer UploadBuffer(size_t bufferSize, const void* bufferData, VkBufferUsageFlags usage);
+    void UpdateBuffer(const AllocatedBuffer& buffer, const void* dataSource, size_t bufferSize);
     void DestroyBuffer(AllocatedBuffer allocatedBuffer);
 
     [[nodiscard]] AllocatedImage CreateGPUOnlyImage(VkImageCreateInfo imageCreateInfo);
@@ -85,6 +86,8 @@ public:
         CommandEncoder m_commandEncoder;
         uint64_t signalValue = 0;
         VkSemaphore m_imageReadySemaphore = VK_NULL_HANDLE;
+        AllocatedBuffer m_worldData;
+        VkDeviceAddress m_worldDataAddress = 0;
     };
     [[nodiscard]] PerFrameInFlightData GetFrameInFlightData(int frameNumber) const { return m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight]; };
     void SignalFrameInFlight(int frameNumber, uint64_t _signalValue) { m_perFrameInFlightData[frameNumber % g_kMaxFramesInFlight].signalValue = _signalValue; };
