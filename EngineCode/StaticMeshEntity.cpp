@@ -85,21 +85,21 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
         pSubMesh->indexBuffer = indexBuffer;
 
         // Textures
-        auto uploadTexture = [&staticMeshData](const TextureData& texture, int defaultBindlessSlot) -> int
+        auto uploadTexture = [&staticMeshData](const TextureData& texture, int defaultBindlessSlot, TextureType textureType) -> int
         {
             if (texture.width == 0)
             {
                 return defaultBindlessSlot;
             }
             const unsigned char* pixels = staticMeshData.textureData.data() + texture.baseTextureDataOffset;
-            return GTextureCache->GetOrUpload(texture.sourcePath, texture, pixels);
+            return GTextureCache->GetOrUpload(texture.sourcePath, texture, pixels, textureType);
         };
 
         const MaterialData& materialData = subMeshData.materialData;
         pSubMesh->hasTexture = materialData.diffuseData.width != 0 || materialData.normalData.width != 0 || materialData.metallicRoughnessData.width != 0;
-        pSubMesh->diffuseTextureBindlessArraySlot = uploadTexture(materialData.diffuseData, DefaultTexture::g_defaultTextureImageBindlessSlot);
-        pSubMesh->normalTextureBindlessArraySlot = uploadTexture(materialData.normalData, DefaultTexture::g_flatNormalTextureImageBindlessSlot);
-        pSubMesh->metallicRoughnessTextureBindlessArraySlot = uploadTexture(materialData.metallicRoughnessData, DefaultTexture::g_whiteTextureImageBindlessSlot);
+        pSubMesh->diffuseTextureBindlessArraySlot = uploadTexture(materialData.diffuseData, DefaultTexture::g_defaultTextureImageBindlessSlot, TextureType::Color);
+        pSubMesh->normalTextureBindlessArraySlot = uploadTexture(materialData.normalData, DefaultTexture::g_flatNormalTextureImageBindlessSlot, TextureType::Data);
+        pSubMesh->metallicRoughnessTextureBindlessArraySlot = uploadTexture(materialData.metallicRoughnessData, DefaultTexture::g_whiteTextureImageBindlessSlot, TextureType::Data);
         pSubMesh->metallicFactor = materialData.metallicFactor;
         pSubMesh->roughnessFactor = materialData.roughnessFactor;
         pSubMesh->normalYSign = materialData.normalYSign;

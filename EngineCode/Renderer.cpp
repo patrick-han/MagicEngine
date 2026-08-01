@@ -362,7 +362,7 @@ struct DefaultPushConstants {
     float roughnessFactor = 0.5f;
     float normalYSign = 1.0f;
 };
-static_assert(sizeof(WorldData) == 48);
+static_assert(sizeof(WorldData) == 64);
 static_assert(offsetof(DefaultPushConstants, worldDataBufferAddress) == 144);
 static_assert(sizeof(DefaultPushConstants) == 168);
 
@@ -410,11 +410,11 @@ void Renderer::BuildResources() {
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
         VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
 
-        VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
+        VkFormat outRTFormats[] = { m_colorFormat };
         VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
             , .colorAttachmentCount = 1
-            , .pColorAttachmentFormats = outRTFormats // match swapchain format for now
+            , .pColorAttachmentFormats = outRTFormats
             , .depthAttachmentFormat = m_depthFormat
         };
 
@@ -450,11 +450,11 @@ void Renderer::BuildResources() {
         std::vector<char> pspv = readFileBytes("Shaders/trianglePixelVertexColorsOnly.pixel.spv");
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
         VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
-        VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
+        VkFormat outRTFormats[] = { m_colorFormat };
         VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
             , .colorAttachmentCount = 1
-            , .pColorAttachmentFormats = outRTFormats // match swapchain format for now
+            , .pColorAttachmentFormats = outRTFormats
             , .depthAttachmentFormat = m_depthFormat
         };
 
@@ -489,11 +489,11 @@ void Renderer::BuildResources() {
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
         VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
 
-        VkFormat outRTFormats[] = { m_swapchain->GetFormat() };
+        VkFormat outRTFormats[] = { m_colorFormat };
         VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
             , .colorAttachmentCount = 1
-            , .pColorAttachmentFormats = outRTFormats // match swapchain format for now
+            , .pColorAttachmentFormats = outRTFormats
             , .depthAttachmentFormat = m_depthFormat
         };
         auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
@@ -523,11 +523,11 @@ void Renderer::BuildResources() {
     VkExtent3D rtExtent = {.width = static_cast<uint32_t>(outputWidth), .height = static_cast<uint32_t>(outputHeight), .depth = 1 };
     // Test color attachment
     {
-        VkImageCreateInfo colorImageInfo = DefaultImageCreateInfo(VK_FORMAT_B8G8R8A8_UNORM, rtExtent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_TYPE_2D);
+        VkImageCreateInfo colorImageInfo = DefaultImageCreateInfo(m_colorFormat, rtExtent, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_IMAGE_TYPE_2D);
         VmaAllocationCreateInfo vmaAllocInfo = {.usage = VMA_MEMORY_USAGE_GPU_ONLY, .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT};
         VK_CHECK(vmaCreateImage(m_gpuctx->GetVmaAllocator(), &colorImageInfo, &vmaAllocInfo, &m_rtColorImage.image, &m_rtColorImage.allocation, nullptr));
 
-        VkImageViewCreateInfo colorImageViewInfo = DefaultImageViewCreateInfo(m_rtColorImage.image, VK_FORMAT_B8G8R8A8_UNORM, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
+        VkImageViewCreateInfo colorImageViewInfo = DefaultImageViewCreateInfo(m_rtColorImage.image, m_colorFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
         VK_CHECK(vkCreateImageView(device, &colorImageViewInfo, nullptr, &m_rtColorImage.view));
     }
 
@@ -651,6 +651,8 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                     worldData.dirLight.m_intensity = renderingInfo.pWorld->m_pDirLight->m_intensity;
                     worldData.dirLight.m_exposure = renderingInfo.pWorld->m_pDirLight->m_exposure;
                 }
+
+                worldData.cameraPos = Vector4f(renderingInfo.pCamera->GetPosition(), 1.0f);
 
                 UpdateBuffer(frameData.m_worldData, &worldData, sizeof(worldData));
             }

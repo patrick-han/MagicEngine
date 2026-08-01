@@ -12,6 +12,7 @@ struct DirectionalLightData
 struct WorldData
 {
     DirectionalLightData dirLight;
+    float4 cameraPos;
 };
 
 
@@ -37,3 +38,5 @@ WorldData GetWorldData()
 {
     return vk::RawBufferLoad<WorldData>(pc.worldDataBufferAddress);
 }
+
+#define PI 3.14159265

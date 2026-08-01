@@ -125,6 +125,7 @@ private:
     AllocatedImage m_rtColorImage;
     AllocatedImage m_rtDepthImage;
     const VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
+    const VkFormat m_colorFormat = VK_FORMAT_B8G8R8A8_SRGB;
 
     GraphicsPipeline m_debugDrawPipeline; // bounding box
     bool m_renderBoundingBoxes = false;

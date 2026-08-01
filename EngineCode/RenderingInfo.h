@@ -38,6 +38,7 @@ struct RenderingInfo
 struct WorldData
 {
     DirectionalLightData dirLight;
+    Vector4f cameraPos;
 };
 
 

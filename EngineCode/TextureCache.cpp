@@ -13,11 +13,12 @@ TextureCache* GTextureCache = nullptr;
 namespace
 {
 
-constexpr VkFormat g_textureFormat = VK_FORMAT_R8G8B8A8_UNORM;
-
+// constexpr VkFormat g_textureFormat = VK_FORMAT_R8G8B8A8_UNORM;
+constexpr VkFormat colorTextureFormat = VK_FORMAT_R8G8B8A8_SRGB;
+constexpr VkFormat dataTextureFormat = VK_FORMAT_R8G8B8A8_UNORM;
 }
 
-int TextureCache::GetOrUpload(const std::string& resolvedPath, const TextureData& textureData, const unsigned char* pixels)
+int TextureCache::GetOrUpload(const std::string& resolvedPath, const TextureData& textureData, const unsigned char* pixels, TextureType type)
 {
     std::lock_guard lock(m_mutex);
 
@@ -39,11 +40,13 @@ int TextureCache::GetOrUpload(const std::string& resolvedPath, const TextureData
         .height = static_cast<uint32_t>(textureData.height),
         .depth = 1
     };
-    const VkImageCreateInfo imageCreateInfo = DefaultImageCreateInfo(g_textureFormat, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
+
+    const VkFormat format = type == TextureType::Color ? colorTextureFormat : dataTextureFormat;
+    const VkImageCreateInfo imageCreateInfo = DefaultImageCreateInfo(format, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
 
     CachedTexture newTexture;
     newTexture.image = GRenderer->UploadImage(pixels, textureData.numChannels, imageCreateInfo);
-    const VkImageViewCreateInfo imageViewCreateInfo = DefaultImageViewCreateInfo(newTexture.image.image, g_textureFormat, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
+    const VkImageViewCreateInfo imageViewCreateInfo = DefaultImageViewCreateInfo(newTexture.image.image, format, VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A }, VK_IMAGE_ASPECT_COLOR_BIT);
     newTexture.image.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
     newTexture.bindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(newTexture.image);
 

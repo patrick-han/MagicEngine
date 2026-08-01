@@ -11,10 +11,17 @@ namespace Magic
 
 struct TextureData;
 
+enum class TextureType
+{
+    Color
+    , Data
+};
+
+
 class TextureCache
 {
 public:
-    [[nodiscard]] int GetOrUpload(const std::string& resolvedPath, const TextureData& textureData, const unsigned char* pixels);
+    [[nodiscard]] int GetOrUpload(const std::string& resolvedPath, const TextureData& textureData, const unsigned char* pixels, TextureType type);
     void Destroy();
 
 private:

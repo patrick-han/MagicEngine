@@ -152,7 +152,8 @@ void GPUContext::Startup(std::span<const char*> additionalExtensions)
 
         // Physical device features
         VkPhysicalDeviceFeatures physicalDeviceFeatures = {
-            .fillModeNonSolid = VK_TRUE // TODO: Assume this is supported
+            .fillModeNonSolid = VK_TRUE // TODO: Assume these are supported
+            , .shaderInt64 = VK_TRUE
         };
 
         // Extensions

@@ -30,12 +30,11 @@ void World::Load(const char* worldPath)
 {
     // Every material texture slot is always valid. Missing base-color and
     // metallic-roughness maps use white; missing normal maps use a flat normal.
-    {
-        constexpr VkFormat imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
-        constexpr VkExtent3D extent { .width = 128 , .height = 128 , .depth = 1 };
-        const VkImageCreateInfo imci = DefaultImageCreateInfo(imageFormat, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
-        auto uploadDefaultTexture = [&imci](const DefaultTexture::TextureArray& pixels, AllocatedImage& image, int& bindlessSlot)
+    {        
+        auto uploadDefaultTexture = [](VkFormat format, const DefaultTexture::TextureArray& pixels, AllocatedImage& image, int& bindlessSlot)
         {
+            constexpr VkExtent3D extent { .width = 128 , .height = 128 , .depth = 1 };
+            const VkImageCreateInfo imci = DefaultImageCreateInfo(format, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
             image = GRenderer->UploadImage(pixels.data(), DefaultTexture::CHANNELS, imci);
             const VkImageViewCreateInfo imageViewCreateInfo = DefaultImageViewCreateInfo(
                 image.image,
@@ -46,9 +45,9 @@ void World::Load(const char* worldPath)
             bindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(image);
         };
 
-        uploadDefaultTexture(DefaultTexture::g_DefaultTexture, DefaultTexture::g_defaultTextureImage, DefaultTexture::g_defaultTextureImageBindlessSlot);
-        uploadDefaultTexture(DefaultTexture::g_WhiteTexture, DefaultTexture::g_whiteTextureImage, DefaultTexture::g_whiteTextureImageBindlessSlot);
-        uploadDefaultTexture(DefaultTexture::g_FlatNormalTexture, DefaultTexture::g_flatNormalTextureImage, DefaultTexture::g_flatNormalTextureImageBindlessSlot);
+        uploadDefaultTexture(VK_FORMAT_R8G8B8A8_SRGB, DefaultTexture::g_DefaultTexture, DefaultTexture::g_defaultTextureImage, DefaultTexture::g_defaultTextureImageBindlessSlot);
+        uploadDefaultTexture(VK_FORMAT_R8G8B8A8_SRGB, DefaultTexture::g_WhiteTexture, DefaultTexture::g_whiteTextureImage, DefaultTexture::g_whiteTextureImageBindlessSlot);
+        uploadDefaultTexture(VK_FORMAT_R8G8B8A8_UNORM, DefaultTexture::g_FlatNormalTexture, DefaultTexture::g_flatNormalTextureImage, DefaultTexture::g_flatNormalTextureImageBindlessSlot);
     }
 
     const pxr::UsdStageRefPtr usdStage = pxr::UsdStage::Open(worldPath);
