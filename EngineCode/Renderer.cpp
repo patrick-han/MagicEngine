@@ -713,7 +713,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
 
     cmdEncoder.ImageBarrier(swapchainImageData.image
         , VK_ACCESS_NONE, VK_ACCESS_TRANSFER_WRITE_BIT
-        , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
+        , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
         , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     cmdEncoder.CopyImageToImage(m_rtColorImage, swapchainImageData.image
@@ -779,7 +779,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             .pSignalSemaphoreValues = values
         };
         VkSemaphore semaphores[] = { m_timelineSemaphore, swapchainImageData.presentSemaphore };
-        VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         VkCommandBuffer handle = cmdEncoder.Handle();
         VkSubmitInfo submitInfo{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
