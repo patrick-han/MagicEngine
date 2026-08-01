@@ -30,11 +30,10 @@ struct PSInput
     float4 position      : SV_POSITION;
     float3 color         : COLOR;
     float2 uv            : TEXCOORD0;
-    float3 worldNormal   : NORMAL;
     float3 worldPosition : TEXCOORD1;
     float3 T             : TEXCOORD2;
     float3 B             : TEXCOORD3;
-    float3 N             : TEXCOORD4;
+    float3 N             : NORMAL;
 };
 
 float4 main(PSInput input) : SV_TARGET

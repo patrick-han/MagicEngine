@@ -17,11 +17,10 @@ struct VSOutput
     float4 position      : SV_POSITION;
     float3 color         : COLOR;
     float2 uv            : TEXCOORD0;
-    float3 worldNormal   : NORMAL;
     float3 worldPosition : TEXCOORD1;
     float3 T             : TEXCOORD2;
     float3 B             : TEXCOORD3;
-    float3 N             : TEXCOORD4;
+    float3 N             : NORMAL;
 };
 
 //VSOutput main(uint vertexID : SV_VertexID)
@@ -39,7 +38,7 @@ VSOutput main(VSInput input)
     // Calculate TBN
 
     float3x3 model = (float3x3)(pc.modelMatrix);
-    float3 Nws = normalize(mul(model, input.normal));
+    float3 Nws = normalize(mul(model, input.normal)); // Assumes world transform mtx is rotation, translation, and uniform scaling
     float3 Tws = normalize(mul(model, input.tangentW.xyz));
     Tws = normalize(Tws - Nws * dot(Nws, Tws)); // re-orthogonalize
 
@@ -47,6 +46,5 @@ VSOutput main(VSInput input)
     output.B = normalize(Bws);
     output.N = Nws;
     output.T = Tws;
-    output.worldNormal = Nws; // Assumes world transform mtx is rotation, translation, and uniform scaling
     return output;
 }
