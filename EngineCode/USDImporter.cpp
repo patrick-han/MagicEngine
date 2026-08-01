@@ -3,6 +3,7 @@
 #include "../CommonCode/Log.h"
 #include "../CommonCode/StaticMeshData.h"
 #include "../DataLibCode/stb_image.h"
+#include "ThirdParty/MikkTSpace/mikktspace.h"
 
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usdGeom/mesh.h>
@@ -14,10 +15,10 @@
 #include <pxr/usd/usdShade/shader.h>
 #include <pxr/usd/usdShade/tokens.h>
 
+#include <cassert>
+#include <cmath>
 #include <optional>
 #include <unordered_map>
-#include <array>
-#include <cassert>
 
 namespace Magic
 {
@@ -72,16 +73,27 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
         return;
     }
 
+    if (indices.empty())
+    {
+        Logger::Err("USD mesh contains no face vertex indices");
+        return;
+    }
+
     // "st" is USD's conventional primary UV primvar. ComputeFlattened applies
     // any primvar indices, giving us a directly indexable array of UV values.
     const pxr::UsdGeomPrimvar stPrimvar = pxr::UsdGeomPrimvarsAPI(meshPrim).GetPrimvar(pxr::TfToken("st"));
     pxr::VtArray<pxr::GfVec2f> uvs;
     const bool hasUvs = stPrimvar && stPrimvar.ComputeFlattened(&uvs);
+    if (!hasUvs)
+    {
+        Logger::Err("Prim has no uvs");
+        return;
+    }
 
     // Interpolation determines which topology domain owns each normal or UV:
     // one value for the mesh, one per face, one per point, or one per corner.
     const pxr::TfToken normalsInterpolation = entityMesh.GetNormalsInterpolation();
-    const pxr::TfToken uvInterpolation = hasUvs ? stPrimvar.GetInterpolation() : pxr::UsdGeomTokens->constant;
+    const pxr::TfToken uvInterpolation = stPrimvar.GetInterpolation();
     auto getElementIndex = []( const pxr::TfToken& interpolation, std::size_t faceIndex, std::size_t cornerIndex, std::size_t pointIndex) -> std::optional<std::size_t>
     {
         if (interpolation == pxr::UsdGeomTokens->constant) // The same over the entire mesh
@@ -116,10 +128,141 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
     };
     std::vector<FaceIndexRange> faceIndexRanges(faceVertexCounts.size()); // Keep track of which index ranges correspond to each face if all faces are triangles indexCount is always 3, but this works for quads too. This is indexed by the indices in a GeomSubset (the indices are face indices)
 
-    // MagicEngine stores one position, normal, and UV per vertex. USD can
-    // assign different normals or UVs to corners that reference the same
-    // point. This composite key shares compatible corners while splitting
-    // vertices at hard-normal edges and UV seams.
+    struct CornerData
+    {
+        std::size_t pointIndex{};
+        SimpleVertex vertex{};
+    };
+
+    // MikkTSpace consumes and produces unindexed face-corner data. First
+    // gather every USD corner, then generate tangents, and only then create
+    // the engine's indexed vertex buffer.
+    std::vector<CornerData> corners(indices.size());
+
+    auto getVertexForCorner = [&getElementIndex, &uvInterpolation, &uvs,
+        &normalsInterpolation, &indices, &vertices, &normals](
+            std::size_t faceIndex,
+            std::size_t cornerIndex,
+            CornerData& outCorner) -> bool
+    {
+        assert(cornerIndex < indices.size() && "USD mesh topology has too few indices");
+
+        const int usdPointIndex = indices[cornerIndex];
+        if (usdPointIndex < 0 || static_cast<std::size_t>(usdPointIndex) >= vertices.size())
+        {
+            Logger::Err("USD mesh contains an invalid point index");
+            return false;
+        }
+
+        const std::size_t pointIndex = static_cast<std::size_t>(usdPointIndex);
+        const std::optional<std::size_t> normalIndex = getElementIndex(normalsInterpolation, faceIndex, cornerIndex, pointIndex);
+        if (!normalIndex || *normalIndex >= normals.size())
+        {
+            Logger::Err("Unsupported or invalid USD normal interpolation");
+            return false;
+        }
+
+        outCorner.pointIndex = pointIndex;
+        const pxr::GfVec3f& position = vertices[pointIndex];
+        const pxr::GfVec3f& normal = normals[*normalIndex];
+        outCorner.vertex.position = Vector3f(position[0], position[1], position[2]);
+        outCorner.vertex.normal = Vector3f(normal[0], normal[1], normal[2]);
+        outCorner.vertex.color = Vector3f(1.0f, 1.0f, 1.0f);
+
+        const std::optional<std::size_t> uvIndex = getElementIndex(uvInterpolation, faceIndex, cornerIndex, pointIndex);
+        if (!uvIndex || *uvIndex >= uvs.size())
+        {
+            Logger::Err("Unsupported or invalid USD UV interpolation");
+            return false;
+        }
+
+        outCorner.vertex.uv_x = uvs[*uvIndex][0];
+        // The renderer's texture convention has the opposite V axis
+        // from these Blender-authored USD UVs.
+        outCorner.vertex.uv_y = 1.0f - uvs[*uvIndex][1];
+
+        return true;
+    };
+
+    // First pass: populate one CornerData for each USD face corner.
+    std::size_t cornerIndex = 0;
+    for (std::size_t faceIndex = 0; faceIndex < faceVertexCounts.size(); ++faceIndex)
+    {
+        const int faceVertexCount = faceVertexCounts[faceIndex];
+        assert(faceVertexCount == 3 && "USD mesh has non-triangle faces, please triangulate all meshes");
+
+        for (int faceCorner = 0; faceCorner < faceVertexCount; ++faceCorner)
+        {
+            if (!getVertexForCorner(faceIndex, cornerIndex, corners[cornerIndex]))
+            {
+                return;
+            }
+            ++cornerIndex;
+        }
+    }
+
+    // Every entry in faceVertexIndices must belong to exactly one face.
+    if (cornerIndex != indices.size())
+    {
+        Logger::Err("USD mesh topology has too many indices");
+        return;
+    }
+
+    // Do the actual tangent space calculations
+    SMikkTSpaceInterface interface{};
+    interface.m_getNumFaces = [](const SMikkTSpaceContext* context) -> int
+    {
+        const auto& meshCorners = *static_cast<const std::vector<CornerData>*>(context->m_pUserData);
+        return static_cast<int>(meshCorners.size() / 3);
+    };
+    interface.m_getNumVerticesOfFace = [](const SMikkTSpaceContext*, int) -> int
+    {
+        return 3;
+    };
+    interface.m_getPosition = [](const SMikkTSpaceContext* context, float output[], int faceIndex, int faceCorner)
+    {
+        const auto& meshCorners = *static_cast<const std::vector<CornerData>*>(context->m_pUserData);
+        const SimpleVertex& vertex = meshCorners[static_cast<std::size_t>(faceIndex) * 3 + static_cast<std::size_t>(faceCorner)].vertex;
+        output[0] = vertex.position.x;
+        output[1] = vertex.position.y;
+        output[2] = vertex.position.z;
+    };
+    interface.m_getNormal = [](const SMikkTSpaceContext* context, float output[], int faceIndex, int faceCorner)
+    {
+        const auto& meshCorners = *static_cast<const std::vector<CornerData>*>(context->m_pUserData);
+        const SimpleVertex& vertex = meshCorners[static_cast<std::size_t>(faceIndex) * 3 + static_cast<std::size_t>(faceCorner)].vertex;
+        output[0] = vertex.normal.x;
+        output[1] = vertex.normal.y;
+        output[2] = vertex.normal.z;
+    };
+    interface.m_getTexCoord = [](const SMikkTSpaceContext* context, float output[], int faceIndex, int faceCorner)
+    {
+        const auto& meshCorners = *static_cast<const std::vector<CornerData>*>(context->m_pUserData);
+        const SimpleVertex& vertex = meshCorners[static_cast<std::size_t>(faceIndex) * 3 + static_cast<std::size_t>(faceCorner)].vertex;
+        output[0] = vertex.uv_x;
+        output[1] = vertex.uv_y;
+    };
+    interface.m_setTSpaceBasic = [](const SMikkTSpaceContext* context, const float tangent[], float sign, int faceIndex, int faceCorner)
+    {
+        auto& meshCorners = *static_cast<std::vector<CornerData>*>(context->m_pUserData);
+        SimpleVertex& vertex = meshCorners[static_cast<std::size_t>(faceIndex) * 3 + static_cast<std::size_t>(faceCorner)].vertex;
+        vertex.tangentW = Vector4f(tangent[0], tangent[1], tangent[2], sign);
+    };
+
+    SMikkTSpaceContext context
+    {
+        .m_pInterface = &interface,
+        .m_pUserData = &corners
+    };
+    if (!genTangSpaceDefault(&context))
+    {
+        Logger::Err("MikkTSpace tangent generation failed");
+        return;
+    }
+
+    // MagicEngine stores one position, normal, UV, and tangent per vertex.
+    // Include mikktspace's completed tangent in the key so incompatible face
+    // corners remain split when the final index buffer is generated.
     struct VertexKey
     {
         std::size_t pointIndex;
@@ -128,6 +271,10 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
         float normalZ;
         float uvX;
         float uvY;
+        float tangentX;
+        float tangentY;
+        float tangentZ;
+        float tangentSign;
 
         bool operator==(const VertexKey&) const = default; // The hash is only for finding the right bucket quickly, this is the actual equality comparison to check if a vertex is equal
     };
@@ -146,6 +293,10 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
         hashCombine(key.normalZ);
         hashCombine(key.uvX);
         hashCombine(key.uvY);
+        hashCombine(key.tangentX);
+        hashCombine(key.tangentY);
+        hashCombine(key.tangentZ);
+        hashCombine(key.tangentSign);
         return seed;
     };
 
@@ -153,92 +304,31 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
     std::unordered_map<VertexKey, uint32_t, decltype(vertexKeyHash)> sharedVertices(0, vertexKeyHash);
     sharedVertices.reserve(indices.size());
 
-    // faceVertexIndices is one flat array. cornerIndex tracks our position in
-    // that array as faceVertexCounts divides it into individual polygons.
-    std::size_t cornerIndex = 0;
+    // Second pass: deduplicate complete MikkTSpace vertices and build indices.
+    cornerIndex = 0;
     for (std::size_t faceIndex = 0; faceIndex < faceVertexCounts.size(); ++faceIndex)
     {
         const int faceVertexCount = faceVertexCounts[faceIndex];
-        assert(faceVertexCount == 3 && "USD mesh has non-triangle faces, please triangulate all meshes");
-
-        // Fetch all 3 points first, since they're needed to calculate the bitangent and tangent
-        auto getVertexForACorner = [faceIndex, &getElementIndex
-            , &uvInterpolation, &uvs
-            , &normalsInterpolation, &indices, &vertices, &normals](std::size_t cornerIndex, bool hasUvs, SimpleVertex& outVertex) -> bool
-        {
-            assert(cornerIndex < indices.size() && "USD mesh topology has too few indices");
-
-            // Triangle vertices 0, 1, 2
-            const int usdPointIndex = indices[cornerIndex];
-            if (usdPointIndex < 0 || static_cast<std::size_t>(usdPointIndex) >= vertices.size())
-            {
-                Logger::Err("USD mesh contains an invalid point index");
-                return false;
-            }
-            const std::size_t pointIndex = static_cast<std::size_t>(usdPointIndex);
-            const std::optional<std::size_t> normalIndex = getElementIndex(normalsInterpolation, faceIndex, cornerIndex, pointIndex);
-            if (!normalIndex || *normalIndex >= normals.size())
-            {
-                Logger::Err("Unsupported or invalid USD normal interpolation");
-                return false;
-            }
-
-            const pxr::GfVec3f& position = vertices[pointIndex];
-            const pxr::GfVec3f& normal = normals[*normalIndex];
-            outVertex.position.x = position[0];
-            outVertex.position.y = position[1];
-            outVertex.position.z = position[2];
-            outVertex.normal.x = normal[0];
-            outVertex.normal.y = normal[1];
-            outVertex.normal.z = normal[2];
-            outVertex.color = Vector3f(1.0f, 1.0f, 1.0f);
-
-            if (hasUvs)
-            {
-                const std::optional<std::size_t> uvIndex = getElementIndex(uvInterpolation, faceIndex, cornerIndex, pointIndex);
-                if (!uvIndex || *uvIndex >= uvs.size())
-                {
-                    Logger::Err("Unsupported or invalid USD UV interpolation");
-                    return false;
-                }
-
-                outVertex.uv_x = uvs[*uvIndex][0];
-                // The renderer's texture convention has the opposite V axis
-                // from these Blender-authored USD UVs.
-                outVertex.uv_y = 1.0f - uvs[*uvIndex][1];
-            }
-            return true;
-        };
-        std::array<SimpleVertex, 3> triVerts{}; // change this and below if we'd expect more vertices per face
-        if (!getVertexForACorner(cornerIndex, hasUvs, triVerts[0]) || !getVertexForACorner(cornerIndex + 1, hasUvs, triVerts[1]) || !getVertexForACorner(cornerIndex + 2, hasUvs, triVerts[2]))
-        {
-            return;
-        }
-
         const std::size_t firstFaceIndex = combinedGeometry.m_indices.size();
-        for (int faceCorner = 0; faceCorner < faceVertexCount; ++faceCorner) // 3 iterations, because we presume triangles
+        for (int faceCorner = 0; faceCorner < faceVertexCount; ++faceCorner)
         {
-  
-            const int usdPointIndex = indices[cornerIndex]; // indices is faceVertexIndices
-            const std::size_t pointIndex = static_cast<std::size_t>(usdPointIndex);
-
-            SimpleVertex vertex{};
-            vertex = triVerts[faceCorner];
-            // At this point we have a completed candidate SimpleVertex with all its fields populated
-
-            // Reuse an existing vertex only when position ownership, normal,
-            // and UV all match. Otherwise append a split vertex and index it.
+            const CornerData& corner = corners[cornerIndex];
+            const SimpleVertex& vertex = corner.vertex;
             const VertexKey key
             {
-                .pointIndex = pointIndex,
+                .pointIndex = corner.pointIndex,
                 .normalX = vertex.normal.x,
                 .normalY = vertex.normal.y,
                 .normalZ = vertex.normal.z,
                 .uvX = vertex.uv_x,
-                .uvY = vertex.uv_y
+                .uvY = vertex.uv_y,
+                .tangentX = vertex.tangentW.v[0],
+                .tangentY = vertex.tangentW.v[1],
+                .tangentZ = vertex.tangentW.v[2],
+                .tangentSign = vertex.tangentW.v[3]
             };
-            const uint32_t newVertexIndex = static_cast<uint32_t>(combinedGeometry.m_vertices.size());
-            const auto [sharedVertex, inserted] = sharedVertices.try_emplace(key, newVertexIndex);
+            const uint32_t potentialNewVertexIndex = static_cast<uint32_t>(combinedGeometry.m_vertices.size());
+            const auto [sharedVertex, inserted] = sharedVertices.try_emplace(key, potentialNewVertexIndex);
             if (inserted) // If this is truly a unique vertex, it gets inserted with a new associated index, and also added to the vertex buffer
             {
                 combinedGeometry.m_vertices.push_back(vertex);
@@ -247,13 +337,6 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
             ++cornerIndex;
         }
         faceIndexRanges[faceIndex] = { .firstIndex = firstFaceIndex, .indexCount = combinedGeometry.m_indices.size() - firstFaceIndex };
-    }
-
-    // Every entry in faceVertexIndices must belong to exactly one face.
-    if (cornerIndex != indices.size())
-    {
-        Logger::Err("USD mesh topology has too many indices");
-        return;
     }
 
 

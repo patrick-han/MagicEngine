@@ -8,6 +8,8 @@ struct VSInput
     [[vk::location(2)]] float3 color    : COLOR;    // semantic matches vertex input layout
     [[vk::location(3)]] float  uv_y     : TEXCOORD1;
     [[vk::location(4)]] float3 normal   : NORMAL;
+    [[vk::location(5)]] float  data     : TEXCOORD2;
+    [[vk::location(6)]] float4 tangentW : TEXCOORD3;
 };
 
 struct VSOutput
@@ -17,6 +19,9 @@ struct VSOutput
     float2 uv            : TEXCOORD0;
     float3 worldNormal   : NORMAL;
     float3 worldPosition : TEXCOORD1;
+    float3 T             : TEXCOORD2;
+    float3 B             : TEXCOORD3;
+    float3 N             : TEXCOORD4;
 };
 
 //VSOutput main(uint vertexID : SV_VertexID)
@@ -28,7 +33,20 @@ VSOutput main(VSInput input)
     output.position = mul(pc.viewProjectionMatrix, worldPosition);
     output.color = input.color;
     output.uv = float2(input.uv_x, input.uv_y);
-    output.worldNormal = normalize(mul((float3x3)pc.modelMatrix, input.normal)); // Assumes world transform mtx is rotation, translation, and uniform scaling
+
     output.worldPosition = worldPosition.xyz;
+
+    // Calculate TBN
+
+    float3x3 model = (float3x3)(pc.modelMatrix);
+    float3 Nws = normalize(mul(model, input.normal));
+    float3 Tws = normalize(mul(model, input.tangentW.xyz));
+    Tws = normalize(Tws - Nws * dot(Nws, Tws)); // re-orthogonalize
+
+    float3 Bws = cross(Nws, Tws) * input.tangentW.w; // already in world space at this point
+    output.B = normalize(Bws);
+    output.N = Nws;
+    output.T = Tws;
+    output.worldNormal = Nws; // Assumes world transform mtx is rotation, translation, and uniform scaling
     return output;
 }

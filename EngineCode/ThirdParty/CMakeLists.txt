@@ -47,6 +47,13 @@ target_sources(VJSON INTERFACE
 )
 target_link_libraries(ThirdPartyLibraries INTERFACE VJSON)
 
+add_library(MIKKTSPACE INTERFACE)
+target_sources(MIKKTSPACE INTERFACE
+        MikkTSpace/mikktspace.h
+        MikkTSpace/mikktspace.cpp
+)
+target_link_libraries(ThirdPartyLibraries INTERFACE MIKKTSPACE)
+
 #bs-thread-pool
 add_library(BSTHREADPOOL INTERFACE)
 target_include_directories(BSTHREADPOOL INTERFACE

@@ -62,11 +62,25 @@ struct VertexInputDescription {
     normalAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
     normalAttribute.offset = offsetof(SimpleVertex, normal);
 
+    VkVertexInputAttributeDescription data_Attribute = {};
+    data_Attribute.binding = 0;
+    data_Attribute.location = 5;
+    data_Attribute.format = VK_FORMAT_R32_SFLOAT;
+    data_Attribute.offset = offsetof(SimpleVertex, data);
+
+    VkVertexInputAttributeDescription tangentWAttribute = {};
+    tangentWAttribute.binding = 0;
+    tangentWAttribute.location = 6;
+    tangentWAttribute.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    tangentWAttribute.offset = offsetof(SimpleVertex, tangentW);
+
     description.attributes.push_back(positionAttribute);
     description.attributes.push_back(uv_xAttribute);
     description.attributes.push_back(colorAttribute);
     description.attributes.push_back(uv_yAttribute);
     description.attributes.push_back(normalAttribute);
+    description.attributes.push_back(data_Attribute);
+    description.attributes.push_back(tangentWAttribute);
     return description;
 }
 

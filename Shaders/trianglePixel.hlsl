@@ -18,6 +18,13 @@ float4 sampleTexturePoint(Texture2D tex, float2 texCoords) {
     return tex.Sample(g_samplers[1], texCoords);
 }
 
+float3 decodeNormal(float3 normal)
+{
+    normal = normal * 2.0 - 1.0;
+    normal.y *= pc.normalYSign; // needs to happen before world space transform
+    return normal;
+}
+
 struct PSInput
 {
     float4 position      : SV_POSITION;
@@ -25,13 +32,20 @@ struct PSInput
     float2 uv            : TEXCOORD0;
     float3 worldNormal   : NORMAL;
     float3 worldPosition : TEXCOORD1;
+    float3 T             : TEXCOORD2;
+    float3 B             : TEXCOORD3;
+    float3 N             : TEXCOORD4;
 };
 
 float4 main(PSInput input) : SV_TARGET
 {
+    float3x3 tangentToWorldSpace = transpose(float3x3(input.T, input.B, input.N));
     float2 uv = input.uv;
     float3 baseColor = sampleTextureLinear(g_textures[pc.diffuseTextureBindlessTextureArraySlot], uv).rgb;
-    float diff = saturate(dot(input.worldNormal, -pc.directionalLight.xyz));
+    float3 sampledNormal = sampleTextureLinear(g_textures[pc.normalTextureBindlessTextureArraySlot], uv).rgb;
+    sampledNormal = decodeNormal(sampledNormal);
+    float3 sampledNormalWS = normalize(mul(tangentToWorldSpace, sampledNormal));
+    float diff = saturate(dot(sampledNormalWS, -pc.directionalLight.xyz));
     baseColor *= diff;
-    return float4(baseColor, 1.0f);
+    return float4(baseColor, 1.0);
 }
