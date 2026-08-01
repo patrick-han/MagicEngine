@@ -255,11 +255,6 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataD
 
                     loadTextureView(material->pbr_metallic_roughness.metallic_roughness_texture, meshData.materialData.metallicRoughnessData);
                 }
-
-                if (loadTextureView(material->normal_texture, meshData.materialData.normalData))
-                {
-                    meshData.materialData.normalScale = material->normal_texture.scale;
-                }
             }
             for (auto& vertex : meshData.m_vertices) // fixup vertex colors after material parsing
             {

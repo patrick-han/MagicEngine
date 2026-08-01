@@ -40,11 +40,18 @@ float4 main(PSInput input) : SV_TARGET
 {
     float3x3 tangentToWorldSpace = transpose(float3x3(input.T, input.B, input.N));
     float2 uv = input.uv;
-    float3 baseColor = sampleTextureLinear(g_textures[pc.diffuseTextureBindlessTextureArraySlot], uv).rgb;
+    float3 sampledAlbedo = sampleTextureLinear(g_textures[pc.diffuseTextureBindlessTextureArraySlot], uv).rgb;
     float3 sampledNormal = sampleTextureLinear(g_textures[pc.normalTextureBindlessTextureArraySlot], uv).rgb;
     sampledNormal = decodeNormal(sampledNormal);
     float3 sampledNormalWS = normalize(mul(tangentToWorldSpace, sampledNormal));
+
+    float3 sampledMetallicRoughness = sampleTextureLinear(g_textures[pc.metallicRoughnessTextureBindlessTextureArraySlot], uv).rgb;
+    float sampledMetallic = sampledMetallicRoughness.b * pc.metallicFactor;
+    float sampledRoughness = sampledMetallicRoughness.g * pc.roughnessFactor;
+
+
+
     float diff = saturate(dot(sampledNormalWS, -pc.directionalLight.xyz));
-    baseColor *= diff;
-    return float4(baseColor, 1.0);
+    sampledAlbedo *= diff;
+    return float4(sampledAlbedo, 1.0);
 }

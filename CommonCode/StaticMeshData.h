@@ -24,7 +24,6 @@ struct MaterialData
     TextureData metallicRoughnessData;
     float metallicFactor = 0.0f;
     float roughnessFactor = 0.5f;
-    float normalScale = 1.0f;
     float normalYSign = 1.0f;
     // TextureData emissiveData;
 };

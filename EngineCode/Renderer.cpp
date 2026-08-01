@@ -341,10 +341,9 @@ struct DefaultPushConstants {
     uint32_t metallicRoughnessTextureBindlessTextureArraySlot = 0;
     float metallicFactor = 0.0f;
     float roughnessFactor = 0.5f;
-    float normalScale = 1.0f;
     float normalYSign = 1.0f;
 };
-static_assert(sizeof(DefaultPushConstants) == 172);
+static_assert(sizeof(DefaultPushConstants) == 168);
 
 struct BoundingBoxPushConstants {
     Vector3f min;
@@ -640,7 +639,6 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                         pushConstants.metallicRoughnessTextureBindlessTextureArraySlot = pSubMesh->metallicRoughnessTextureBindlessArraySlot;
                         pushConstants.metallicFactor = pSubMesh->metallicFactor;
                         pushConstants.roughnessFactor = pSubMesh->roughnessFactor;
-                        pushConstants.normalScale = pSubMesh->normalScale;
                         pushConstants.normalYSign = pSubMesh->normalYSign;
                     }
                     else

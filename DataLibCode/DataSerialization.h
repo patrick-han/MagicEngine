@@ -39,7 +39,6 @@ inline void SerializeStaticMeshDataBlob(const StaticMeshData& staticMeshData, co
         SerializeTextureData(blob, mesh.materialData.metallicRoughnessData);
         blob.AddF32(mesh.materialData.metallicFactor);
         blob.AddF32(mesh.materialData.roughnessFactor);
-        blob.AddF32(mesh.materialData.normalScale);
         blob.AddF32(mesh.materialData.normalYSign);
     }
     blob.AddMatrix4fArr(staticMeshData.m_transforms.data(), staticMeshData.m_transforms.size());
@@ -68,7 +67,6 @@ inline std::optional<StaticMeshData> DeserializeStaticMeshDataBlob(const std::st
         DeserializeTextureData(blob, mesh.materialData.metallicRoughnessData);
         mesh.materialData.metallicFactor = blob.GetF32();
         mesh.materialData.roughnessFactor = blob.GetF32();
-        mesh.materialData.normalScale = blob.GetF32();
         mesh.materialData.normalYSign = blob.GetF32();
     }
     staticMeshData.m_transforms.resize(staticMeshData.m_subMeshes.size());

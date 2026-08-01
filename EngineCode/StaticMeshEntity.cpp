@@ -102,7 +102,6 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
         pSubMesh->metallicRoughnessTextureBindlessArraySlot = uploadTexture(materialData.metallicRoughnessData, DefaultTexture::g_whiteTextureImageBindlessSlot);
         pSubMesh->metallicFactor = materialData.metallicFactor;
         pSubMesh->roughnessFactor = materialData.roughnessFactor;
-        pSubMesh->normalScale = materialData.normalScale;
         pSubMesh->normalYSign = materialData.normalYSign;
 
 

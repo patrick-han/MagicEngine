@@ -8,7 +8,6 @@ struct PushConstants
     uint metallicRoughnessTextureBindlessTextureArraySlot;
     float metallicFactor;
     float roughnessFactor;
-    float normalScale;
     float normalYSign;
 };
 

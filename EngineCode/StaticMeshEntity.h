@@ -20,7 +20,6 @@ struct SubMesh
     int metallicRoughnessTextureBindlessArraySlot = -1;
     float metallicFactor = 0.0f;
     float roughnessFactor = 0.5f;
-    float normalScale = 1.0f;
     float normalYSign = 1.0f;
     bool hasTexture = false; // To distinguish from meshes that only have vertex colors
     AABB3f aabb;
