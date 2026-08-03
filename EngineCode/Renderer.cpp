@@ -16,12 +16,12 @@
 #include "World.h"
 
 #ifdef NDEBUG
-#define DEBUG_VMA 0
+#define MAGIC_DEBUG_VMA 0
 #else
-#define DEBUG_VMA 1
+#define MAGIC_DEBUG_VMA 1
 #endif
 
-#if DEBUG_VMA
+#if MAGIC_DEBUG_VMA
 #include <mutex>
 #if PLATFORM_MACOS
 #include <execinfo.h>
@@ -41,7 +41,7 @@
 namespace Magic
 {
 
-#if DEBUG_VMA
+#if MAGIC_DEBUG_VMA
 enum class VMAAllocType
 {
     Buffer,
@@ -99,7 +99,7 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
         &allocatedBuffer.allocation,
         nullptr
     ));
-#if DEBUG_VMA
+#if MAGIC_DEBUG_VMA
     VMAAllocInfo debuginfo;
     debuginfo.type = VMAAllocType::Buffer;
     debuginfo.buffer = allocatedBuffer.buffer;
@@ -152,7 +152,7 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 #endif
 
     vmaDestroyBuffer(m_gpuctx->GetVmaAllocator(), allocatedBuffer.buffer, allocatedBuffer.allocation);
-#if DEBUG_VMA
+#if MAGIC_DEBUG_VMA
     {
         std::scoped_lock lock(g_vmaAllocInfoMutex);
         g_vmaAllocInfo.erase(allocatedBuffer.allocation);
@@ -169,7 +169,7 @@ void Renderer::DestroyBuffer(AllocatedBuffer allocatedBuffer)
 
     AllocatedImage allocatedImage;
     VK_CHECK(vmaCreateImage(allocator, &imageCreateInfo, &vmaAllocInfo, &allocatedImage.image, &allocatedImage.allocation, nullptr));
-#if DEBUG_VMA
+#if MAGIC_DEBUG_VMA
     VMAAllocInfo debuginfo;
     debuginfo.type = VMAAllocType::Image;
     debuginfo.image = allocatedImage.image;
@@ -240,7 +240,7 @@ void Renderer::DestroyImage(AllocatedImage allocatedImage)
 #endif
 
     vmaDestroyImage(m_gpuctx->GetVmaAllocator(), allocatedImage.image, allocatedImage.allocation);
-#if DEBUG_VMA
+#if MAGIC_DEBUG_VMA
     {
         std::scoped_lock lock(g_vmaAllocInfoMutex);
         g_vmaAllocInfo.erase(allocatedImage.allocation);
@@ -804,7 +804,7 @@ void Renderer::Shutdown()
     }
 
     // Check for gpu memory leaks
-#if DEBUG_VMA
+#if MAGIC_DEBUG_VMA
     {
         std::scoped_lock lock(g_vmaAllocInfoMutex);
         for (auto& debug : g_vmaAllocInfo)
