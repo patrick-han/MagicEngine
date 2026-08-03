@@ -96,7 +96,6 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
         };
 
         const MaterialData& materialData = subMeshData.materialData;
-        pSubMesh->hasTexture = materialData.diffuseData.width != 0 || materialData.normalData.width != 0 || materialData.metallicRoughnessData.width != 0;
         pSubMesh->diffuseTextureBindlessArraySlot = uploadTexture(materialData.diffuseData, DefaultTexture::g_defaultTextureImageBindlessSlot, TextureType::Color);
         pSubMesh->normalTextureBindlessArraySlot = uploadTexture(materialData.normalData, DefaultTexture::g_flatNormalTextureImageBindlessSlot, TextureType::Data);
         pSubMesh->metallicRoughnessTextureBindlessArraySlot = uploadTexture(materialData.metallicRoughnessData, DefaultTexture::g_whiteTextureImageBindlessSlot, TextureType::Data);

@@ -21,7 +21,6 @@ struct SubMesh
     float metallicFactor = 0.0f;
     float roughnessFactor = 0.5f;
     float normalYSign = 1.0f;
-    bool hasTexture = false; // To distinguish from meshes that only have vertex colors
     AABB3f aabb;
 };
 

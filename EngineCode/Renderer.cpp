@@ -83,9 +83,6 @@ Renderer::~Renderer() { }
 
 AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData, VkBufferUsageFlags usage)
 {
-#if MAGIC_TRACK_GPU_STATS
-    GGpuStats.IncrementBufferBytes(bufferSize);
-#endif
     assert(bufferSize > 0);
     VmaAllocator allocator = m_gpuctx->GetVmaAllocator();
     VkBufferCreateInfo bufferCreateInfo = {
@@ -125,6 +122,11 @@ AllocatedBuffer Renderer::UploadBuffer(size_t bufferSize, const void *bufferData
     vmaMapMemory(allocator, allocatedBuffer.allocation, &data);
     std::memcpy(data, bufferData, bufferSize);
     vmaUnmapMemory(allocator, allocatedBuffer.allocation);
+#if MAGIC_TRACK_GPU_STATS
+    VmaAllocationInfo allocInfo {};
+    vmaGetAllocationInfo(m_gpuctx->GetVmaAllocator(), allocatedBuffer.allocation, &allocInfo);
+    GGpuStats.IncrementBufferBytes(allocInfo.size);
+#endif
     return allocatedBuffer;
 }
 
@@ -197,7 +199,9 @@ AllocatedImage Renderer::UploadImage(const void *imageData, int numChannels, VkI
     size_t bytesPerChannel = 1;
     size_t dataSize = imageCreateInfo.extent.width * imageCreateInfo.extent.height * numChannels * bytesPerChannel;
 #if MAGIC_TRACK_GPU_STATS
-    GGpuStats.IncrementImageBytes(dataSize);
+    VmaAllocationInfo allocInfo {};
+    vmaGetAllocationInfo(m_gpuctx->GetVmaAllocator(), allocatedImage.allocation, &allocInfo);
+    GGpuStats.IncrementImageBytes(allocInfo.size);
 #endif
     AllocatedBuffer imageStagingBuffer = UploadBuffer(dataSize, imageData, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
 
@@ -445,43 +449,6 @@ void Renderer::BuildResources() {
         vkDestroyShaderModule(device, ps_m, nullptr);
     }
 
-    {
-        std::vector<char> vspv = readFileBytes("Shaders/triangleVertex.vertex.spv");
-        std::vector<char> pspv = readFileBytes("Shaders/trianglePixelVertexColorsOnly.pixel.spv");
-        VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
-        VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
-        VkFormat outRTFormats[] = { m_colorFormat };
-        VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR
-            , .colorAttachmentCount = 1
-            , .pColorAttachmentFormats = outRTFormats
-            , .depthAttachmentFormat = m_depthFormat
-        };
-
-        auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
-        pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
-        pipelineBuilder.SetExtent(outputWidth, outputHeight);
-        auto vd = SimpleVertexDescription();
-        pipelineBuilder.SetVertexDescription(vd);
-
-        pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
-        pipelineBuilder.SetDescriptorSetLayouts(m_bindlessManager.m_descriptorSetLayout);
-        pipelineBuilder.SetDepthTestEnable(true);
-        pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
-
-        {
-            VkPushConstantRange defaultPushConstantRange = {
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                .offset = 0,
-                .size = sizeof(DefaultPushConstants)
-            };
-            pipelineBuilder.SetPushConstantRanges(m_pushConstantRanges);
-        }
-        m_simplePipelineVertexColors = pipelineBuilder.Build(device, vs_m, ps_m);
-        vkDestroyShaderModule(device, vs_m, nullptr);
-        vkDestroyShaderModule(device, ps_m, nullptr);
-    }
-
     // Bounding box 
     {
         std::vector<char> vspv = readFileBytes("Shaders/aabbVertex.vertex.spv");
@@ -559,7 +526,6 @@ void Renderer::DestroyResources()
     vkDestroySampler(device, m_linearSampler, NULL);
     vkDestroySampler(device, m_pointSampler, NULL);
     m_debugDrawPipeline.Destroy();
-    m_simplePipelineVertexColors.Destroy();
     m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
     { // Destroy rendertargetse
@@ -664,20 +630,15 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                 {
                     pushConstants.model = transforms[subMeshIndex];
 
-                    if (pSubMesh->hasTexture)
-                    {
-                        cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
-                        pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;
-                        pushConstants.normalTextureBindlessTextureArraySlot = pSubMesh->normalTextureBindlessArraySlot;
-                        pushConstants.metallicRoughnessTextureBindlessTextureArraySlot = pSubMesh->metallicRoughnessTextureBindlessArraySlot;
-                        pushConstants.metallicFactor = pSubMesh->metallicFactor;
-                        pushConstants.roughnessFactor = pSubMesh->roughnessFactor;
-                        pushConstants.normalYSign = pSubMesh->normalYSign;
-                    }
-                    else
-                    {
-                        cmdEncoder.BindGraphicsPipeline(m_simplePipelineVertexColors);
-                    }
+  
+                    cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
+                    pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;
+                    pushConstants.normalTextureBindlessTextureArraySlot = pSubMesh->normalTextureBindlessArraySlot;
+                    pushConstants.metallicRoughnessTextureBindlessTextureArraySlot = pSubMesh->metallicRoughnessTextureBindlessArraySlot;
+                    pushConstants.metallicFactor = pSubMesh->metallicFactor;
+                    pushConstants.roughnessFactor = pSubMesh->roughnessFactor;
+                    pushConstants.normalYSign = pSubMesh->normalYSign;
+
                     vkCmdPushConstants(cmdEncoder.Handle(), m_simplePipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants), &pushConstants);
                 }
                 cmdEncoder.DrawIndexedSimple(pSubMesh->indexCount, 0);
