@@ -44,10 +44,16 @@ public:
     , VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT);
 
     void CopyImageToImage(
-    const Image& srcImage, const Image& dstImage
-    , VkImageAspectFlags srcImageAspect, VkImageAspectFlags dstImageAspect
-    , VkImageLayout srcImageLayout, VkImageLayout dstImageLayout
-    , int width, int height
+        const Image& srcImage, const Image& dstImage
+        , VkImageAspectFlags srcImageAspect, VkImageAspectFlags dstImageAspect
+        , VkImageLayout srcImageLayout, VkImageLayout dstImageLayout
+        , int width, int height
+    ) const;
+
+    void BlitImage(
+        const Image& srcImage, const Image& dstImage
+        , const VkImageLayout srcImageLayout, const VkImageLayout dstImageLayout
+        , const VkFilter filter, int width, int height
     ) const;
 
 private:

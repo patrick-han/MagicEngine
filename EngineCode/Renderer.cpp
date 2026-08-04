@@ -677,15 +677,11 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT
         , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    cmdEncoder.CopyImageToImage(m_rtColorImage, swapchainImageData.image
-        , VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_ASPECT_COLOR_BIT
-        , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-        , outputWidth, outputHeight);
 
-    // cmdEncoder.ImageBarrier(swapchainImageData.image
-    //     , VK_ACCESS_TRANSFER_WRITE_BIT, {}
-    //     , VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-    //     , VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    cmdEncoder.BlitImage(m_rtColorImage, swapchainImageData.image
+        , VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        , VK_FILTER_LINEAR, outputWidth, outputHeight
+    );
 
 
     {

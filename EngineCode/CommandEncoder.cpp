@@ -159,4 +159,42 @@ void CommandEncoder::CopyImageToImage(const Image &srcImage, const Image &dstIma
         &imageCopy
     );
 }
+void CommandEncoder::BlitImage(
+    const Image &srcImage, const Image &dstImage
+    , const VkImageLayout srcImageLayout, const VkImageLayout dstImageLayout,
+    const VkFilter filter, int width, int height) const
+{
+    constexpr uint32_t regionCount = 1;
+
+    VkOffset3D srcDstOffsets[2] = {
+        {
+            .x = 0, .y = 0, .z = 0
+        }
+        ,
+        {
+            .x = width, .y = height, .z = 1
+        }
+    };
+
+    VkImageBlit blit = {
+        .srcSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1
+        }
+        , .srcOffsets = {srcDstOffsets[0], srcDstOffsets[1]}
+        , .dstSubresource = {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1
+        }
+        , .dstOffsets = {srcDstOffsets[0], srcDstOffsets[1]}
+    };
+
+    vkCmdBlitImage(
+        m_handle
+        , srcImage.image, srcImageLayout
+        , dstImage.image, dstImageLayout
+        , regionCount
+        , &blit, filter
+    );
+}
 } // Magic
