@@ -19,7 +19,8 @@ public:
 
     Swapchain() = delete;
     Swapchain(VkDevice _device, VkPhysicalDevice _physicalDevice, VkSurfaceKHR _surface, uint32_t _desiredSwapchainImageCount, int _initialWidth, int _initialHeight);
-    ~Swapchain();
+    ~Swapchain() = default;
+    void Destroy();
     [[nodiscard]] SwapchainImageData GetNextSwapchainImageData(VkSemaphore signalImageReadySemaphore) const;
     [[nodiscard]] VkSwapchainKHR GetSwapchainHandle() const { return m_swapchain; };
     [[nodiscard]] uint32_t GetImageCount() const { return m_imageCount; };

@@ -90,7 +90,7 @@ void Application::Startup()
     std::unique_ptr<Window>& defaultWindow = m_windows[Window::DEFAULT_WINDOW];
     SDL_SetWindowRelativeMouseMode((SDL_Window*)defaultWindow->GetNativeWindowHandle(), true);
 
-    m_swapchains.push_back(std::make_unique<Swapchain>(
+    m_swapchains.push_back(Swapchain(
         m_gpuctx->GetDevice()
         , m_gpuctx->GetPhysicalDevice()
         , defaultWindow->GetSurface()
@@ -100,7 +100,7 @@ void Application::Startup()
 
     // Renderer
     GRenderer = GMemoryManager->New<Renderer>();
-    GRenderer->Startup(m_gpuctx, m_swapchains[Window::DEFAULT_WINDOW].get());
+    GRenderer->Startup(m_gpuctx, &m_swapchains[Window::DEFAULT_WINDOW]);
     GTextureCache = GMemoryManager->New<TextureCache>();
     // TODO: move this somewhere else, probably a Camera class
     GRenderer->outputWidth = defaultWindow->GetWidth();
@@ -122,12 +122,12 @@ void Application::Startup()
         init_info.DescriptorPool = GRenderer->m_imguiDescriptorPool;
         init_info.Subpass = 0;
         init_info.MinImageCount = g_kDesiredSwapchainImageCount;
-        init_info.ImageCount = m_swapchains[Window::DEFAULT_WINDOW]->GetImageCount();
+        init_info.ImageCount = m_swapchains[Window::DEFAULT_WINDOW].GetImageCount();
         init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
         init_info.Allocator = VK_NULL_HANDLE;
         init_info.CheckVkResultFn = imgui_check_vk_result;
         init_info.UseDynamicRendering = true;
-        VkFormat colorFmt = m_swapchains[Window::DEFAULT_WINDOW]->GetFormat();
+        VkFormat colorFmt = m_swapchains[Window::DEFAULT_WINDOW].GetFormat();
         VkPipelineRenderingCreateInfo prci{ .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
                                             .colorAttachmentCount = 1,
                                             .pColorAttachmentFormats = &colorFmt };
@@ -191,9 +191,10 @@ void Application::Shutdown()
         ImGui_ImplSDL3_Shutdown();
         ImGui::DestroyContext();
     }
-    for (std::unique_ptr<Swapchain>& swapchain : m_swapchains)
+    for (Swapchain& swapchain : m_swapchains)
     {
-        swapchain.reset();
+        swapchain.Destroy();
+        m_swapchains.clear();
     }
     for (std::unique_ptr<Window>& window : m_windows)
     {

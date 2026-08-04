@@ -95,7 +95,8 @@ Swapchain::Swapchain(
         m_images.emplace_back(m_swapchainImages[i], m_swapchainImageViews[i]);
     }
 }
-Swapchain::~Swapchain()
+
+void Swapchain::Destroy()
 {
     Logger::Info("Destroying swapchain");
     for (uint32_t k = 0; k < m_images.size(); k++)

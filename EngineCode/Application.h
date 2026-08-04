@@ -24,7 +24,7 @@ private:
     bool SampleInput(InputState& inputState);
     GPUContext* m_gpuctx;
     std::vector<std::unique_ptr<Window>> m_windows;
-    std::vector<std::unique_ptr<Swapchain>> m_swapchains;
+    std::vector<Swapchain> m_swapchains;
     int m_frameNumber = 0;
 };
 }
