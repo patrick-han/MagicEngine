@@ -16,6 +16,7 @@
 #include "RenderingInfo.h"
 #include "GPUContext.h"
 #include "BindlessManager.h"
+#include "RendererSettings.h"
 
 namespace Magic
 {
@@ -124,7 +125,11 @@ private:
     AllocatedImage m_rtColorImage;
     AllocatedImage m_rtDepthImage;
     const VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
+#if MAGIC_USE_HDR_RENDERING
+    const VkFormat m_colorFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+#else
     const VkFormat m_colorFormat = VK_FORMAT_B8G8R8A8_SRGB;
+#endif
 
     GraphicsPipeline m_debugDrawPipeline; // bounding box
     bool m_renderBoundingBoxes = false;

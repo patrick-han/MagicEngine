@@ -4,7 +4,7 @@
 #include "Vulkan/Helpers.h"
 #include "Image.h"
 #include <cassert>
-
+#include "RendererSettings.h"
 
 
 
@@ -32,8 +32,14 @@ Swapchain::Swapchain(
     std::vector<VkSurfaceFormatKHR> formats(surfaceFormatCount);
     vkGetPhysicalDeviceSurfaceFormatsKHR(_physicalDevice, _surface, &surfaceFormatCount, formats.data());
 
-    VkFormat _desiredFormat = VK_FORMAT_B8G8R8A8_UNORM; // TODO
+#if MAGIC_USE_HDR_RENDERING
+    VkFormat _desiredFormat = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+    VkColorSpaceKHR swapChainColorSpace = VK_COLOR_SPACE_HDR10_ST2084_EXT;
+#else
+    VkFormat _desiredFormat = VK_FORMAT_B8G8R8A8_UNORM;
     VkColorSpaceKHR swapChainColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+#endif
+
     bool foundCompatible = false;
     for (auto format : formats)
     {

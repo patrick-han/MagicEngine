@@ -4,7 +4,7 @@ project(MagicEngine)
 set(CMAKE_CXX_STANDARD 23)
 
 # OpenUSD
-set(OPENUSD_ROOT "E:\\openusd-install" CACHE PATH
+set(OPENUSD_ROOT "/Users/patrick/openusd-install" CACHE PATH
         "Path to the OpenUSD installation")
 list(PREPEND CMAKE_PREFIX_PATH "${OPENUSD_ROOT}")
 find_package(pxr CONFIG REQUIRED
@@ -88,6 +88,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/GPUStats.h
         EngineCode/DirectionalLightEntity.h
         EngineCode/DirectionalLightEntity.cpp
+        EngineCode/RendererSettings.h
 )
 
 add_subdirectory(EngineCode/ThirdParty)

@@ -35,6 +35,8 @@ bool Magic::DirectionalLightEntity::Load(const pxr::UsdPrim &entityPrim)
     sun.GetIntensityAttr().Get(&m_intensity);
     sun.GetExposureAttr().Get(&m_exposure);
 
+    m_intensity = m_intensity * 4.0f; // USD divides the Blender intensity value by 4 (From Blender's USD exporter: "/* Unclear why, but approximately matches Karma. */")
+
     const pxr::GfVec4d localDirection(0.0, 0.0, -1.0, 0.0); // "An intrinsic light that provides light from a distant source, along the -Z axis"
     pxr::GfVec4d worldDirection = localDirection * worldTransform; // USD uses row vectors
     pxr::GfVec3d direction3(worldDirection[0], worldDirection[1], worldDirection[2]);
