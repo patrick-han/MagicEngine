@@ -51,7 +51,7 @@ bool Magic::DirectionalLightEntity::Unload()
     return true;
 }
 
-void Magic::DirectionalLightEntity::DrawInspectorElements()
+void Magic::DirectionalLightEntity::DrawInspectorElementsSpecific()
 {
     ImGui::DragFloat3("Light Direction", &m_direction.v[0], 0.05f, -1.0f, 1.0f, "%.3f");
     ImGui::DragFloat3("Light Color", &m_color.v[0], 0.05f, 0.0f, 1.0f, "%.3f");

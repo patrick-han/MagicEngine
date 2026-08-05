@@ -78,7 +78,7 @@ void World::Load(const char* worldPath)
                 };
                 pendingEntities.push_back(payload);
             }
-            if (primName.starts_with("dir_light"))
+            if (primName.starts_with("light_dir"))
             {
                 entityCount++;
                 EntityLoadPayloadUSD payload = {
@@ -127,6 +127,7 @@ void World::Load(const char* worldPath)
                     GMemoryManager->Delete(directionalLightEntity);
                 }
                 m_pDirLight = directionalLightEntity;
+                break;
             }
             default:
             {

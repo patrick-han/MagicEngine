@@ -67,6 +67,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/World.h
         EngineCode/World.cpp
         EngineCode/Entity.h
+        EngineCode/Entity.cpp
         EngineCode/StaticMeshEntity.h
         EngineCode/StaticMeshEntity.cpp
         EngineCode/USDImporter.h

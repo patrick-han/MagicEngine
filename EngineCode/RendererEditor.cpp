@@ -158,15 +158,6 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
             ImGui::TextWrapped("%s", Entity::TypeToStr(selectedEntityType));
             ImGui::Separator(); 
 
-            Matrix4f t = GEditor->sceneOutlineSelectedEntity->m_transform;
-  
-            ImGui::TextWrapped("Transform Matrix");
-            ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[0], t.m[1], t.m[2], t.m[3]);
-            ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[4], t.m[5], t.m[6], t.m[7]);
-            ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[8], t.m[9], t.m[10], t.m[11]);
-            ImGui::TextWrapped("[%f, %f, %f, %f]", t.m[12], t.m[13], t.m[14], t.m[15]);
-            ImGui::Separator(); 
-
             GEditor->sceneOutlineSelectedEntity->DrawInspectorElements();
         
         }

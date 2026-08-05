@@ -127,7 +127,7 @@ std::span<SubMesh* const> StaticMeshEntity::GetSubMeshes() const
     return std::span<SubMesh* const>(m_subMeshes);
 }
 
-void StaticMeshEntity::DrawInspectorElements()
+void StaticMeshEntity::DrawInspectorElementsSpecific()
 {
     ImGui::Text("SubMesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(1,1,1,1), "%zu", m_subMeshes.size());
     ImGui::Separator(); 

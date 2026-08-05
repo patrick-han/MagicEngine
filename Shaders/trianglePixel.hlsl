@@ -126,5 +126,5 @@ float4 main(PSInput input) : SV_TARGET
     // float3 ambient = 0.03 * sampledAlbedo * (1.0 - sampledMetallic);
     float3 color = ambient + Lo;
 
-    return float4(color, 1.0);
+    return float4(color * input.color, 1.0);
 }
