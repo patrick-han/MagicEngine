@@ -125,15 +125,14 @@ private:
     AllocatedImage m_rtColorImage;
     AllocatedImage m_rtDepthImage;
     const VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
-#if MAGIC_USE_HDR_RENDERING
     const VkFormat m_colorFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
-#else
-    const VkFormat m_colorFormat = VK_FORMAT_B8G8R8A8_SRGB;
-#endif
 
     GraphicsPipeline m_debugDrawPipeline; // bounding box
     bool m_renderBoundingBoxes = false;
-
+#if MAGIC_USE_CUSTOM_IMGUI_PIPELINE
+    GraphicsPipeline m_imguiPipeline;
+    VkDescriptorSetLayout m_imguiDescriptorSetLayout = VK_NULL_HANDLE;
+#endif
     // Immediate rendering resources
     void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function); // Lambda should take a command buffer and return nothing
 

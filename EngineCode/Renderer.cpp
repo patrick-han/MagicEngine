@@ -485,6 +485,84 @@ void Renderer::BuildResources() {
         vkDestroyShaderModule(device, ps_m, nullptr);
     }
 
+#if MAGIC_USE_CUSTOM_IMGUI_PIPELINE
+    // ImGui's built-in style colors are display-referred sRGB values. The
+    // stock Vulkan backend writes them directly, which makes an sRGB color
+    // attachment encode them a second time. This compatible replacement
+    // pipeline uses a fragment shader that first converts vertex RGB to
+    // linear; the backend still owns buffers, descriptors, and draw calls.
+    {
+        VkDescriptorSetLayoutBinding textureBinding = {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT
+        };
+        VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .bindingCount = 1,
+            .pBindings = &textureBinding
+        };
+        VK_CHECK(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &m_imguiDescriptorSetLayout));
+
+        std::vector<char> vspv = readFileBytes("Shaders/imgui.vertex.spv");
+        std::vector<char> pspv = readFileBytes("Shaders/imgui.pixel.spv");
+        VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
+        VkShaderModule ps_m = m_gpuctx->CreateShaderModule(pspv);
+
+        VkFormat swapchainFormat = m_swapchain->GetFormat();
+        VkPipelineRenderingCreateInfoKHR pipelineRenderingInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+            .colorAttachmentCount = 1,
+            .pColorAttachmentFormats = &swapchainFormat
+        };
+
+        VertexInputDescription vertexDescription;
+        vertexDescription.bindings.push_back({
+            .binding = 0,
+            .stride = sizeof(ImDrawVert),
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+        });
+        vertexDescription.attributes.push_back({
+            .location = 0,
+            .binding = 0,
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            .offset = offsetof(ImDrawVert, pos)
+        });
+        vertexDescription.attributes.push_back({
+            .location = 1,
+            .binding = 0,
+            .format = VK_FORMAT_R32G32_SFLOAT,
+            .offset = offsetof(ImDrawVert, uv)
+        });
+        vertexDescription.attributes.push_back({
+            .location = 2,
+            .binding = 0,
+            .format = VK_FORMAT_R8G8B8A8_UNORM,
+            .offset = offsetof(ImDrawVert, col)
+        });
+
+        VkPushConstantRange pushConstantRange = {
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+            .offset = 0,
+            .size = sizeof(float) * 4
+        };
+
+        auto pipelineBuilder = GraphicsPipeline::CreateBuilder();
+        pipelineBuilder.SetRenderingInfo(&pipelineRenderingInfo);
+        pipelineBuilder.SetExtent(outputWidth, outputHeight);
+        pipelineBuilder.SetVertexDescription(vertexDescription);
+        pipelineBuilder.SetPushConstantRanges(std::span(&pushConstantRange, 1));
+        pipelineBuilder.SetDescriptorSetLayouts(m_imguiDescriptorSetLayout);
+        pipelineBuilder.SetBlendEnable(true);
+        pipelineBuilder.SetCullMode(VK_CULL_MODE_NONE);
+        pipelineBuilder.SetDepthTestEnable(false);
+        m_imguiPipeline = pipelineBuilder.Build(device, vs_m, ps_m);
+
+        vkDestroyShaderModule(device, vs_m, nullptr);
+        vkDestroyShaderModule(device, ps_m, nullptr);
+    }
+#endif
 
 
     VkExtent3D rtExtent = {.width = static_cast<uint32_t>(outputWidth), .height = static_cast<uint32_t>(outputHeight), .depth = 1 };
@@ -525,6 +603,10 @@ void Renderer::DestroyResources()
     WaitIdle();
     vkDestroySampler(device, m_linearSampler, NULL);
     vkDestroySampler(device, m_pointSampler, NULL);
+#if MAGIC_USE_CUSTOM_IMGUI_PIPELINE
+    m_imguiPipeline.Destroy();
+    vkDestroyDescriptorSetLayout(device, m_imguiDescriptorSetLayout, nullptr);
+#endif
     m_debugDrawPipeline.Destroy();
     m_simplePipeline.Destroy();
     vkDestroySemaphore(device, m_timelineSemaphore, nullptr);
@@ -709,7 +791,13 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         uiRI.colorAttachmentCount = 1;
         uiRI.pColorAttachments = &uiColor;
         cmdEncoder.BeginRendering(uiRI);
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdEncoder.Handle());
+        ImGui_ImplVulkan_RenderDrawData(
+            ImGui::GetDrawData()
+            , cmdEncoder.Handle()
+#if MAGIC_USE_CUSTOM_IMGUI_PIPELINE
+            , m_imguiPipeline.GetPipelineHandle()
+#endif
+        );
         cmdEncoder.EndRendering();
 
         cmdEncoder.ImageBarrier(swapchainImageData.image

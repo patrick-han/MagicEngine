@@ -127,7 +127,7 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
     VkPipelineDepthStencilStateCreateInfo depthStencil = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .depthTestEnable = m_depthTestEnable ? VK_TRUE : VK_FALSE,
-        .depthWriteEnable = VK_TRUE,
+        .depthWriteEnable = m_depthTestEnable ? VK_TRUE : VK_FALSE,
         .depthCompareOp = m_depthCompareOp,
         .depthBoundsTestEnable = VK_FALSE,
         .stencilTestEnable = VK_FALSE
@@ -153,7 +153,7 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
         .colorBlendOp = VK_BLEND_OP_ADD,
         // Alpha
         .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+        .dstAlphaBlendFactor = m_blendEnable ? VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA : VK_BLEND_FACTOR_ZERO,
         .alphaBlendOp = VK_BLEND_OP_ADD,
 
         .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
@@ -264,4 +264,3 @@ VkPipelineLayout GraphicsPipeline::GetPipelineLayout() const {
     return m_pipelineLayout;
 }
 }
-

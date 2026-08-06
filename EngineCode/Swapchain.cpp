@@ -36,7 +36,7 @@ Swapchain::Swapchain(
     VkFormat _desiredFormat = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
     VkColorSpaceKHR swapChainColorSpace = VK_COLOR_SPACE_HDR10_ST2084_EXT;
 #else
-    VkFormat _desiredFormat = VK_FORMAT_B8G8R8A8_UNORM;
+    VkFormat _desiredFormat = VK_FORMAT_B8G8R8A8_SRGB;
     VkColorSpaceKHR swapChainColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 #endif
 
