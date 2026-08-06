@@ -5,6 +5,12 @@ namespace Magic
 
 void IEntity::DrawInspectorElements()
 {
+    ImGui::TextWrapped("UUID");
+    std::string uuidStr = m_uuid.ToString();
+    ImGui::TextWrapped("%s", uuidStr.c_str());
+    ImGui::Separator();
+
+
     ImGui::TextWrapped("Transform Matrix");
     ImGui::TextWrapped("[%f, %f, %f, %f]", m_transform.m[0], m_transform.m[1], m_transform.m[2], m_transform.m[3]);
     ImGui::TextWrapped("[%f, %f, %f, %f]", m_transform.m[4], m_transform.m[5], m_transform.m[6], m_transform.m[7]);
