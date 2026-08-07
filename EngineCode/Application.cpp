@@ -258,8 +258,8 @@ bool Application::SampleInput(InputState& inputState)
                 const float sensitivity = 0.1f;
                 xoffset *= sensitivity;
                 yoffset *= sensitivity;
-                inputState.mouseXOffset = xoffset;
-                inputState.mouseYOffset = yoffset;
+                inputState.mouseXOffset += xoffset;
+                inputState.mouseYOffset += yoffset;
             }
             default:
                 break;
