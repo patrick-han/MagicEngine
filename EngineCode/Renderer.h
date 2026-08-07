@@ -116,6 +116,7 @@ private:
 
 
     // TODO:
+    std::vector<VkPushConstantRange> m_shadowPushConstantRanges;
     std::vector<VkPushConstantRange> m_pushConstantRanges;
     std::vector<VkPushConstantRange> m_boundingBoxPushConstantRanges;
     //
@@ -124,6 +125,8 @@ private:
     GraphicsPipeline m_simplePipeline;
     AllocatedImage m_rtColorImage;
     AllocatedImage m_rtDepthImage;
+    GraphicsPipeline m_shadowPipeline;
+    AllocatedImage m_shadowMapImage;
     const VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
     const VkFormat m_colorFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 
