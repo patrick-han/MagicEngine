@@ -76,6 +76,7 @@ add_executable(MagicEngine main.cpp
         EngineCode/TextureCache.cpp
         EngineCode/MemoryManager.h
         EngineCode/MemoryManager.cpp
+        EngineCode/UUID.cpp
         EngineCode/UUID.h
         EngineCode/Threading.cpp
         EngineCode/Threading.h

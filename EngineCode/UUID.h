@@ -7,6 +7,45 @@
 #include <stdexcept>
 #include <functional>  // for std::hash specialization
 
+#define MAGIC_USE_SIMPLE_UUID 1
+
+#if MAGIC_USE_SIMPLE_UUID
+
+namespace Magic {
+
+class UUID
+{
+    static std::size_t nextUUID;
+public:
+    static std::size_t GetNewUUID()
+    {
+        return ++nextUUID;
+    }
+    static void ResetUUIDs()
+    {
+        nextUUID = 0;
+    }
+    UUID(std::size_t uuid)
+    {
+        m_value = uuid;
+    }
+    UUID() = delete;
+    ~UUID() = default;
+
+    // ---- string ----
+    std::string ToString() const
+    {
+        return std::to_string(m_value);
+    }
+
+private:
+    std::size_t m_value = 0;
+};
+
+}
+
+#else // MAGIC_USE_SIMPLE_UUID
+
 #if PLATFORM_WINDOWS
   #include "Platform/WindowsHeader.h"
   #include <rpc.h>
@@ -162,3 +201,5 @@ struct hash<Magic::UUID>
     }
 };
 } // namespace std
+
+#endif // MAGIC_USE_SIMPLE_UUID

@@ -151,7 +151,9 @@ void World::Destroy()
         assert(entity->Unload());
         GMemoryManager->Delete(entity);
     }
-
+#if MAGIC_USE_SIMPLE_UUID
+    UUID::ResetUUIDs();
+#endif
     m_entities.clear();
 
     GTextureCache->Destroy();

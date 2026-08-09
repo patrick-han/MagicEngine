@@ -60,6 +60,9 @@ class IEntity
 {
 public:
     IEntity() : m_parent(nullptr)
+#if MAGIC_USE_SIMPLE_UUID
+    , m_uuid(UUID::GetNewUUID())
+#endif // MAGIC_USE_SIMPLE_UUID
     {
 
     }

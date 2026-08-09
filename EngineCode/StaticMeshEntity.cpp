@@ -24,8 +24,9 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
 {
     // Top level properties
     const std::string entityName = entityPrim.GetName().GetString();
+#if !MAGIC_USE_SIMPLE_UUID
     UUID entityUUID; // TODO: embed entities in Blender via a plugin? this is just a random runtime entity for now
-
+#endif // !MAGIC_USE_SIMPLE_UUID
     pxr::UsdGeomXformCache cache;
     const pxr::GfMatrix4d worldTransform = cache.GetLocalToWorldTransform(entityPrim);
 
@@ -43,7 +44,9 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
     };
 
     SetName(entityName.c_str());
+#if !MAGIC_USE_SIMPLE_UUID
     SetUUID(entityUUID);
+#endif // !MAGIC_USE_SIMPLE_UUID
     m_transform = GfMatrix4dToMatrix4f(worldTransform);
 
     StaticMeshData staticMeshData;
