@@ -76,14 +76,27 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
         .pName = "main"
     };
 
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-        .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .module = ps,
-        .pName = "main"
-    };
-
-    std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStages = { vertShaderStageInfo, fragShaderStageInfo };
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
+    uint32_t stageCount = 1;
+    
+    if (ps != VK_NULL_HANDLE)
+    {
+        stageCount = 2;
+        fragShaderStageInfo = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .module = ps,
+            .pName = "main"
+        };
+    }
+    
+    std::vector<VkPipelineShaderStageCreateInfo> pipelineShaderStages;
+    pipelineShaderStages.push_back(vertShaderStageInfo);
+    if (ps != VK_NULL_HANDLE)
+    {
+        pipelineShaderStages.push_back(fragShaderStageInfo);
+    }
+    
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -192,7 +205,7 @@ GraphicsPipeline GraphicsPipelineBuilder::Build(VkDevice device, VkShaderModule 
         VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         &m_pipelineRenderingCreateInfo,
         VkPipelineCreateFlags(),
-        2,
+        stageCount,
         pipelineShaderStages.data(),
         &vertexInputInfo,
         &inputAssembly,

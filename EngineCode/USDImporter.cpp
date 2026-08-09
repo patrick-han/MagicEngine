@@ -209,17 +209,17 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
     }
 
     // Do the actual tangent space calculations
-    SMikkTSpaceInterface interface{};
-    interface.m_getNumFaces = [](const SMikkTSpaceContext* context) -> int
+    SMikkTSpaceInterface mikkInterface{};
+    mikkInterface.m_getNumFaces = [](const SMikkTSpaceContext* context) -> int
     {
         const auto& meshCorners = *static_cast<const std::vector<CornerData>*>(context->m_pUserData);
         return static_cast<int>(meshCorners.size() / 3);
     };
-    interface.m_getNumVerticesOfFace = [](const SMikkTSpaceContext*, int) -> int
+    mikkInterface.m_getNumVerticesOfFace = [](const SMikkTSpaceContext*, int) -> int
     {
         return 3;
     };
-    interface.m_getPosition = [](const SMikkTSpaceContext* context, float output[], int faceIndex, int faceCorner)
+    mikkInterface.m_getPosition = [](const SMikkTSpaceContext* context, float output[], int faceIndex, int faceCorner)
     {
         const auto& meshCorners = *static_cast<const std::vector<CornerData>*>(context->m_pUserData);
         const SimpleVertex& vertex = meshCorners[static_cast<std::size_t>(faceIndex) * 3 + static_cast<std::size_t>(faceCorner)].vertex;
@@ -227,7 +227,7 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
         output[1] = vertex.position.y;
         output[2] = vertex.position.z;
     };
-    interface.m_getNormal = [](const SMikkTSpaceContext* context, float output[], int faceIndex, int faceCorner)
+    mikkInterface.m_getNormal = [](const SMikkTSpaceContext* context, float output[], int faceIndex, int faceCorner)
     {
         const auto& meshCorners = *static_cast<const std::vector<CornerData>*>(context->m_pUserData);
         const SimpleVertex& vertex = meshCorners[static_cast<std::size_t>(faceIndex) * 3 + static_cast<std::size_t>(faceCorner)].vertex;
@@ -235,14 +235,14 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
         output[1] = vertex.normal.y;
         output[2] = vertex.normal.z;
     };
-    interface.m_getTexCoord = [](const SMikkTSpaceContext* context, float output[], int faceIndex, int faceCorner)
+    mikkInterface.m_getTexCoord = [](const SMikkTSpaceContext* context, float output[], int faceIndex, int faceCorner)
     {
         const auto& meshCorners = *static_cast<const std::vector<CornerData>*>(context->m_pUserData);
         const SimpleVertex& vertex = meshCorners[static_cast<std::size_t>(faceIndex) * 3 + static_cast<std::size_t>(faceCorner)].vertex;
         output[0] = vertex.uv_x;
         output[1] = vertex.uv_y;
     };
-    interface.m_setTSpaceBasic = [](const SMikkTSpaceContext* context, const float tangent[], float sign, int faceIndex, int faceCorner)
+    mikkInterface.m_setTSpaceBasic = [](const SMikkTSpaceContext* context, const float tangent[], float sign, int faceIndex, int faceCorner)
     {
         auto& meshCorners = *static_cast<std::vector<CornerData>*>(context->m_pUserData);
         SimpleVertex& vertex = meshCorners[static_cast<std::size_t>(faceIndex) * 3 + static_cast<std::size_t>(faceCorner)].vertex;
@@ -251,7 +251,7 @@ void USDImporter::ImportUSDPrimAsStaticMesh(
 
     SMikkTSpaceContext context
     {
-        .m_pInterface = &interface,
+        .m_pInterface = &mikkInterface,
         .m_pUserData = &corners
     };
     if (!genTangSpaceDefault(&context))

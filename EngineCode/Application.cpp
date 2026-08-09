@@ -137,15 +137,12 @@ void Application::Startup()
     }
 }
 
-
-#define EDITOR 1
-
 void Application::Run(Game& game)
 {
     GRenderer->BuildResources();
-#if EDITOR
+
     GEditor = GMemoryManager->New<Editor>();
-#endif
+
     game.Initialize(GRenderer);
     while (true)
     {
@@ -177,9 +174,9 @@ void Application::Run(Game& game)
     }
     game.Shutdown();
     GRenderer->DestroyResources();
-#if EDITOR
+
     GMemoryManager->Delete(GEditor);
-#endif
+
 }
 
 
@@ -258,8 +255,8 @@ bool Application::SampleInput(InputState& inputState)
                 const float sensitivity = 0.1f;
                 xoffset *= sensitivity;
                 yoffset *= sensitivity;
-                inputState.mouseXOffset = xoffset;
-                inputState.mouseYOffset = yoffset;
+                inputState.mouseXOffset += xoffset;
+                inputState.mouseYOffset += yoffset;
             }
             default:
                 break;
