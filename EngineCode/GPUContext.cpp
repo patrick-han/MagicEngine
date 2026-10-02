@@ -165,6 +165,7 @@ void GPUContext::Startup(std::span<const char*> additionalExtensions)
             , VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME
             , VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME
             , VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME
+            , VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
     #if PLATFORM_MACOS
             , "VK_KHR_portability_subset"
     #endif

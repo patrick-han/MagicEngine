@@ -366,7 +366,7 @@ struct DefaultPushConstants {
     float roughnessFactor = 0.5f;
     float normalYSign = 1.0f;
 };
-static_assert(sizeof(WorldData) == 64);
+static_assert(sizeof(WorldData) == 128);
 static_assert(offsetof(DefaultPushConstants, worldDataBufferAddress) == 144);
 static_assert(sizeof(DefaultPushConstants) == 168);
 
@@ -432,7 +432,7 @@ void Renderer::BuildResources() {
         auto vd = SimpleVertexDescription();
         pipelineBuilder.SetVertexDescription(vd);
 
-        pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
+        pipelineBuilder.SetCullMode(VK_CULL_MODE_FRONT_BIT);
         // pipelineBuilder.SetDescriptorSetLayouts(m_bindlessManager.m_descriptorSetLayout);
         pipelineBuilder.SetDepthTestEnable(true);
         pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
@@ -455,6 +455,45 @@ void Renderer::BuildResources() {
 
     // Main pass
     {
+        VkDescriptorSetLayoutBinding shadowMapBinding {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        };
+
+        VkDescriptorSetLayoutBinding shadowMapSamplerBinding {
+            .binding = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        };
+
+        std::array<VkDescriptorSetLayoutBinding, 2> bindings { shadowMapBinding, shadowMapSamplerBinding };
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR,
+            .bindingCount = 2,
+            .pBindings = bindings.data()
+        };
+
+        vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &m_shadowMapDescriptorSetLayout);
+
+        VkSamplerCreateInfo shadowCI = {
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = VK_FILTER_NEAREST,
+            .minFilter = VK_FILTER_NEAREST,
+            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST,
+            .addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+            .addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+            .addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+            .anisotropyEnable = VK_FALSE,
+            .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE
+            // .maxAnisotropy = maxAnisotropy,
+        };
+        VK_CHECK(vkCreateSampler(device, &shadowCI, nullptr, &m_shadowSampler));
+
         std::vector<char> vspv = readFileBytes("Shaders/triangleVertex.vertex.spv");
         std::vector<char> pspv = readFileBytes("Shaders/trianglePixel.pixel.spv");
         VkShaderModule vs_m = m_gpuctx->CreateShaderModule(vspv);
@@ -475,7 +514,8 @@ void Renderer::BuildResources() {
         pipelineBuilder.SetVertexDescription(vd);
 
         pipelineBuilder.SetCullMode(VK_CULL_MODE_BACK_BIT);
-        pipelineBuilder.SetDescriptorSetLayouts(m_bindlessManager.m_descriptorSetLayout);
+        std::array<VkDescriptorSetLayout, 2> layouts = { m_bindlessManager.m_descriptorSetLayout, m_shadowMapDescriptorSetLayout };
+        pipelineBuilder.SetDescriptorSetLayouts(layouts);
         pipelineBuilder.SetDepthTestEnable(true);
         pipelineBuilder.SetDepthCompareOp(VK_COMPARE_OP_LESS);
 
@@ -599,7 +639,8 @@ void Renderer::BuildResources() {
         pipelineBuilder.SetExtent(outputWidth, outputHeight);
         pipelineBuilder.SetVertexDescription(vertexDescription);
         pipelineBuilder.SetPushConstantRanges(std::span(&pushConstantRange, 1));
-        pipelineBuilder.SetDescriptorSetLayouts(m_imguiDescriptorSetLayout);
+        std::array<VkDescriptorSetLayout, 1> layouts { m_imguiDescriptorSetLayout };
+        pipelineBuilder.SetDescriptorSetLayouts(layouts);
         pipelineBuilder.SetBlendEnable(true);
         pipelineBuilder.SetCullMode(VK_CULL_MODE_NONE);
         pipelineBuilder.SetDepthTestEnable(false);
@@ -659,6 +700,8 @@ void Renderer::DestroyResources()
     WaitIdle();
     vkDestroySampler(device, m_linearSampler, NULL);
     vkDestroySampler(device, m_pointSampler, NULL);
+    vkDestroySampler(device, m_shadowSampler, NULL);
+    vkDestroyDescriptorSetLayout(device, m_shadowMapDescriptorSetLayout, nullptr);
 #if MAGIC_USE_CUSTOM_IMGUI_PIPELINE
     m_imguiPipeline.Destroy();
     vkDestroyDescriptorSetLayout(device, m_imguiDescriptorSetLayout, nullptr);
@@ -708,37 +751,10 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
     cmdEncoder.Reset();
     cmdEncoder.Begin();
 
+    Matrix4f lightView;
+    Matrix4f lightProjection;
     // Shadow pass
     {
-        cmdEncoder.ImageBarrier(m_shadowMapImage
-        , VK_ACCESS_NONE
-        , VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
-        , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
-        , VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
-        , VK_IMAGE_LAYOUT_UNDEFINED
-        , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
-        , VK_IMAGE_ASPECT_DEPTH_BIT);
-
-        VkClearValue depthClearValue = {.depthStencil = {1.0f}};
-        auto rai_depth = TEMP_rendering_attachment_info(m_shadowMapImage.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue);
-        VkRenderingInfoKHR ri = {
-            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
-            .pNext = nullptr,
-            .flags = {},
-            .renderArea = VkRect2D{ {0, 0}, { MAGIC_SHADOWMAP_RESOLUTION, MAGIC_SHADOWMAP_RESOLUTION }},
-            .layerCount = 1,
-            .viewMask = 0,
-            .pDepthAttachment = &rai_depth,
-            .pStencilAttachment = nullptr,
-        };
-
-        cmdEncoder.BeginRendering(ri);
-
-        cmdEncoder.SetViewport(MAGIC_SHADOWMAP_RESOLUTION, MAGIC_SHADOWMAP_RESOLUTION);
-        cmdEncoder.SetScissor(MAGIC_SHADOWMAP_RESOLUTION, MAGIC_SHADOWMAP_RESOLUTION);
-
-        
-
         Vector3f lightForward = Vector3f(
             0.0f,
             0.0f,
@@ -772,21 +788,51 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
             0.0f,           0.0f,             0.0f,        1.0f
         );
 
-        Matrix4f lightView = lightWorld.InvertedRigid();
-        ShadowMapPushConstants pushConstants = {};
+        lightView = lightWorld.InvertedRigid();
+        
         auto MakeOrthographic = [](float width, float height, float nearPlane, float farPlane) -> Matrix4f
-            {
-                const float halfW = width * 0.5f;
-                const float halfH = height * 0.5f;
+        {
+            const float halfW = width * 0.5f;
+            const float halfH = height * 0.5f;
 
-                return Matrix4f(
-                    1.0f / halfW, 0.0f, 0.0f, 0.0f
-                    , 0.0f, 0.0f, -1.0f / halfH, 0.0f
-                    , 0.0f, 1.0f / (farPlane - nearPlane), 0.0f, -nearPlane / (farPlane - nearPlane)
-                    , 0.0f, 0.0f, 0.0f, 1.0f
-                );
-            };
-        Matrix4f lightProjection = MakeOrthographic(100.0f, 100.0f, 0.1f, 200.0f);
+            return Matrix4f(
+                1.0f / halfW, 0.0f, 0.0f, 0.0f
+                , 0.0f, 0.0f, -1.0f / halfH, 0.0f
+                , 0.0f, 1.0f / (farPlane - nearPlane), 0.0f, -nearPlane / (farPlane - nearPlane)
+                , 0.0f, 0.0f, 0.0f, 1.0f
+            );
+        };
+        lightProjection = MakeOrthographic(100.0f, 100.0f, 0.1f, 200.0f);
+    }
+    {
+        cmdEncoder.ImageBarrier(m_shadowMapImage
+        , VK_ACCESS_NONE
+        , VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT
+        , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+        , VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+        , VK_IMAGE_LAYOUT_UNDEFINED
+        , VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+        , VK_IMAGE_ASPECT_DEPTH_BIT);
+
+        VkClearValue depthClearValue = {.depthStencil = {1.0f}};
+        auto rai_depth = TEMP_rendering_attachment_info(m_shadowMapImage.view, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, &depthClearValue);
+        VkRenderingInfoKHR ri = {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+            .pNext = nullptr,
+            .flags = {},
+            .renderArea = VkRect2D{ {0, 0}, { MAGIC_SHADOWMAP_RESOLUTION, MAGIC_SHADOWMAP_RESOLUTION }},
+            .layerCount = 1,
+            .viewMask = 0,
+            .pDepthAttachment = &rai_depth,
+            .pStencilAttachment = nullptr,
+        };
+
+        cmdEncoder.BeginRendering(ri);
+
+        cmdEncoder.SetViewport(MAGIC_SHADOWMAP_RESOLUTION, MAGIC_SHADOWMAP_RESOLUTION);
+        cmdEncoder.SetScissor(MAGIC_SHADOWMAP_RESOLUTION, MAGIC_SHADOWMAP_RESOLUTION);
+
+        ShadowMapPushConstants pushConstants = {};
         pushConstants.shadowViewProjection = lightProjection * lightView;
         int subMeshIndex = 0;
         std::span<Matrix4f const> transforms = GMemoryManager->GetFrameTransforms();
@@ -836,15 +882,18 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
         cmdEncoder.SetViewport(outputWidth, outputHeight);
         cmdEncoder.SetScissor(outputWidth, outputHeight);
 
-        // Bindless set
+        std::array<VkDescriptorSet, 1> sets 
+        {
+            m_bindlessManager.m_descriptorSet
+        };
 
         vkCmdBindDescriptorSets(
             cmdEncoder.Handle(),
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             m_simplePipeline.GetPipelineLayout(),
-            0, // firstSet
-            1,
-            &m_bindlessManager.m_descriptorSet, // your bindless descriptor set
+            0,
+            static_cast<uint32_t>(sets.size()),
+            sets.data(),
             0,
             nullptr
         );
@@ -868,6 +917,7 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                     worldData.dirLight.m_angle = renderingInfo.pWorld->m_pDirLight->m_angle;
                     worldData.dirLight.m_intensity = renderingInfo.pWorld->m_pDirLight->m_intensity;
                     worldData.dirLight.m_exposure = renderingInfo.pWorld->m_pDirLight->m_exposure;
+                    worldData.dirLight.viewProjection = lightProjection * lightView;
                 }
 
                 worldData.cameraPos = Vector4f(renderingInfo.pCamera->GetPosition(), 1.0f);
@@ -882,8 +932,49 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
                 {
                     pushConstants.model = transforms[subMeshIndex];
 
-  
                     cmdEncoder.BindGraphicsPipeline(m_simplePipeline);
+
+                    {
+                        VkDescriptorImageInfo imageInfo
+                        {
+                            .imageView   = m_shadowMapImage.view,
+                            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                        };
+
+                        VkDescriptorImageInfo samplerInfo
+                        {
+                            .sampler = m_shadowSampler,
+                        };
+
+                        std::array<VkWriteDescriptorSet, 2> writes{};
+
+                        writes[0] = 
+                        {
+                            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                            .dstBinding      = 0,
+                            .descriptorCount = 1,
+                            .descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                            .pImageInfo      = &imageInfo,
+                        };
+
+                        writes[1] = 
+                        {
+                            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                            .dstBinding      = 1,
+                            .descriptorCount = 1,
+                            .descriptorType  = VK_DESCRIPTOR_TYPE_SAMPLER,
+                            .pImageInfo      = &samplerInfo,
+                        };
+
+                        vkCmdPushDescriptorSetKHR(
+                            cmdEncoder.Handle(),
+                            VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            m_simplePipeline.GetPipelineLayout(),
+                            1, // descriptor set
+                            static_cast<uint32_t>(writes.size()),
+                            writes.data());
+                    }
+
                     pushConstants.diffuseTextureBindlessTextureArraySlot = pSubMesh->diffuseTextureBindlessArraySlot;
                     pushConstants.normalTextureBindlessTextureArraySlot = pSubMesh->normalTextureBindlessArraySlot;
                     pushConstants.metallicRoughnessTextureBindlessTextureArraySlot = pSubMesh->metallicRoughnessTextureBindlessArraySlot;

@@ -13,6 +13,7 @@ struct DirectionalLightData
     float m_intensity = 0.0f;
     float m_exposure = 0.0f;
     float data0 = 0.0f;
+    Matrix4f viewProjection;
 };
 
 class DirectionalLightEntity final : public IEntity
