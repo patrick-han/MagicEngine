@@ -754,56 +754,12 @@ void Renderer::DoWork(int frameNumber, RenderingInfo& renderingInfo)
     Matrix4f lightView;
     Matrix4f lightProjection;
     // Shadow pass
+    if (renderingInfo.pWorld->m_pDirLight)
     {
-        Vector3f lightForward = Vector3f(
-            0.0f,
-            0.0f,
-            -1.0f
-        ).AsNormalized();
-        if (renderingInfo.pWorld->m_pDirLight)
-        {
-            lightForward = Vector3f(
-                renderingInfo.pWorld->m_pDirLight->m_direction.v[0],
-                renderingInfo.pWorld->m_pDirLight->m_direction.v[1],
-                renderingInfo.pWorld->m_pDirLight->m_direction.v[2]
-            ).AsNormalized();
-        }
-
-        // Avoid crossing with an almost-parallel up vector.
-        Vector3f upHint = std::abs(Dot(lightForward, Vector3f(0.0f, 0.0f, 1.0f))) > 0.99f
-            ? Vector3f(0.0f, 1.0f, 0.0f)
-            : Vector3f(0.0f, 0.0f, 1.0f);
-
-        Vector3f lightRight = Cross(lightForward, upHint).AsNormalized();
-        Vector3f lightUp = Cross(lightRight, lightForward).AsNormalized();
-
-        Vector3f shadowCenter = renderingInfo.pCamera->GetPosition(); // better: camera frustum/world bounds center
-        float shadowDepth = 200.0f;
-        Vector3f lightPosition = shadowCenter - lightForward * (shadowDepth * 0.5f);
-
-        Matrix4f lightWorld(
-            lightRight.x,   lightForward.x,   lightUp.x,   lightPosition.x,
-            lightRight.y,   lightForward.y,   lightUp.y,   lightPosition.y,
-            lightRight.z,   lightForward.z,   lightUp.z,   lightPosition.z,
-            0.0f,           0.0f,             0.0f,        1.0f
-        );
-
-        lightView = lightWorld.InvertedRigid();
-        
-        auto MakeOrthographic = [](float width, float height, float nearPlane, float farPlane) -> Matrix4f
-        {
-            const float halfW = width * 0.5f;
-            const float halfH = height * 0.5f;
-
-            return Matrix4f(
-                1.0f / halfW, 0.0f, 0.0f, 0.0f
-                , 0.0f, 0.0f, -1.0f / halfH, 0.0f
-                , 0.0f, 1.0f / (farPlane - nearPlane), 0.0f, -nearPlane / (farPlane - nearPlane)
-                , 0.0f, 0.0f, 0.0f, 1.0f
-            );
-        };
-        lightProjection = MakeOrthographic(100.0f, 100.0f, 0.1f, 200.0f);
+        lightView = renderingInfo.pWorld->m_pDirLight->GetViewMatrix(renderingInfo.pCamera->GetPosition());
+        lightProjection = renderingInfo.pWorld->m_pDirLight->GetProjectionMatrix(100.0f, 100.0f, 0.1f, 200.0f);
     }
+
     {
         cmdEncoder.ImageBarrier(m_shadowMapImage
         , VK_ACCESS_NONE
