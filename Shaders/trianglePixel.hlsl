@@ -10,12 +10,46 @@ SamplerState g_samplers[2]; // Samplers
 [[vk::binding(1, 0)]] // Set 0, binding 1
 Texture2D g_textures[]; // Texture array
 
+[[vk::binding(0, 1)]]
+Texture2D<float> g_shadowMap;
+
+[[vk::binding(1, 1)]]
+SamplerState g_shadowMapSampler;
+
 float4 sampleTextureLinear(Texture2D tex, float2 texCoords) {
     return tex.Sample(g_samplers[0], texCoords);
 }
 
 float4 sampleTexturePoint(Texture2D tex, float2 texCoords) {
     return tex.Sample(g_samplers[1], texCoords);
+}
+
+float calculateShadow(float3 shadowCoords, float bias)
+{
+    if (shadowCoords.z <= 0.0 || shadowCoords.z >= 1.0 ||
+        any(shadowCoords.xy < 0.0) || any(shadowCoords.xy > 1.0))
+    {
+        return 0.0;
+    }
+
+    uint shadowMapWidth;
+    uint shadowMapHeight;
+    g_shadowMap.GetDimensions(shadowMapWidth, shadowMapHeight);
+    float2 texelSize = 1.0 / float2(shadowMapWidth, shadowMapHeight);
+
+    float shadow = 0.0;
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            float closestDepth = g_shadowMap.Sample(g_shadowMapSampler, shadowCoords.xy + float2(x, y) * texelSize);
+            shadow += shadowCoords.z - bias > closestDepth ? 1.0 : 0.0;
+        }
+    }
+
+    return shadow / 9.0;
 }
 
 float3 decodeNormal(float3 normal)
@@ -27,13 +61,14 @@ float3 decodeNormal(float3 normal)
 
 struct PSInput
 {
-    float4 position      : SV_POSITION;
-    float3 color         : COLOR;
-    float2 uv            : TEXCOORD0;
-    float3 worldPosition : TEXCOORD1;
-    float3 T             : TEXCOORD2;
-    float3 B             : TEXCOORD3;
-    float3 N             : NORMAL;
+    float4 position         : SV_POSITION;
+    float3 color            : COLOR;
+    float2 uv               : TEXCOORD0;
+    float3 worldPosition    : TEXCOORD1;
+    float3 T                : TEXCOORD2;
+    float3 B                : TEXCOORD3;
+    float3 N                : NORMAL;
+    float4 dirLightSpacePos : TEXCOORD4;
 };
 
 
@@ -124,7 +159,15 @@ float4 main(PSInput input) : SV_TARGET
 
     float3 ambient = float3(0.03, 0.03, 0.03) * sampledAlbedo; // improvised ambient term
     // float3 ambient = 0.03 * sampledAlbedo * (1.0 - sampledMetallic);
-    float3 color = ambient + Lo;
+
+    // Shadowmap
+    float3 shadowClipCoords = input.dirLightSpacePos.xyz / input.dirLightSpacePos.w; // Z already ranges from [0, w] unlike OpenGL, so no shift needed below
+    float3 shadowNDC = shadowClipCoords;
+    shadowNDC.xy = shadowClipCoords.xy * 0.5 + 0.5; // xy [-1, 1] to [0, 1]
+    float bias = max(0.00002, 0.00025 * (1.0 - saturate(dot(N, L))));
+    float shadow = calculateShadow(shadowNDC, bias);
+
+    float3 color = ambient + Lo * (1.0 - shadow);
 
     return float4(color * input.color, 1.0);
 }

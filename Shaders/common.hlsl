@@ -7,6 +7,7 @@ struct DirectionalLightData
     float intensity;
     float exposure;
     float data0;
+    row_major float4x4 viewProjectionMatrix;
 };
 
 struct WorldData

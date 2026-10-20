@@ -13,7 +13,7 @@ public:
     GraphicsPipelineBuilder& SetRenderingInfo(const VkPipelineRenderingCreateInfoKHR* info);
     GraphicsPipelineBuilder& SetVertexDescription(const VertexInputDescription& description);
     GraphicsPipelineBuilder& SetPushConstantRanges(std::span<VkPushConstantRange const> ranges);
-    GraphicsPipelineBuilder& SetDescriptorSetLayouts(VkDescriptorSetLayout layout);
+    GraphicsPipelineBuilder& SetDescriptorSetLayouts(std::span<VkDescriptorSetLayout const> layouts);
     GraphicsPipelineBuilder& SetExtent(uint32_t width, uint32_t height);
     GraphicsPipelineBuilder& SetBlendEnable(bool enable);
     GraphicsPipelineBuilder& SetCullMode(VkCullModeFlags cullMode);
@@ -26,12 +26,12 @@ public:
 private:
     [[nodiscard]] static VkPipelineLayout CreatePipelineLayout(VkDevice device
         , std::span<VkPushConstantRange const> pushConstantRanges
-        , VkDescriptorSetLayout descriptorSetLayout
+        , std::span<VkDescriptorSetLayout const> descriptorSetLayouts
     );
     VkPipelineRenderingCreateInfoKHR m_pipelineRenderingCreateInfo;
     VertexInputDescription m_vertexDescription;
     std::span<VkPushConstantRange const> m_pushConstantRanges;
-    VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
+    std::span<VkDescriptorSetLayout const> m_descriptorSetLayouts;
     VkExtent2D m_extent {0, 0};
     bool m_blendEnable = false;
     VkCullModeFlags m_cullMode = VK_CULL_MODE_NONE;

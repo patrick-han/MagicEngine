@@ -14,26 +14,29 @@ struct VSInput
 
 struct VSOutput
 {
-    float4 position      : SV_POSITION;
-    float3 color         : COLOR;
-    float2 uv            : TEXCOORD0;
-    float3 worldPosition : TEXCOORD1;
-    float3 T             : TEXCOORD2;
-    float3 B             : TEXCOORD3;
-    float3 N             : NORMAL;
+    float4 position         : SV_POSITION;
+    float3 color            : COLOR;
+    float2 uv               : TEXCOORD0;
+    float3 worldPosition    : TEXCOORD1;
+    float3 T                : TEXCOORD2;
+    float3 B                : TEXCOORD3;
+    float3 N                : NORMAL;
+    float4 dirLightSpacePos : TEXCOORD4;
 };
 
 //VSOutput main(uint vertexID : SV_VertexID)
 VSOutput main(VSInput input)
 {
     VSOutput output;
-    // output.position = float4(input.position, 1.0f);
     float4 worldPosition = mul(pc.modelMatrix, float4(input.position, 1.0f));
     output.position = mul(pc.viewProjectionMatrix, worldPosition);
     output.color = input.color;
     output.uv = float2(input.uv_x, input.uv_y);
 
     output.worldPosition = worldPosition.xyz;
+
+    WorldData worldData = GetWorldData();
+    output.dirLightSpacePos = mul(worldData.dirLight.viewProjectionMatrix, worldPosition);
 
     // Calculate TBN
 

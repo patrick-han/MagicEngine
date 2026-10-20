@@ -116,12 +116,14 @@ private:
 
 
     // TODO:
+    VkDescriptorSetLayout m_shadowMapDescriptorSetLayout = VK_NULL_HANDLE;
     std::vector<VkPushConstantRange> m_shadowPushConstantRanges;
     std::vector<VkPushConstantRange> m_pushConstantRanges;
     std::vector<VkPushConstantRange> m_boundingBoxPushConstantRanges;
     //
     VkSampler m_linearSampler = VK_NULL_HANDLE;
     VkSampler m_pointSampler = VK_NULL_HANDLE;
+    VkSampler m_shadowSampler = VK_NULL_HANDLE;
     GraphicsPipeline m_simplePipeline;
     AllocatedImage m_rtColorImage;
     AllocatedImage m_rtDepthImage;
