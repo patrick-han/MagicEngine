@@ -4,7 +4,7 @@ project(MagicEngine)
 set(CMAKE_CXX_STANDARD 23)
 
 # OpenUSD
-set(OPENUSD_ROOT "/Users/patrick/openusd-install" CACHE PATH
+set(OPENUSD_ROOT "C:/Users/patrick/openusd_install" CACHE PATH
         "Path to the OpenUSD installation")
 list(PREPEND CMAKE_PREFIX_PATH "${OPENUSD_ROOT}")
 find_package(pxr CONFIG REQUIRED
@@ -91,6 +91,10 @@ add_executable(MagicEngine main.cpp
         EngineCode/DirectionalLightEntity.h
         EngineCode/DirectionalLightEntity.cpp
         EngineCode/RendererSettings.h
+        EngineCode/GLTFImporter.h
+        EngineCode/GLTFImporter.cpp
+        EngineCode/MeshCache.h
+        EngineCode/MeshCache.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)
@@ -110,6 +114,31 @@ target_link_libraries(MagicEngine PRIVATE
 set_property(TARGET MagicEngine APPEND PROPERTY
         BUILD_RPATH "${OPENUSD_ROOT}/lib"
 )
+
+if(WIN32)
+    file(GLOB OPENUSD_RUNTIME_DLLS CONFIGURE_DEPENDS
+            "${OPENUSD_ROOT}/lib/*.dll"
+            "${OPENUSD_ROOT}/bin/*.dll"
+    )
+
+    if(Python3_Development_FOUND)
+        find_file(OPENUSD_PYTHON_DLL
+                NAMES "python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}.dll"
+                PATHS ${Python3_RUNTIME_LIBRARY_DIRS}
+                NO_DEFAULT_PATH
+                NO_CACHE
+                REQUIRED
+        )
+        list(APPEND OPENUSD_RUNTIME_DLLS "${OPENUSD_PYTHON_DLL}")
+    endif()
+
+    add_custom_command(TARGET MagicEngine POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    ${OPENUSD_RUNTIME_DLLS}
+                    "$<TARGET_FILE_DIR:MagicEngine>"
+            VERBATIM
+    )
+endif()
 
 # Get an absolute path to the root directory
 configure_file(

@@ -25,7 +25,7 @@ inline EntityType StrToEntityType(const char* name)
 {
     static const std::unordered_map<std::string_view, EntityType> table = 
     {
-        { "staticmesh", EntityType::StaticMesh }
+        { "Mesh", EntityType::StaticMesh }
     };
     if (auto it = table.find(name); it != table.end())
     {

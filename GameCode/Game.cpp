@@ -106,10 +106,17 @@ void Game::Shutdown()
     GMemoryManager->Delete(m_pWorld);
 }
 
-void Game::LoadContent(const char* worldPath)
+bool Game::LoadContent(const char* worldPath)
 {
+    std::error_code error;
+    if (!worldPath || !std::filesystem::is_regular_file(worldPath, error))
+    {
+        return false;
+    }
+
     Logger::Info("Load MyGame content");
-    m_pWorld->Load(worldPath);
+    m_pWorld->LoadJSON(worldPath);
+    return true;
 }
 
 void Game::UnloadContent()
@@ -144,8 +151,16 @@ bool a = true;
                 {
                     meshesToRender.push_back(pSubMesh); // We don't necessarily want to wait for the entire static mesh to be ready, submeshes are okay
                     Matrix4f* allocTransform = GMemoryManager->AllocateFrameTransform();
-                    Matrix4f worldTransform = staticMeshEntity->m_transform * pSubMesh->m_transform;
-                    *allocTransform = worldTransform;
+                    if (!allocTransform)
+                    {
+                        Logger::Warn("Failed to allocate frame transform! Skipping the rest of the submeshes...");
+                        break;
+                    }
+                    else
+                    {
+                        Matrix4f worldTransform = staticMeshEntity->m_transform * pSubMesh->m_transform;
+                        *allocTransform = worldTransform;
+                    }
                 }
             }
         }

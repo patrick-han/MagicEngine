@@ -17,6 +17,7 @@ public:
     World() = default;
     ~World() = default;
     void Load(const char* worldPath);
+    void LoadJSON(const char* worldPath);
 
     void Save(const char* worldPath)
     {

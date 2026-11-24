@@ -5,6 +5,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <filesystem>
 
 namespace Magic
 {
@@ -22,6 +23,7 @@ class TextureCache
 {
 public:
     [[nodiscard]] int GetOrUpload(const std::string& resolvedPath, const TextureData& textureData, const unsigned char* pixels, TextureType type);
+    [[nodiscard]] int GetOrUploadNEW(const std::filesystem::path& filePath, TextureType type);
     void Destroy();
 
 private:

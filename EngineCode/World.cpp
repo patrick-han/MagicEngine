@@ -2,6 +2,9 @@
 #include "Renderer.h"
 #include "TextureCache.h"
 #include "Threading.h"
+#include "Entity.h"
+
+#include "vjson_header.h"
 
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usd/prim.h>
@@ -21,6 +24,12 @@ namespace
 struct EntityLoadPayloadUSD
 {
     pxr::UsdPrim entity;
+    EntityType entityType = EntityType::Unknown;
+};
+
+struct EntityLoadPayload
+{
+    vjson::Object entityMeshComponent;
     EntityType entityType = EntityType::Unknown;
 };
 
@@ -141,6 +150,108 @@ void World::Load(const char* worldPath)
     futures.wait();
     m_entities = std::move(loadedEntities);
     Logger::Info(std::format("Entity loading took: {}", Timing::SinceMS(start)));
+}
+
+void World::LoadJSON(const char* worldPath)
+{
+    // Every material texture slot is always valid. Missing base-color and
+    // metallic-roughness maps use white; missing normal maps use a flat normal.
+    {        
+        auto uploadDefaultTexture = [](VkFormat format, const DefaultTexture::TextureArray& pixels, AllocatedImage& image, int& bindlessSlot)
+        {
+            constexpr VkExtent3D extent { .width = 128 , .height = 128 , .depth = 1 };
+            const VkImageCreateInfo imci = DefaultImageCreateInfo(format, extent, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_TYPE_2D);
+            image = GRenderer->UploadImage(pixels.data(), DefaultTexture::CHANNELS, imci);
+            const VkImageViewCreateInfo imageViewCreateInfo = DefaultImageViewCreateInfo(
+                image.image,
+                imci.format,
+                VkComponentMapping{ VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A },
+                VK_IMAGE_ASPECT_COLOR_BIT);
+            image.view = GRenderer->CreateViewForAllocatedImage(imageViewCreateInfo);
+            bindlessSlot = GRenderer->m_bindlessManager.AddToBindlessTextureArray(image);
+        };
+
+        uploadDefaultTexture(VK_FORMAT_R8G8B8A8_SRGB, DefaultTexture::g_DefaultTexture, DefaultTexture::g_defaultTextureImage, DefaultTexture::g_defaultTextureImageBindlessSlot);
+        uploadDefaultTexture(VK_FORMAT_R8G8B8A8_SRGB, DefaultTexture::g_WhiteTexture, DefaultTexture::g_whiteTextureImage, DefaultTexture::g_whiteTextureImageBindlessSlot);
+        uploadDefaultTexture(VK_FORMAT_R8G8B8A8_UNORM, DefaultTexture::g_FlatNormalTexture, DefaultTexture::g_flatNormalTextureImage, DefaultTexture::g_flatNormalTextureImageBindlessSlot);
+    }
+
+    std::ifstream file(worldPath, std::ios::binary);
+    if (!file)
+    {
+        Logger::Err("Failed to open file stream");
+        return;
+    }
+    const std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>{});
+    if (file.bad())
+    {
+        Logger::Err("Bad file");
+        return;
+    }
+
+    vjson::ParseContext ctx;
+    vjson::Object doc;
+    if (!doc.ParseJSON(contents, &ctx))
+    {
+        Logger::Err(std::format("JSON error on line: {} with message: {}", ctx.error_line, ctx.error_message));
+        return;
+    }
+
+    std::vector<EntityLoadPayload> pendingEntities;
+    std::size_t entityCount = 0;
+    for (const vjson::Object &e : doc.ArrayAtKeyOrEmpty("entities").Iter<vjson::Object>())
+    {
+        Logger::Info(std::format("Entity Name: {}", e.StringAtKey("name", "?")));
+        Logger::Info(std::format("Entity Type: {}", e.StringAtKey("type", "?")));
+        auto entityName = e.StringAtKey("name", "?");
+        for (const vjson::Object &c : e.ArrayAtKeyOrEmpty("components").Iter<vjson::Object>())
+        {
+            if (c.StringAtKey("type", "?") == "Mesh")
+            {
+                entityCount++;
+                EntityLoadPayload payload = {
+                    .entityMeshComponent = c
+                    , .entityType = EntityType::StaticMesh
+                };
+                pendingEntities.push_back(payload);
+            }
+            else
+            {
+                Logger::Warn(std::format("Unknown entity type encountered for entity: {}", entityName));
+            }
+        }
+
+        std::mutex loadingMutex;
+        std::vector<IEntity*> loadedEntities;
+
+        auto pendingEntityLoad = [this, &pendingEntities, &loadingMutex, &loadedEntities](std::size_t i){
+            EntityLoadPayload payload = pendingEntities.at(i);
+            switch(payload.entityType)
+            {
+                case EntityType::StaticMesh:
+                {
+                    StaticMeshEntity* staticMeshEntity = GMemoryManager->New<StaticMeshEntity>();
+                    if (staticMeshEntity->Load(payload.entityMeshComponent))
+                    {
+                        std::lock_guard lock(loadingMutex);
+                        loadedEntities.push_back(staticMeshEntity);
+                    }
+                    else
+                    {
+                        GMemoryManager->Delete(staticMeshEntity);
+                    }
+                    break;
+                }
+            }
+        };
+
+        auto start = std::chrono::steady_clock::now();
+        auto futures = Job::Pool.submit_loop(0, pendingEntities.size(), pendingEntityLoad, 0);
+        futures.wait();
+        m_entities = std::move(loadedEntities);
+        Logger::Info(std::format("Entity loading took: {}", Timing::SinceMS(start)));
+
+    }
 }
 
 void World::Destroy()

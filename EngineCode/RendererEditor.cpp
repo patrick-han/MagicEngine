@@ -10,6 +10,7 @@
 #include "Camera.h"
 #include "GPUStats.h"
 #include "Entity.h"
+#include "MeshCache.h"
 namespace Magic
 {
 void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
@@ -34,6 +35,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::Text("Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", renderingInfo.gameStats.meshCount);
     ImGui::Text("SubMesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", renderingInfo.gameStats.subMeshCount);
     ImGui::Text("Texture Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", renderingInfo.gameStats.textureCount);
+    ImGui::Text("Cached Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", static_cast<std::size_t>(GMeshCache->GetCachedMeshCount()));
 
 #if MAGIC_TRACK_GPU_STATS
     auto bytesToMB = [](std::size_t bytes) -> double { return static_cast<double>(bytes) / (1024.0 * 1024.0); };\
@@ -77,18 +79,24 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         {
             if (!GEditor->isWorldLoaded)
             {
-                pGame->LoadContent(GEditor->loadWorldTextBoxNameBuffer);
-                auto entities = world->GetAllEntities();
-                if (!entities.empty())
-                {
-                    GEditor->sceneOutlineSelectedEntity = entities[0];
-                }
-                GEditor->isWorldLoaded = true;
+                if (pGame->LoadContent(GEditor->loadWorldTextBoxNameBuffer))
+                {   
+                    auto entities = world->GetAllEntities();
+                    if (!entities.empty())
+                    {
+                        GEditor->sceneOutlineSelectedEntity = entities[0];
+                    }
+                    GEditor->isWorldLoaded = true;
 #if PLATFORM_WINDOWS
-                strncpy_s(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
+                    strncpy_s(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
 #elif PLATFORM_MACOS
-                strlcpy(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
+                    strlcpy(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
 #endif
+                }
+                else
+                {
+                    Logger::Warn("World not found!");
+                }
             }
             else
             {
