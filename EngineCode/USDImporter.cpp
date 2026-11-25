@@ -1,7 +1,7 @@
 #include "USDImporter.h"
 
-#include "../CommonCode/Log.h"
-#include "../CommonCode/StaticMeshData.h"
+#include "Log.h"
+#include "StaticMeshData.h"
 #include "ThirdParty/stb_image.h"
 #include "ThirdParty/MikkTSpace/mikktspace.h"
 

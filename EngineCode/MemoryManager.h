@@ -1,6 +1,6 @@
 #pragma once
 #include "Allocators.h"
-#include "../CommonCode/Log.h"
+#include "Log.h"
 #include "Math/Matrix4f.h"
 #include <span>
 #include <mutex>

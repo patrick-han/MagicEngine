@@ -27,6 +27,12 @@ if(MSVC)
 endif()
 
 add_executable(MagicEngine main.cpp
+        EngineCode/Log.cpp
+        EngineCode/Log.h
+        EngineCode/BinaryBlob.h
+        EngineCode/AABB.h
+        EngineCode/Vertex.h
+        EngineCode/StaticMeshData.h
         EngineCode/Math/Matrix4f.cpp
         EngineCode/Math/Vector3f.cpp
         EngineCode/Math/Vector4f.cpp
@@ -105,9 +111,6 @@ add_executable(MagicEngine main.cpp
 
 add_subdirectory(EngineCode/ThirdParty)
 target_link_libraries(MagicEngine PRIVATE ThirdPartyLibraries)
-
-add_subdirectory(CommonCode)
-target_link_libraries(MagicEngine PRIVATE CommonLibrary)
 
 target_link_libraries(MagicEngine PRIVATE
         usd

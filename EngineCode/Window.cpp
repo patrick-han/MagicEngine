@@ -1,6 +1,6 @@
 #include "Window.h"
 #include <SDL3/SDL.h>
-#include "../CommonCode/Log.h"
+#include "Log.h"
 #include "Vulkan/Include.h"
 #include <SDL3/SDL_vulkan.h>
 

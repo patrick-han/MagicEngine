@@ -1,6 +1,6 @@
 #pragma once
-#include "../EngineCode/Math/Vector3f.h"
-#include "../EngineCode/Math/Vector4f.h"
+#include "Math/Vector3f.h"
+#include "Math/Vector4f.h"
 
 namespace Magic
 {

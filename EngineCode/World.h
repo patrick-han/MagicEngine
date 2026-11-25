@@ -1,7 +1,7 @@
 #pragma once
 
 #include "StaticMeshEntity.h"
-#include "../CommonCode/Log.h"
+#include "Log.h"
 #include "MemoryManager.h"
 #include "UUID.h"
 

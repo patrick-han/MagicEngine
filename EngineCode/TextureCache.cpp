@@ -2,8 +2,8 @@
 
 #include "DefaultTexture.h"
 #include "Renderer.h"
-#include "../CommonCode/Log.h"
-#include "../CommonCode/StaticMeshData.h"
+#include "Log.h"
+#include "StaticMeshData.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "ThirdParty/stb_image.h"
 namespace Magic

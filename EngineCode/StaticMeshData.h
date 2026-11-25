@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "../EngineCode/Math/Matrix4f.h"
+#include "Math/Matrix4f.h"
 #include "Vertex.h"
 
 namespace Magic

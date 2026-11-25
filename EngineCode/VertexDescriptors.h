@@ -1,6 +1,6 @@
 #pragma once
 #include "Vulkan/Include.h"
-#include "../CommonCode/Vertex.h"
+#include "Vertex.h"
 #include <vector>
 
 namespace Magic

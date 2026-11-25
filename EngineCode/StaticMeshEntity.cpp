@@ -4,7 +4,7 @@
 #include "TextureCache.h"
 #include "MeshCache.h"
 #include "MemoryManager.h"
-#include "../CommonCode/StaticMeshData.h"
+#include "StaticMeshData.h"
 #include "Renderer.h"
 #include "DefaultTexture.h"
 

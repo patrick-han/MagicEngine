@@ -1,6 +1,6 @@
 #include "GLTFImporter.h"
-#include "../CommonCode/StaticMeshData.h"
-#include "../CommonCode/Log.h"
+#include "StaticMeshData.h"
+#include "Log.h"
 #define CGLTF_IMPLEMENTATION
 #include "ThirdParty/cgltf.h"
 #include "vjson_header.h"

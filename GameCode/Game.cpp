@@ -1,5 +1,5 @@
 #include "Game.h"
-#include "../CommonCode/Log.h"
+#include "../EngineCode/Log.h"
 #include "../EngineCode/Camera.h"
 #include "../EngineCode/Input.h"
 #include "../EngineCode/World.h"
@@ -9,7 +9,7 @@
 #include <vector>
 #include <cassert>
 #include "../EngineCode/Threading.h"
-#include "../CommonCode/BinaryBlob.h"
+#include "../EngineCode/BinaryBlob.h"
 #include "../EngineCode/Timing.h"
 #include "../EngineCode/GPUStats.h"
 #include <filesystem>

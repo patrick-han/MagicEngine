@@ -1,5 +1,5 @@
 #pragma once
-#include "../../CommonCode/Log.h"
+#include "../Log.h"
 namespace Magic
 {
 

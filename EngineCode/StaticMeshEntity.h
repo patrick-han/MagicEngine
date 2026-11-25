@@ -2,8 +2,8 @@
 #include "Entity.h"
 #include "Buffer.h"
 #include "vjson_header.h"
-#include "../CommonCode/AABB.h"
-#include "../CommonCode/StaticMeshData.h"
+#include "AABB.h"
+#include "StaticMeshData.h"
 
 #include <span>
 

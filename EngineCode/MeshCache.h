@@ -1,7 +1,7 @@
 #pragma once
 #include "Buffer.h"
 #include "Math/Matrix4f.h"
-#include "../CommonCode/AABB.h"
+#include "AABB.h"
 #include <mutex>
 #include <string>
 #include <unordered_map>

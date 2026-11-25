@@ -1,9 +1,9 @@
 #include "MeshCache.h"
 #include "GLTFImporter.h"
 #include "Renderer.h"
-#include "../CommonCode/StaticMeshData.h"
-#include "../CommonCode/Log.h"
-#include "../CommonCode/StaticMeshData.h"
+#include "StaticMeshData.h"
+#include "Log.h"
+#include "StaticMeshData.h"
 
 namespace Magic
 {
