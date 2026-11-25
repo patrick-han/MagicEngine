@@ -31,7 +31,6 @@ public:
     StaticMeshEntity();
     ~StaticMeshEntity();
     [[nodiscard]] virtual EntityType GetEntityType() const override { return EntityType::StaticMesh; }
-    [[nodiscard]] virtual bool Load(const pxr::UsdPrim& entityPrim) override;
     [[nodiscard]] virtual bool Load(const vjson::Object* meshComponent) override;
     [[nodiscard]] virtual bool Unload() override;
     [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;

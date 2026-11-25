@@ -6,7 +6,6 @@
 #include "Math/Matrix4f.h"
 #include "UUID.h"
 #include "vjson_header.h"
-#include <pxr/usd/usd/prim.h>
 
 namespace Magic
 {
@@ -70,7 +69,6 @@ public:
     {
 
     }
-    [[nodiscard]] virtual bool Load(const pxr::UsdPrim& entityPrim) = 0;
     [[nodiscard]] virtual bool Load(const vjson::Object* meshComponent) = 0;
     [[nodiscard]] virtual bool Unload() = 0;
     [[nodiscard]] virtual EntityType GetEntityType() const = 0;

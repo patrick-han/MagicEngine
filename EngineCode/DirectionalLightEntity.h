@@ -22,7 +22,6 @@ public:
     DirectionalLightEntity();
     ~DirectionalLightEntity() = default;
     [[nodiscard]] virtual EntityType GetEntityType() const override { return EntityType::DirectionalLight; }
-    [[nodiscard]] virtual bool Load(const pxr::UsdPrim& entityPrim) override;
     [[nodiscard]] virtual bool Load(const vjson::Object* params) override;
     [[nodiscard]] virtual bool Unload() override;
     [[nodiscard]] Matrix4f GetViewMatrix(Vector3f cameraPosition);

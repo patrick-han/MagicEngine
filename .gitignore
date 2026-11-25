@@ -9,5 +9,4 @@ imgui.ini
 root.magic
 Assets/
 Shaders/*.spv
-*.usd*
 build/*
