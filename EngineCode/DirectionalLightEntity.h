@@ -1,6 +1,6 @@
 #pragma once
 #include "Entity.h"
-#include "../CommonCode/Math/Vector4f.h"
+#include "Math/Vector4f.h"
 
 namespace Magic
 {

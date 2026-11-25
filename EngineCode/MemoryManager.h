@@ -1,7 +1,7 @@
 #pragma once
 #include "Allocators.h"
 #include "../CommonCode/Log.h"
-#include "../CommonCode/Math/Matrix4f.h"
+#include "Math/Matrix4f.h"
 #include <span>
 #include <mutex>
 namespace Magic

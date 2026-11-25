@@ -3,7 +3,7 @@
 #include <list>
 #include <unordered_map>
 #include <string>
-#include "../CommonCode/Math/Matrix4f.h"
+#include "Math/Matrix4f.h"
 #include "UUID.h"
 #include "vjson_header.h"
 #include <pxr/usd/usd/prim.h>

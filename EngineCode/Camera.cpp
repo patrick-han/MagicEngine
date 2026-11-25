@@ -1,5 +1,5 @@
 #include "Camera.h"
-#include "../CommonCode/Math/Math.h"
+#include "Math/Math.h"
 #include <cmath>
 #include "../CommonCode/Log.h"
 

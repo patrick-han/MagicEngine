@@ -10,8 +10,8 @@
 [submodule "EngineCode/ThirdParty/thread-pool"]
 	path = EngineCode/ThirdParty/thread-pool
 	url = https://github.com/bshoshany/thread-pool.git
-[submodule "CommonCode/Math"]
-	path = CommonCode/Math
+[submodule "EngineCode/Math"]
+	path = EngineCode/Math
 	url = https://github.com/patrick-han/Math
 [submodule "EngineCode/ThirdParty/vjson"]
 	path = EngineCode/ThirdParty/vjson

@@ -4,7 +4,7 @@
 #define CGLTF_IMPLEMENTATION
 #include "ThirdParty/cgltf.h"
 #include "vjson_header.h"
-#include "../CommonCode/Math/Matrix4f.h"
+#include "Math/Matrix4f.h"
 
 #include <filesystem>
 #include <format>

@@ -1,6 +1,6 @@
 #pragma once
-#include "../CommonCode/Math/Matrix4f.h"
-#include "../CommonCode/Math/Vector3f.h"
+#include "Math/Matrix4f.h"
+#include "Math/Vector3f.h"
 
 // Right-handed camera space:
 // +X right

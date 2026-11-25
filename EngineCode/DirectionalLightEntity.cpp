@@ -1,6 +1,6 @@
 #include "DirectionalLightEntity.h"
-#include "../CommonCode/Math/Matrix4f.h"
-#include "../CommonCode/Math/Vector3f.h"
+#include "Math/Matrix4f.h"
+#include "Math/Vector3f.h"
 
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usdGeom/xformCache.h>

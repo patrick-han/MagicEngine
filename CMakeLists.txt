@@ -27,6 +27,14 @@ if(MSVC)
 endif()
 
 add_executable(MagicEngine main.cpp
+        EngineCode/Math/Matrix4f.cpp
+        EngineCode/Math/Vector3f.cpp
+        EngineCode/Math/Vector4f.cpp
+        EngineCode/Math/Math.h
+        EngineCode/Math/Matrix4f.h
+        EngineCode/Math/Vector2f.h
+        EngineCode/Math/Vector3f.h
+        EngineCode/Math/Vector4f.h
         EngineCode/Application.h
         EngineCode/Application.cpp
         EngineCode/Vulkan/Include.h

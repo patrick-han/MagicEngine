@@ -1,6 +1,6 @@
 #pragma once
 #include "Buffer.h"
-#include "../CommonCode/Math/Matrix4f.h"
+#include "Math/Matrix4f.h"
 #include "../CommonCode/AABB.h"
 #include <mutex>
 #include <string>
