@@ -169,6 +169,5 @@ float4 main(PSInput input) : SV_TARGET
 
     float3 color = ambient + Lo * (1.0 - shadow);
 
-    // return float4(color * input.color, 1.0);
-    return float4(sampledAlbedo, 1.0);
+    return float4(color * input.color, 1.0);
 }

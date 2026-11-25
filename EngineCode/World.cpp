@@ -14,6 +14,7 @@
 #include <pxr/usd/usdShade/shader.h>
 #include <pxr/usd/sdf/assetPath.h>
 
+#include <unordered_map>
 #include <mutex>
 namespace Magic
 {
@@ -24,12 +25,6 @@ namespace
 struct EntityLoadPayloadUSD
 {
     pxr::UsdPrim entity;
-    EntityType entityType = EntityType::Unknown;
-};
-
-struct EntityLoadPayload
-{
-    vjson::Object entityMeshComponent;
     EntityType entityType = EntityType::Unknown;
 };
 
@@ -196,24 +191,86 @@ void World::LoadJSON(const char* worldPath)
         Logger::Err(std::format("JSON error on line: {} with message: {}", ctx.error_line, ctx.error_message));
         return;
     }
-
-    std::vector<EntityLoadPayload> pendingEntities;
-    std::size_t entityCount = 0;
-    for (const vjson::Object &e : doc.ArrayAtKeyOrEmpty("entities").Iter<vjson::Object>())
+    
+    std::unordered_map<std::size_t, IEntity*> idToEntity;
+    std::unordered_map<IEntity*, std::size_t> entityToParentId;
     {
-        Logger::Info(std::format("Entity Name: {}", e.StringAtKey("name", "?")));
-        Logger::Info(std::format("Entity Type: {}", e.StringAtKey("type", "?")));
-        auto entityName = e.StringAtKey("name", "?");
-        for (const vjson::Object &c : e.ArrayAtKeyOrEmpty("components").Iter<vjson::Object>())
+        struct PendingEntityRecord
         {
-            if (c.StringAtKey("type", "?") == "Mesh")
+            IEntity* entity = nullptr;
+            int parentId = -1;
+        };
+        // Parse all entities and queue them for loading
+        std::vector<PendingEntityRecord> pendingEntities;
+        for (const vjson::Object &e : doc.ArrayAtKeyOrEmpty("entities").Iter<vjson::Object>())
+        {
+            std::string entityName = e.StringAtKey("name", "?");
+            std::string entityType = e.StringAtKey("type", "?");
+            Logger::Info(std::format("Entity Name: {}", entityName));
+            Logger::Info(std::format("Entity Type: {}", entityType));
+            int id = e.IntAtKey("id", 0);
+            int parentId = e.IntAtKey("parent_entity_id", 0);
+            assert(id > 0);
+            assert(parentId >= 0);
+            const vjson::Object& transform = e.ObjectAtKeyOrEmpty("transform");
+            auto GetMatrix4fFromTransformObject = [](const vjson::Object& transform){
+                const vjson::Array& position = transform.ArrayAtKeyOrEmpty("position");
+                const vjson::Array& rotationEuler = transform.ArrayAtKeyOrEmpty("rotation_euler");
+                const vjson::Array& scale = transform.ArrayAtKeyOrEmpty("scale");
+                Matrix4f translate = Matrix4f::MakeTranslate(
+                    position.DoubleAtIndex(0, 0.0)
+                    , position.DoubleAtIndex(1, 0.0)
+                    , position.DoubleAtIndex(2, 0.0)
+                );
+                Matrix4f scaleMtx = Matrix4f::MakeScale(
+                    scale.DoubleAtIndex(0, 0.0)
+                    , scale.DoubleAtIndex(1, 0.0)
+                    , scale.DoubleAtIndex(2, 0.0)
+                );
+                Matrix4f rotX = Matrix4f::MakeRotateX(rotationEuler.DoubleAtIndex(0, 0.0));
+                Matrix4f rotY = Matrix4f::MakeRotateY(rotationEuler.DoubleAtIndex(1, 0.0));
+                Matrix4f rotZ = Matrix4f::MakeRotateZ(rotationEuler.DoubleAtIndex(2, 0.0));
+                return rotX * rotY * rotZ * scaleMtx * translate;
+            };
+
+            if (entityType == "StaticMesh")
             {
-                entityCount++;
-                EntityLoadPayload payload = {
-                    .entityMeshComponent = c
-                    , .entityType = EntityType::StaticMesh
-                };
-                pendingEntities.push_back(payload);
+                const vjson::Object* meshComponent = e.ObjectPtrAtKey("mesh");
+                if (meshComponent)
+                {
+                    StaticMeshEntity* staticMeshEntity = GMemoryManager->New<StaticMeshEntity>();
+                    staticMeshEntity->SetName(std::move(entityName));
+                    staticMeshEntity->SetUUID(id);
+                    staticMeshEntity->m_transform = GetMatrix4fFromTransformObject(transform);
+                    staticMeshEntity->meshComponent = meshComponent;
+                    pendingEntities.push_back({staticMeshEntity, parentId});
+                }
+                else
+                {
+                    Logger::Warn(std::format("StaticMesh entity with id {} missing mesh component, check the world file", id));
+                }
+            }
+            else if (entityType == "DirectionalLight")
+            {
+                if (m_pDirLight)
+                {
+                    Logger::Warn("Directional light already exists, skipping...");
+                    continue;
+                }
+                const vjson::Object* params = e.ObjectPtrAtKey("params");
+                if (params)
+                {
+                    m_pDirLight = GMemoryManager->New<DirectionalLightEntity>();
+                    m_pDirLight->SetName(std::move(entityName));
+                    m_pDirLight->SetUUID(id);
+                    m_pDirLight->m_transform = GetMatrix4fFromTransformObject(transform);
+                    m_pDirLight->params = params;
+                    pendingEntities.push_back({m_pDirLight, parentId});
+                }
+                else
+                {
+                    Logger::Warn(std::format("DirectionalLight entity with id {} missing params component, check the world file", id));
+                }
             }
             else
             {
@@ -221,24 +278,51 @@ void World::LoadJSON(const char* worldPath)
             }
         }
 
+        // Do the loading
         std::mutex loadingMutex;
         std::vector<IEntity*> loadedEntities;
 
-        auto pendingEntityLoad = [this, &pendingEntities, &loadingMutex, &loadedEntities](std::size_t i){
-            EntityLoadPayload payload = pendingEntities.at(i);
-            switch(payload.entityType)
+        auto pendingEntityLoad = [this, &pendingEntities, &loadingMutex, &loadedEntities, &idToEntity, &entityToParentId](std::size_t i){
+            IEntity* entity = pendingEntities.at(i).entity;
+            int parentId = pendingEntities.at(i).parentId;
+            switch(entity->GetEntityType())
             {
                 case EntityType::StaticMesh:
                 {
-                    StaticMeshEntity* staticMeshEntity = GMemoryManager->New<StaticMeshEntity>();
-                    if (staticMeshEntity->Load(payload.entityMeshComponent))
+                    StaticMeshEntity* staticMeshEntity = static_cast<StaticMeshEntity*>(entity);
+                    if (staticMeshEntity->Load(staticMeshEntity->meshComponent))
                     {
                         std::lock_guard lock(loadingMutex);
+                        staticMeshEntity->meshComponent = nullptr;
                         loadedEntities.push_back(staticMeshEntity);
+                        auto res = idToEntity.insert({entity->GetUUID().Value(), entity});
+                        assert (res.second); // Make sure there are no duplicate keys
+                        entityToParentId.insert({entity, parentId});
                     }
                     else
                     {
+                        Logger::Warn(std::format("StaticMeshEntity {} failed to load", staticMeshEntity->GetUUID().Value()));
                         GMemoryManager->Delete(staticMeshEntity);
+                    }
+                    break;
+                }
+                case EntityType::DirectionalLight:
+                {
+                    DirectionalLightEntity* directionalLightEntity = static_cast<DirectionalLightEntity*>(entity);
+                    if (directionalLightEntity->Load(directionalLightEntity->params))
+                    {
+                        std::lock_guard lock(loadingMutex);
+                        directionalLightEntity->params = nullptr;
+                        loadedEntities.push_back(directionalLightEntity);
+                        auto res = idToEntity.insert({entity->GetUUID().Value(), entity});
+                        assert (res.second); // Make sure there are no duplicate keys
+                        entityToParentId.insert({entity, parentId});
+                    }
+                    else
+                    {
+                        Logger::Warn(std::format("DirectionalLightEntity {} failed to load", directionalLightEntity->GetUUID().Value()));
+                        GMemoryManager->Delete(directionalLightEntity);
+                        m_pDirLight = nullptr;
                     }
                     break;
                 }
@@ -250,8 +334,38 @@ void World::LoadJSON(const char* worldPath)
         futures.wait();
         m_entities = std::move(loadedEntities);
         Logger::Info(std::format("Entity loading took: {}", Timing::SinceMS(start)));
-
     }
+
+    // Fix up relationships
+    auto startFixup = std::chrono::steady_clock::now();
+    for (IEntity* entity : m_entities)
+    {
+        std::size_t parentId = entityToParentId.at(entity);
+        assert(entity->GetParent() == nullptr);
+        if (parentId == 0) // Root entities
+        {
+            continue;
+        }
+        const auto it = idToEntity.find(parentId);
+        if (it != idToEntity.end())
+        {
+            IEntity* parent = it->second;
+            assert(entity != parent && "Entity is trying to reference itself!");
+#ifndef NDEBUG
+            // check for cycles where B is a parent of A, but somehow A is a parent of B (or any depth of that)
+            for(IEntity* ancestor = parent; ancestor; ancestor = ancestor->GetParent())
+            {
+                assert(ancestor != entity && "Entity hierarchy contains a cycle");
+            }
+#endif
+            parent->AddChild(entity);
+        }
+        else
+        {
+            Logger::Warn("Entity parentId is invalid or parent failed to load");
+        }
+    }
+    Logger::Info(std::format("Entity fixup took: {}", Timing::SinceMS(startFixup)));
 }
 
 void World::Destroy()
@@ -266,6 +380,7 @@ void World::Destroy()
     UUID::ResetUUIDs();
 #endif
     m_entities.clear();
+    m_pDirLight = nullptr;
 
     GTextureCache->Destroy();
     GRenderer->DestroyImage(DefaultTexture::g_defaultTextureImage);

@@ -32,7 +32,7 @@ public:
     ~StaticMeshEntity();
     [[nodiscard]] virtual EntityType GetEntityType() const override { return EntityType::StaticMesh; }
     [[nodiscard]] virtual bool Load(const pxr::UsdPrim& entityPrim) override;
-    [[nodiscard]] virtual bool Load(const vjson::Object& entityMeshComponent);
+    [[nodiscard]] virtual bool Load(const vjson::Object* meshComponent) override;
     [[nodiscard]] virtual bool Unload() override;
     [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;
     [[nodiscard]] std::size_t GetSubMeshCount() const { return m_subMeshes.size(); }
@@ -40,6 +40,8 @@ protected:
     virtual void DrawInspectorElementsSpecific() override;
 private:
     std::vector<SubMesh*> m_subMeshes;
+public:
+    const vjson::Object* meshComponent = nullptr;
 };
 
 }

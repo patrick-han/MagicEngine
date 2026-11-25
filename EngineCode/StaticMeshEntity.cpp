@@ -117,38 +117,35 @@ bool StaticMeshEntity::Load(const pxr::UsdPrim& entityPrim)
     return true;
 }
 
-bool StaticMeshEntity::Load(const vjson::Object& entityMeshComponent)
+bool StaticMeshEntity::Load(const vjson::Object* meshComponent)
 {
     // Top level properties
-    // const std::string entityName = entityMeshComponent.StringAtKey("name", "?");
-    std::string entityName = std::string("TEST");
+    // const std::string entityName = meshComponent->StringAtKey("name", "?");
 #if !MAGIC_USE_SIMPLE_UUID
     UUID entityUUID; // TODO: embed entities in Blender via a plugin? this is just a random runtime entity for now
 #endif // !MAGIC_USE_SIMPLE_UUID
 
-    SetName(entityName.c_str());
+
 #if !MAGIC_USE_SIMPLE_UUID
     SetUUID(entityUUID);
 #endif // !MAGIC_USE_SIMPLE_UUID
 
     // StaticMeshData staticMeshData;
     // GLTFImporterNew importer;
-    // std::filesystem::path filePath = std::filesystem::path(entityMeshComponent.StringAtKey("mesh_file", "?"));
+    // std::filesystem::path filePath = std::filesystem::path(meshComponent->StringAtKey("mesh_file", "?"));
     // importer.ImportGLTFAsStaticMesh(filePath, staticMeshData);
 
     // if (staticMeshData.m_subMeshes.empty())
     // {
     //     return false;
     // }
-    std::filesystem::path filePath = std::filesystem::path(entityMeshComponent.StringAtKey("mesh_file", "?"));
+    std::filesystem::path filePath = std::filesystem::path(meshComponent->StringAtKey("mesh_file", "?"));
     CachedMesh cachedMesh = GMeshCache->GetOrUpload(filePath);
     if (cachedMesh.subMeshes.size() == 0)
     {
         Logger::Err("Failed to get or load cached mesh");
         return false;
     }
-
-    Logger::Info(std::format("Load: {}", entityName));
 
     std::size_t subMesh_i = 0;
     for (const CachedSubMesh& cachedSubMesh : cachedMesh.subMeshes)

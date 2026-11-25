@@ -1,13 +1,14 @@
 #pragma once
-#include <vector>
+
 #include "StaticMeshEntity.h"
 #include "../CommonCode/Log.h"
 #include "MemoryManager.h"
 #include "UUID.h"
 
-
 #include "DefaultTexture.h"
 #include "DirectionalLightEntity.h"
+
+#include <vector>
 
 namespace Magic
 {

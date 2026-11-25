@@ -48,6 +48,23 @@ bool Magic::DirectionalLightEntity::Load(const pxr::UsdPrim &entityPrim)
     return true;
 }
 
+bool Magic::DirectionalLightEntity::Load(const vjson::Object *params)
+{
+    const vjson::Array& colorJson = params->ArrayAtKeyOrEmpty("color");
+    Vector4f color(colorJson.DoubleAtIndex(0, 1.0), colorJson.DoubleAtIndex(1, 1.0), colorJson.DoubleAtIndex(2, 1.0), colorJson.DoubleAtIndex(3, 1.0));
+    m_color = color;
+    m_angle = params->DoubleAtKey("angle", 1.0);
+    m_intensity = params->DoubleAtKey("intensity", 1.0);
+    m_exposure = params->DoubleAtKey("exposure", 1.0);
+
+    const Vector4f localDirection(0.0, 0.0, -1.0, 0.0);
+    Vector4f worldDirection = m_transform * localDirection;
+    Vector3f direction3(worldDirection.v[0], worldDirection.v[1], worldDirection.v[2]);
+    direction3.AsNormalized();
+    m_direction = Vector4f(static_cast<float>(direction3.x), static_cast<float>(direction3.y), static_cast<float>(direction3.z), 0.0f); // points TOWARD direction of light
+    return true;
+}
+
 bool Magic::DirectionalLightEntity::Unload()
 {
     return true;

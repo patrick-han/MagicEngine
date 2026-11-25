@@ -135,17 +135,41 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         ImVec2 avail = ImGui::GetContentRegionAvail();
         ImGui::BeginChild("SceneOutlineList", avail, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
-        int i = 0;
+        auto DrawEntityNode = [](this auto& self, IEntity* e) -> void {
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+            if (e == GEditor->sceneOutlineSelectedEntity) flags |= ImGuiTreeNodeFlags_Selected;
+
+            if (!e->HasChildren()) flags |= ImGuiTreeNodeFlags_Leaf; // No collapsing/arrow
+
+            // Use the pointer for identity so duplicate names are safe.
+            const bool open = ImGui::TreeNodeEx(static_cast<const void*>(e), flags, "%s", e->GetName()); // Are we trying to inspect this entity's children?
+
+            // Check immediately after TreeNodeEx, before drawing children.
+            // Clicking the arrow expands/collapses without changing selection.
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen())
+            {
+                GEditor->sceneOutlineSelectedEntity = e;
+            }
+
+            if (open)
+            {
+                for (IEntity* child : e->GetChildren())
+                {
+                    self(child);
+                }
+                ImGui::TreePop();
+            }
+        };
+
+        // int i = 0;
         for (auto entity : world->GetAllEntities())
         {
-            const EntityType entityType = entity->GetEntityType();
-            bool isSelected = (entity == GEditor->sceneOutlineSelectedEntity);
-            std::string label = entity->GetName() + std::to_string(i);
-            if (ImGui::Selectable(label.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
+            
+            if (entity->GetParent() == nullptr)
             {
-                GEditor->sceneOutlineSelectedEntity = entity;
+                DrawEntityNode(entity);
             }
-            i++;
         }
 
         ImGui::EndChild();
