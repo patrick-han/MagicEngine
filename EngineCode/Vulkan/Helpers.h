@@ -1,5 +1,5 @@
 #pragma once
-#include "../../CommonCode/Log.h"
+#include "../Log.h"
 #include <format>
 #include <vulkan/vk_enum_string_helper.h>
 

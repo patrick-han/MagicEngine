@@ -1,5 +1,5 @@
 #include "Application.h"
-#include "../CommonCode/Log.h"
+#include "Log.h"
 #include "Window.h"
 #include "Swapchain.h"
 #include "GPUContext.h"
@@ -14,6 +14,7 @@
 #include "Editor/Editor.h"
 #include "MemoryManager.h"
 #include "TextureCache.h"
+#include "MeshCache.h"
 
 
 // IMGUI
@@ -102,6 +103,7 @@ void Application::Startup()
     GRenderer = GMemoryManager->New<Renderer>();
     GRenderer->Startup(m_gpuctx, &m_swapchains[Window::DEFAULT_WINDOW]);
     GTextureCache = GMemoryManager->New<TextureCache>();
+    GMeshCache = GMemoryManager->New<MeshCache>();
     // TODO: move this somewhere else, probably a Camera class
     GRenderer->outputWidth = defaultWindow->GetWidth();
     GRenderer->outputHeight = defaultWindow->GetHeight();
@@ -197,6 +199,8 @@ void Application::Shutdown()
     {
         window.reset();
     }
+    GMeshCache->Destroy();
+    GMemoryManager->Delete(GMeshCache);
     GTextureCache->Destroy();
     GMemoryManager->Delete(GTextureCache);
     GRenderer->Shutdown();

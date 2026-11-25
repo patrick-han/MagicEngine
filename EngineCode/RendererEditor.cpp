@@ -1,5 +1,5 @@
 #include <random>
-#include "../CommonCode/Log.h"
+#include "Log.h"
 #include "Renderer.h"
 #include "ThirdParty/imgui/imgui.h"
 #define IMGUI_IMPL_VULKAN_USE_VOLK
@@ -10,6 +10,7 @@
 #include "Camera.h"
 #include "GPUStats.h"
 #include "Entity.h"
+#include "MeshCache.h"
 namespace Magic
 {
 void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
@@ -34,6 +35,7 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
     ImGui::Text("Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", renderingInfo.gameStats.meshCount);
     ImGui::Text("SubMesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", renderingInfo.gameStats.subMeshCount);
     ImGui::Text("Texture Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", renderingInfo.gameStats.textureCount);
+    ImGui::Text("Cached Mesh Count:"); ImGui::SameLine(); ImGui::TextColored(ImVec4(0,1,0,1), "%zu", static_cast<std::size_t>(GMeshCache->GetCachedMeshCount()));
 
 #if MAGIC_TRACK_GPU_STATS
     auto bytesToMB = [](std::size_t bytes) -> double { return static_cast<double>(bytes) / (1024.0 * 1024.0); };\
@@ -77,18 +79,24 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         {
             if (!GEditor->isWorldLoaded)
             {
-                pGame->LoadContent(GEditor->loadWorldTextBoxNameBuffer);
-                auto entities = world->GetAllEntities();
-                if (!entities.empty())
-                {
-                    GEditor->sceneOutlineSelectedEntity = entities[0];
-                }
-                GEditor->isWorldLoaded = true;
+                if (pGame->LoadContent(GEditor->loadWorldTextBoxNameBuffer))
+                {   
+                    auto entities = world->GetAllEntities();
+                    if (!entities.empty())
+                    {
+                        GEditor->sceneOutlineSelectedEntity = entities[0];
+                    }
+                    GEditor->isWorldLoaded = true;
 #if PLATFORM_WINDOWS
-                strncpy_s(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
+                    strncpy_s(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
 #elif PLATFORM_MACOS
-                strlcpy(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
+                    strlcpy(GEditor->loadedWorldNameBuffer, GEditor->loadWorldTextBoxNameBuffer, GEditor->defaultMaxTextLength);
 #endif
+                }
+                else
+                {
+                    Logger::Warn("World not found!");
+                }
             }
             else
             {
@@ -127,17 +135,41 @@ void Renderer::DoUIWork(int frameNumber, RenderingInfo& renderingInfo)
         ImVec2 avail = ImGui::GetContentRegionAvail();
         ImGui::BeginChild("SceneOutlineList", avail, ImGuiChildFlags_None, ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
-        int i = 0;
+        auto DrawEntityNode = [](this auto& self, IEntity* e) -> void {
+            ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+            if (e == GEditor->sceneOutlineSelectedEntity) flags |= ImGuiTreeNodeFlags_Selected;
+
+            if (!e->HasChildren()) flags |= ImGuiTreeNodeFlags_Leaf; // No collapsing/arrow
+
+            // Use the pointer for identity so duplicate names are safe.
+            const bool open = ImGui::TreeNodeEx(static_cast<const void*>(e), flags, "%s", e->GetName()); // Are we trying to inspect this entity's children?
+
+            // Check immediately after TreeNodeEx, before drawing children.
+            // Clicking the arrow expands/collapses without changing selection.
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsItemToggledOpen())
+            {
+                GEditor->sceneOutlineSelectedEntity = e;
+            }
+
+            if (open)
+            {
+                for (IEntity* child : e->GetChildren())
+                {
+                    self(child);
+                }
+                ImGui::TreePop();
+            }
+        };
+
+        // int i = 0;
         for (auto entity : world->GetAllEntities())
         {
-            const EntityType entityType = entity->GetEntityType();
-            bool isSelected = (entity == GEditor->sceneOutlineSelectedEntity);
-            std::string label = entity->GetName() + std::to_string(i);
-            if (ImGui::Selectable(label.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns))
+            
+            if (entity->GetParent() == nullptr)
             {
-                GEditor->sceneOutlineSelectedEntity = entity;
+                DrawEntityNode(entity);
             }
-            i++;
         }
 
         ImGui::EndChild();

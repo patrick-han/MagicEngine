@@ -1,13 +1,14 @@
 #pragma once
-#include <vector>
+
 #include "StaticMeshEntity.h"
-#include "../CommonCode/Log.h"
+#include "Log.h"
 #include "MemoryManager.h"
 #include "UUID.h"
 
-
 #include "DefaultTexture.h"
 #include "DirectionalLightEntity.h"
+
+#include <vector>
 
 namespace Magic
 {
@@ -17,6 +18,7 @@ public:
     World() = default;
     ~World() = default;
     void Load(const char* worldPath);
+    void LoadJSON(const char* worldPath);
 
     void Save(const char* worldPath)
     {

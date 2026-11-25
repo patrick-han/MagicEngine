@@ -29,6 +29,10 @@ public:
     {
         m_value = uuid;
     }
+    std::size_t Value() const
+    {
+        return m_value;
+    }
     UUID() = delete;
     ~UUID() = default;
 

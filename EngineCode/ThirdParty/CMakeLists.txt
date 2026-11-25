@@ -60,3 +60,12 @@ target_include_directories(BSTHREADPOOL INTERFACE
         thread-pool/include/
 )
 target_link_libraries(ThirdPartyLibraries INTERFACE BSTHREADPOOL)
+
+
+add_library(CGLTF INTERFACE
+        cgltf.h)
+target_link_libraries(ThirdPartyLibraries INTERFACE CGLTF)
+
+add_library(STBIMAGE INTERFACE
+        stb_image.h)
+target_link_libraries(ThirdPartyLibraries INTERFACE STBIMAGE)

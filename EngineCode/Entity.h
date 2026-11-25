@@ -3,10 +3,9 @@
 #include <list>
 #include <unordered_map>
 #include <string>
-#include "../CommonCode/Math/Matrix4f.h"
+#include "Math/Matrix4f.h"
 #include "UUID.h"
-
-#include <pxr/usd/usd/prim.h>
+#include "vjson_header.h"
 
 namespace Magic
 {
@@ -25,7 +24,7 @@ inline EntityType StrToEntityType(const char* name)
 {
     static const std::unordered_map<std::string_view, EntityType> table = 
     {
-        { "staticmesh", EntityType::StaticMesh }
+        { "StaticMesh", EntityType::StaticMesh }
     };
     if (auto it = table.find(name); it != table.end())
     {
@@ -70,13 +69,14 @@ public:
     {
 
     }
-    [[nodiscard]] virtual bool Load(const pxr::UsdPrim& entityPrim) = 0;
+    [[nodiscard]] virtual bool Load(const vjson::Object* meshComponent) = 0;
     [[nodiscard]] virtual bool Unload() = 0;
     [[nodiscard]] virtual EntityType GetEntityType() const = 0;
     void DrawInspectorElements();
 protected:
     virtual void DrawInspectorElementsSpecific() = 0;
 public:
+    void SetParent(IEntity* parent) { m_parent = parent; }
     IEntity* GetParent() const { return m_parent; }
     void AddChild(IEntity* pEntity)
     {
@@ -90,11 +90,16 @@ public:
         // TODO: do anything with matrices? specifically world matrix
         m_children.remove(pEntity);
     }
+    [[nodiscard]] const std::list<IEntity*>& GetChildren() const
+    {
+        return m_children;
+    }
     [[nodiscard]] bool HasChildren() const { return m_children.size() != 0; }
 
     void SetUUID(UUID uuid) { m_uuid = uuid; }
     [[nodiscard]] UUID GetUUID() const { return m_uuid; }
     void SetName(const char* name) { m_name = name; }
+    void SetName(std::string&& name) { m_name = std::move(name); }
     [[nodiscard]] const char* GetName() const { return m_name.c_str(); }
     
 protected:

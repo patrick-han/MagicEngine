@@ -1,8 +1,9 @@
 #pragma once
 #include "Entity.h"
 #include "Buffer.h"
-#include "../CommonCode/AABB.h"
-#include "../CommonCode/StaticMeshData.h"
+#include "vjson_header.h"
+#include "AABB.h"
+#include "StaticMeshData.h"
 
 #include <span>
 
@@ -30,7 +31,7 @@ public:
     StaticMeshEntity();
     ~StaticMeshEntity();
     [[nodiscard]] virtual EntityType GetEntityType() const override { return EntityType::StaticMesh; }
-    [[nodiscard]] virtual bool Load(const pxr::UsdPrim& entityPrim) override;
+    [[nodiscard]] virtual bool Load(const vjson::Object* meshComponent) override;
     [[nodiscard]] virtual bool Unload() override;
     [[nodiscard]] std::span<SubMesh* const> GetSubMeshes() const;
     [[nodiscard]] std::size_t GetSubMeshCount() const { return m_subMeshes.size(); }
@@ -38,6 +39,8 @@ protected:
     virtual void DrawInspectorElementsSpecific() override;
 private:
     std::vector<SubMesh*> m_subMeshes;
+public:
+    const vjson::Object* meshComponent = nullptr;
 };
 
 }

@@ -3,30 +3,27 @@ project(MagicEngine)
 
 set(CMAKE_CXX_STANDARD 23)
 
-# OpenUSD
-set(OPENUSD_ROOT "/Users/patrick/openusd-install" CACHE PATH
-        "Path to the OpenUSD installation")
-list(PREPEND CMAKE_PREFIX_PATH "${OPENUSD_ROOT}")
-find_package(pxr CONFIG REQUIRED
-        PATHS "${OPENUSD_ROOT}"
-        NO_DEFAULT_PATH
-)
-
 if(WIN32)
     add_definitions(-DMAGIC_WINDOWS_BUILD -DNOMINMAX)
 elseif(APPLE)
     add_definitions(-DMAGIC_MACOS_BUILD)
 endif()
 
-# Assuming OpenUSD is currently built as Release: MSVC Debug builds normally
-# use a different CRT/STL layout (/MDd and checked iterators), which corrupts
-# STL objects such as std::string when passed across the OpenUSD DLL boundary.
-if(MSVC)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
-    add_compile_definitions($<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=0>)
-endif()
-
 add_executable(MagicEngine main.cpp
+        EngineCode/Log.cpp
+        EngineCode/Log.h
+        EngineCode/BinaryBlob.h
+        EngineCode/AABB.h
+        EngineCode/Vertex.h
+        EngineCode/StaticMeshData.h
+        EngineCode/Math/Matrix4f.cpp
+        EngineCode/Math/Vector3f.cpp
+        EngineCode/Math/Vector4f.cpp
+        EngineCode/Math/Math.h
+        EngineCode/Math/Matrix4f.h
+        EngineCode/Math/Vector2f.h
+        EngineCode/Math/Vector3f.h
+        EngineCode/Math/Vector4f.h
         EngineCode/Application.h
         EngineCode/Application.cpp
         EngineCode/Vulkan/Include.h
@@ -70,8 +67,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/Entity.cpp
         EngineCode/StaticMeshEntity.h
         EngineCode/StaticMeshEntity.cpp
-        EngineCode/USDImporter.h
-        EngineCode/USDImporter.cpp
         EngineCode/TextureCache.h
         EngineCode/TextureCache.cpp
         EngineCode/MemoryManager.h
@@ -85,31 +80,18 @@ add_executable(MagicEngine main.cpp
         EngineCode/Platform/WindowsHeader.h
         EngineCode/RendererEditor.cpp
         EngineCode/vjson_header.h
-        DataLibCode/ImportGLTF.h
-        DataLibCode/ImportGLTF.cpp
         EngineCode/GPUStats.h
         EngineCode/DirectionalLightEntity.h
         EngineCode/DirectionalLightEntity.cpp
         EngineCode/RendererSettings.h
+        EngineCode/GLTFImporter.h
+        EngineCode/GLTFImporter.cpp
+        EngineCode/MeshCache.h
+        EngineCode/MeshCache.cpp
 )
 
 add_subdirectory(EngineCode/ThirdParty)
 target_link_libraries(MagicEngine PRIVATE ThirdPartyLibraries)
-
-add_subdirectory(CommonCode)
-target_link_libraries(MagicEngine PRIVATE CommonLibrary)
-
-target_link_libraries(MagicEngine PRIVATE
-        usd
-        usdGeom
-        usdShade
-        usdSkel
-        usdUtils
-        usdLux
-)
-set_property(TARGET MagicEngine APPEND PROPERTY
-        BUILD_RPATH "${OPENUSD_ROOT}/lib"
-)
 
 # Get an absolute path to the root directory
 configure_file(

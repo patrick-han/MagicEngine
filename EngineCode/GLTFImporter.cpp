@@ -1,59 +1,14 @@
-#include "ImportGLTF.h"
+#include "GLTFImporter.h"
+#include "StaticMeshData.h"
+#include "Log.h"
 #define CGLTF_IMPLEMENTATION
 #include "ThirdParty/cgltf.h"
-#include "../CommonCode/Log.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "vjson_header.h"
+#include "Math/Matrix4f.h"
 
-namespace Magic
-{
-
-static bool DoDaPointersSameData(const unsigned char* ptr1, const unsigned char* ptr2, size_t bytes)
-{
-    for (size_t i = 0; i < bytes; i++)
-    {
-        if (!(ptr1[i] == ptr2[i]))
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-static void LoadTextureData(const std::filesystem::path& texturePath, TextureData& textureData, StaticMeshData& staticMeshDataData)
-{
-    int textureWidth = 0;
-    int textureHeight = 0;
-    int numChannels = 0;
-    int desiredChannels = 4; // TODO: non-zero if we want to force a certain number of channels
-    stbi_uc* textureData_stbi = stbi_load(reinterpret_cast<char const *>(texturePath.u8string().c_str()), &textureWidth, &textureHeight, &numChannels, desiredChannels);
-    std::vector<unsigned char> pixels;
-    if (!textureData_stbi)
-    {
-        Logger::Err(std::format("Could not load texture file: {}", texturePath.string()));
-        std::exit(1);
-    }
-    else
-    {
-        auto textureDataSizeBytes = textureWidth * textureHeight * desiredChannels * sizeof(stbi_uc);
-        pixels.assign(textureData_stbi, textureData_stbi + textureDataSizeBytes);
-        // test
-        if (!DoDaPointersSameData(pixels.data(), textureData_stbi, textureDataSizeBytes)) { Logger::Err("uh oh"); std::abort(); }
-        stbi_image_free(textureData_stbi);
-    }
-    textureData.width = textureWidth;
-    textureData.height = textureHeight;
-    textureData.numChannels = desiredChannels;
-    textureData.baseTextureDataOffset = staticMeshDataData.textureData.size();
-    textureData.sourcePath = texturePath.lexically_normal().string();
-    staticMeshDataData.textureData.insert(staticMeshDataData.textureData.end(), pixels.begin(), pixels.end()); // TODO: This copies everything maybe revisit this later
-}
-
-/*
-The global transformation matrix of a node is the product of the global transformation matrix of its parent node and its own local transformation matrix. 
-
-When the node has no parent node, its global transformation matrix is identical to its local transformation matrix.
-*/
+#include <filesystem>
+#include <format>
+#include <string>
 
 static Matrix4f ConvertCGLTFMatrix(const cgltf_float* const in)
 {
@@ -61,14 +16,14 @@ static Matrix4f ConvertCGLTFMatrix(const cgltf_float* const in)
     Matrix4f out = Matrix4f(
         in[0], in[1], in[2], in[3]
         , in[4], in[5], in[6], in[7]
-        , in[8], in[9], in[10], in[11]
+        , in[8], in[9], in[10], in[11   ]
         , in[12], in[13], in[14], in[15]
     ).Transposed();
     return out;
 }
-
-
-void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataData, const std::filesystem::path& filePath)
+namespace Magic
+{
+void GLTFImporterNew::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataData, const std::filesystem::path& filePath)
 {
     cgltf_float worldTransformCGLTF[16];
     cgltf_node_transform_world(node, worldTransformCGLTF);
@@ -125,6 +80,7 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataD
                     meshData.m_indices.at(index_i) = (uint32_t)cgltf_accessor_read_index(indices_accessor, index_i);
                 }
                 meshData.m_vertices.resize(vertexCount);
+                bool hasTangents = false;
                 for (cgltf_size attribute_i = 0; attribute_i < primitive->attributes_count; ++attribute_i)
                 {
                     const cgltf_attribute& attribute = primitive->attributes[attribute_i];
@@ -183,6 +139,22 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataD
                             }
                             break;
                         }
+                        case cgltf_attribute_type_tangent:
+                        {
+                            hasTangents = true;
+                            if (accessor->type != cgltf_type_vec4)
+                            {
+                                Logger::Err("Tangent is not vec4! Skipping to next attribute...");
+                                continue;
+                            }
+                            cgltf_float vec[4];
+                            for (cgltf_size i = 0; i < accessor->count; ++i)
+                            {
+                                cgltf_accessor_read_float(accessor, i, vec, 3);
+                                meshData.m_vertices.at(i).tangentW = Vector4f((float)vec[0], (float)vec[1], (float)vec[2], (float)vec[3]);
+                            }
+                            break;
+                        }
                         default:
                         {
                             Logger::Info("Encountered unsupported attribute type, skipping...");
@@ -190,75 +162,79 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataD
                         }
                     }
                 }
+                if (!hasTangents)
+                {
+                    Logger::Warn("GLTF primitive is missing tangents!");
+                }
             }
 
             // Load materials
-            cgltf_material* material = primitive->material;
-            Vector3f baseColorFactor; // "Vertex colors" not quite, since there is an attribute for that, but for now
-            if (material)
-            {
-                auto loadTextureView = [this, &filePath, &staticMeshDataData](const cgltf_texture_view& textureView, TextureData& destination) -> bool
-                {
-                    if (!textureView.texture)
-                    {
-                        return false;
-                    }
+            // cgltf_material* material = primitive->material;
+            // Vector3f baseColorFactor; // "Vertex colors" not quite, since there is an attribute for that, but for now
+            // if (material)
+            // {
+            //     auto loadTextureView = [this, &filePath, &staticMeshDataData](const cgltf_texture_view& textureView, TextureData& destination) -> bool
+            //     {
+            //         if (!textureView.texture)
+            //         {
+            //             return false;
+            //         }
 
-                    assert(textureView.texcoord == 0); // Only TEXCOORD_0 is supported for now.
-                    const cgltf_image* image = textureView.texture->image;
-                    if (!image)
-                    {
-                        Logger::Warn("Texture has no image");
-                        return false;
-                    }
-                    if (image->buffer_view)
-                    {
-                        Logger::Warn("Embedded glTF images are not supported yet");
-                        return false;
-                    }
-                    if (!image->uri)
-                    {
-                        Logger::Warn("External glTF image has no URI");
-                        return false;
-                    }
+            //         assert(textureView.texcoord == 0); // Only TEXCOORD_0 is supported for now.
+            //         const cgltf_image* image = textureView.texture->image;
+            //         if (!image)
+            //         {
+            //             Logger::Warn("Texture has no image");
+            //             return false;
+            //         }
+            //         if (image->buffer_view)
+            //         {
+            //             Logger::Warn("Embedded glTF images are not supported yet");
+            //             return false;
+            //         }
+            //         if (!image->uri)
+            //         {
+            //             Logger::Warn("External glTF image has no URI");
+            //             return false;
+            //         }
 
-                    const std::filesystem::path textureFilePath = (filePath.parent_path() / std::filesystem::path(image->uri)).lexically_normal();
-                    const std::string textureKey = textureFilePath.string();
-                    const auto previouslyLoaded = m_texturesSeen.find(textureKey);
-                    if (previouslyLoaded != m_texturesSeen.end())
-                    {
-                        Logger::Info(std::format("Reusing texture '{}'", textureKey));
-                        destination = previouslyLoaded->second;
-                        return true;
-                    }
+            //         const std::filesystem::path textureFilePath = (filePath.parent_path() / std::filesystem::path(image->uri)).lexically_normal();
+            //         const std::string textureKey = textureFilePath.string();
+            //         const auto previouslyLoaded = m_texturesSeen.find(textureKey);
+            //         if (previouslyLoaded != m_texturesSeen.end())
+            //         {
+            //             Logger::Info(std::format("Reusing texture '{}'", textureKey));
+            //             destination = previouslyLoaded->second;
+            //             return true;
+            //         }
 
-                    TextureData textureData;
-                    LoadTextureData(textureFilePath, textureData, staticMeshDataData);
-                    destination = textureData;
-                    m_texturesSeen.emplace(textureKey, std::move(textureData));
-                    return true;
-                };
+            //         TextureData textureData;
+            //         LoadTextureData(textureFilePath, textureData, staticMeshDataData);
+            //         destination = textureData;
+            //         m_texturesSeen.emplace(textureKey, std::move(textureData));
+            //         return true;
+            //     };
 
-                if (material->has_pbr_metallic_roughness)
-                {
-                    const cgltf_texture_view baseColor = material->pbr_metallic_roughness.base_color_texture;
-                    baseColorFactor.x = material->pbr_metallic_roughness.base_color_factor[0];
-                    baseColorFactor.y = material->pbr_metallic_roughness.base_color_factor[1];
-                    baseColorFactor.z = material->pbr_metallic_roughness.base_color_factor[2];
-                    meshData.materialData.metallicFactor = material->pbr_metallic_roughness.metallic_factor;
-                    meshData.materialData.roughnessFactor = material->pbr_metallic_roughness.roughness_factor;
+            //     if (material->has_pbr_metallic_roughness)
+            //     {
+            //         const cgltf_texture_view baseColor = material->pbr_metallic_roughness.base_color_texture;
+            //         baseColorFactor.x = material->pbr_metallic_roughness.base_color_factor[0];
+            //         baseColorFactor.y = material->pbr_metallic_roughness.base_color_factor[1];
+            //         baseColorFactor.z = material->pbr_metallic_roughness.base_color_factor[2];
+            //         meshData.materialData.metallicFactor = material->pbr_metallic_roughness.metallic_factor;
+            //         meshData.materialData.roughnessFactor = material->pbr_metallic_roughness.roughness_factor;
 
-                    if (!loadTextureView(baseColor, meshData.materialData.diffuseData))
-                    {
-                        Logger::Warn("This primitive has no base color texture!");
-                    }
+            //         if (!loadTextureView(baseColor, meshData.materialData.diffuseData))
+            //         {
+            //             Logger::Warn("This primitive has no base color texture!");
+            //         }
 
-                    loadTextureView(material->pbr_metallic_roughness.metallic_roughness_texture, meshData.materialData.metallicRoughnessData);
-                }
-            }
+            //         loadTextureView(material->pbr_metallic_roughness.metallic_roughness_texture, meshData.materialData.metallicRoughnessData);
+            //     }
+            // }
             for (auto& vertex : meshData.m_vertices) // fixup vertex colors after material parsing
             {
-                vertex.color = baseColorFactor;
+                vertex.color = Vector3f(1.0f);
             }
             staticMeshDataData.m_subMeshes.push_back(std::move(meshData));
         }
@@ -276,17 +252,16 @@ void GLTFImporter::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDataD
     }
 }
 
-void GLTFImporter::ImportGLTF(const std::string& filepathStr, StaticMeshData& staticMeshDataData)
+
+void GLTFImporterNew::ImportGLTFAsStaticMesh(const std::filesystem::path& filePath, StaticMeshData &staticMeshDataData)
 {
-    m_texturesSeen.clear();
+    std::string filePathStr = filePath.string();
     cgltf_options options = {};
     cgltf_data* gltfData = nullptr;
 
-    if (cgltf_parse_file(&options, filepathStr.c_str(), &gltfData) != cgltf_result_success) { Logger::Err("Failed to load gltf file"); exit(1); }
+    if (cgltf_parse_file(&options, filePathStr.c_str(), &gltfData) != cgltf_result_success) { Logger::Err("Failed to load gltf file"); exit(1); }
 
-    if (cgltf_load_buffers(&options, gltfData, filepathStr.c_str()) != cgltf_result_success) { Logger::Err("Failed to load gltf buffers"); exit(1); }
-
-    std::filesystem::path filepath(filepathStr);
+    if (cgltf_load_buffers(&options, gltfData, filePathStr.c_str()) != cgltf_result_success) { Logger::Err("Failed to load gltf buffers"); exit(1); }
 
     assert(gltfData->scenes_count == 1);
     Logger::Info(std::format("Total node count: {}", gltfData->nodes_count));
@@ -297,13 +272,12 @@ void GLTFImporter::ImportGLTF(const std::string& filepathStr, StaticMeshData& st
     for (cgltf_size i = 0; i < scene.nodes_count; ++i)
     {
         cgltf_node* node = scene.nodes[i];
-        ProcessNode(node, staticMeshDataData, filepath);
+        ProcessNode(node, staticMeshDataData, filePath);
     }
 
     Logger::Info(std::format("Total nodes processed: {}", m_i_node_count ));
     m_i_node_count = 0;
     cgltf_free(gltfData);
+
 }
-
-
 }
