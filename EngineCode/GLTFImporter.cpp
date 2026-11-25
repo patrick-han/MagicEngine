@@ -79,6 +79,7 @@ void GLTFImporterNew::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDa
                     meshData.m_indices.at(index_i) = (uint32_t)cgltf_accessor_read_index(indices_accessor, index_i);
                 }
                 meshData.m_vertices.resize(vertexCount);
+                bool hasTangents = false;
                 for (cgltf_size attribute_i = 0; attribute_i < primitive->attributes_count; ++attribute_i)
                 {
                     const cgltf_attribute& attribute = primitive->attributes[attribute_i];
@@ -137,12 +138,32 @@ void GLTFImporterNew::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDa
                             }
                             break;
                         }
+                        case cgltf_attribute_type_tangent:
+                        {
+                            hasTangents = true;
+                            if (accessor->type != cgltf_type_vec4)
+                            {
+                                Logger::Err("Tangent is not vec4! Skipping to next attribute...");
+                                continue;
+                            }
+                            cgltf_float vec[4];
+                            for (cgltf_size i = 0; i < accessor->count; ++i)
+                            {
+                                cgltf_accessor_read_float(accessor, i, vec, 3);
+                                meshData.m_vertices.at(i).tangentW = Vector4f((float)vec[0], (float)vec[1], (float)vec[2], (float)vec[3]);
+                            }
+                            break;
+                        }
                         default:
                         {
                             Logger::Info("Encountered unsupported attribute type, skipping...");
                             break;
                         }
                     }
+                }
+                if (!hasTangents)
+                {
+                    Logger::Warn("GLTF primitive is missing tangents!");
                 }
             }
 
@@ -210,10 +231,10 @@ void GLTFImporterNew::ProcessNode(cgltf_node* node, StaticMeshData& staticMeshDa
             //         loadTextureView(material->pbr_metallic_roughness.metallic_roughness_texture, meshData.materialData.metallicRoughnessData);
             //     }
             // }
-            // for (auto& vertex : meshData.m_vertices) // fixup vertex colors after material parsing
-            // {
-            //     vertex.color = baseColorFactor;
-            // }
+            for (auto& vertex : meshData.m_vertices) // fixup vertex colors after material parsing
+            {
+                vertex.color = Vector3f(1.0f);
+            }
             staticMeshDataData.m_subMeshes.push_back(std::move(meshData));
         }
     }
