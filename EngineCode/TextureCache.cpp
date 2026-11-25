@@ -4,7 +4,8 @@
 #include "Renderer.h"
 #include "../CommonCode/Log.h"
 #include "../CommonCode/StaticMeshData.h"
-#include "../DataLibCode/stb_image.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "ThirdParty/stb_image.h"
 namespace Magic
 {
 

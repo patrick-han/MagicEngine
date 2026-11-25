@@ -4,7 +4,6 @@
 #include "../CommonCode/StaticMeshData.h"
 #include "../CommonCode/Log.h"
 #include "../CommonCode/StaticMeshData.h"
-#include "../DataLibCode/stb_image.h"
 
 namespace Magic
 {

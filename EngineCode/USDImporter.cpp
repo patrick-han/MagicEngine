@@ -2,7 +2,7 @@
 
 #include "../CommonCode/Log.h"
 #include "../CommonCode/StaticMeshData.h"
-#include "../DataLibCode/stb_image.h"
+#include "ThirdParty/stb_image.h"
 #include "ThirdParty/MikkTSpace/mikktspace.h"
 
 #include <pxr/usd/sdf/assetPath.h>

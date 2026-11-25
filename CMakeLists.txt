@@ -85,8 +85,6 @@ add_executable(MagicEngine main.cpp
         EngineCode/Platform/WindowsHeader.h
         EngineCode/RendererEditor.cpp
         EngineCode/vjson_header.h
-        DataLibCode/ImportGLTF.h
-        DataLibCode/ImportGLTF.cpp
         EngineCode/GPUStats.h
         EngineCode/DirectionalLightEntity.h
         EngineCode/DirectionalLightEntity.cpp

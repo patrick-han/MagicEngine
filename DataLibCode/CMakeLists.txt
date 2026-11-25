@@ -1,9 +1,0 @@
-add_subdirectory(ThirdParty)
-add_executable(DataCooker main.cpp
-        DataSerialization.h
-        stb_image.h
-        ImportGLTF.cpp
-)
-
-target_link_libraries(DataCooker PRIVATE DataLibThirdPartyLibraries)
-target_link_libraries(DataCooker PRIVATE CommonLibrary)
